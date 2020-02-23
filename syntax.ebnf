@@ -1,0 +1,47 @@
+expression      → list | dictionary | assignment;
+list            → "[" (expression ","?)* "]";
+dictionary      → "{" (keyval ","?)* "}";
+keyval          → assignment ":" expression;
+assignment      → (call ".")? IDENTIFIER "=" assignment | logic_or;
+logic_or        → logic_and ("or" logic_and)*;
+logic_and       → equality ("and" equality)*;
+equality        → comparison (("!=" | "==") comparison)*;
+comparison      → addition ((">" | ">=" | "<" | "<=") addition)*;
+addition        → multiplication (("-" | "+") multiplication)*;
+multiplication  → power (("/" | "*") power)*;
+power           → unary ("^" unary)*;
+unary           → ("not" | "-") unary | call;
+call            → primary ("(" arguments? ")" | "." IDENTIFIER)*;
+arguments       → expression ("," expression)*;
+primary         → NUMBER
+                | STRING
+                | "false"
+                | "true"
+                | "nil"
+                | IDENTIFIER
+                | "(" expression ")"
+                | fnAnon;
+fnAnon          → "fn" "(" parameters? ")" block;
+
+program        → declaration* EOF;
+declaration    → classDecl | funDecl | varDecl | statement;
+classDecl      → "class" IDENTIFIER ( "<" IDENTIFIER )? "{" methodDecl* "}" ;
+methodDecl     → "class"? function;
+funDecl        → "fn" function ;
+function       → IDENTIFIER "(" parameters? ")" block ;
+parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
+varDecl        → "let" IDENTIFIER ("=" expression)?;
+statement      → exprStmt
+                | forStmt
+                | ifStmt
+                | returnStmt
+                | whileStmt
+                | exprStmt;
+exprStmt       → expression;
+forStmt        → "for"  (classicFor | newFor) statement;
+classicFor     → (varDecl | exprStmt | ",") expression? "," expression?;
+newFor         → IDENTIFIER ("," IDENTIFIER)? "in" expression;
+ifStmt         → "if" expression statement ("elif" expression statement)* ("else" statement)?;
+returnStmt     → "return" expression? ;
+whileStmt      → "while" expression statement;
+block          → "begin" declaration* "end";

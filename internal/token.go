@@ -1,4 +1,4 @@
-package tokens
+package internal
 
 // TokenType Holds a token
 type TokenType int
@@ -59,3 +59,10 @@ const (
 	WHILE
 	NOT
 )
+
+type Token struct {
+	token   TokenType
+	lexeme  string
+	literal interface{}
+	line    int
+}

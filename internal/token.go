@@ -7,7 +7,7 @@ const (
 	EOF TokenType = iota - 1
 
 	// Single-character tokens.
-	// (, ), [, ], {, } ',', ., -, +, ;, /, *, ^
+	// (, ), [, ], {, } ',', ., -, +, ;, /, *, ^, :
 	LEFT_PAREN
 	RIGHT_PAREN
 	LEFT_BRACE
@@ -21,6 +21,7 @@ const (
 	SLASH
 	STAR
 	POWER
+	COLON
 
 	// One or two character tokens.
 	// !=, =, ==, >, >=, <, <=
@@ -40,7 +41,7 @@ const (
 
 	// Keywords.
 	// and, class, else, false, fn, for, if, elif, nil, or,
-	// return, super, this, true, let, while, not
+	// return, super, this, true, let, while, not, in
 	AND
 	CLASS
 	ELSE
@@ -58,6 +59,7 @@ const (
 	LET
 	WHILE
 	NOT
+	IN
 )
 
 type Token struct {

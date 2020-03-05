@@ -31,6 +31,7 @@ var keywords = map[string]TokenType{
 	"let":    LET,
 	"while":  WHILE,
 	"not":    NOT,
+	"in":     IN,
 }
 
 func NewLexer(source string) *Lexer {
@@ -76,6 +77,8 @@ func (l *Lexer) scanToken() {
 		l.emit(STAR, nil)
 	case '^':
 		l.emit(POWER, nil)
+	case ':':
+		l.emit(COLON, nil)
 	case '#':
 		for !l.match('\n') && !l.isAtEnd() {
 			l.advance()

@@ -5,7 +5,8 @@ import (
 )
 
 type Lexer struct {
-	source  string
+	state *InterpreterState
+
 	start   int
 	current int
 	line    int
@@ -34,9 +35,9 @@ var keywords = map[string]TokenType{
 	"in":     IN,
 }
 
-func NewLexer(source string) *Lexer {
+func NewLexer(state *InterpreterState) *Lexer {
 	return &Lexer{
-		source: source,
+		state: state,
 	}
 }
 
@@ -87,7 +88,7 @@ func (l *Lexer) scanToken() {
 		if l.match('=') {
 			l.emit(BANG_EQUAL, nil)
 		} else {
-			// TODO: handle error
+			l.state.setError(WrongBang, l.line, l.start)
 		}
 	case '=':
 		if l.match('=') {
@@ -125,7 +126,7 @@ func (l *Lexer) scanToken() {
 		} else if l.isAlpha() {
 			l.identifier()
 		} else {
-			// TODO: handle error
+			l.state.setError(IllegalChar, l.line, l.start)
 		}
 	}
 }
@@ -139,10 +140,10 @@ func (l *Lexer) string() {
 	}
 
 	if l.isAtEnd() {
-		// TODO: handle error
+		l.state.setError(UnclosedString, l.line, l.start)
 	}
 
-	literal := l.source[l.start+1 : l.current]
+	literal := l.state.Source[l.start+1 : l.current]
 
 	// Consume ending "
 	l.advance()
@@ -162,7 +163,7 @@ func (l *Lexer) number() {
 		}
 	}
 
-	literal, _ := strconv.ParseFloat(l.source[l.start:l.current], 64)
+	literal, _ := strconv.ParseFloat(l.state.Source[l.start:l.current], 64)
 
 	l.emit(NUMBER, literal)
 }
@@ -172,7 +173,7 @@ func (l *Lexer) identifier() {
 		l.advance()
 	}
 
-	identifier := l.source[l.start:l.current]
+	identifier := l.state.Source[l.start:l.current]
 
 	tokenType, ok := keywords[identifier]
 	if !ok {
@@ -183,35 +184,35 @@ func (l *Lexer) identifier() {
 }
 
 func (l *Lexer) advance() rune {
-	current := l.source[l.current]
+	current := l.state.Source[l.current]
 	l.current++
 	return rune(current)
 }
 
 func (l *Lexer) match(c rune) bool {
-	current := l.source[l.current]
+	current := l.state.Source[l.current]
 	return rune(current) == c
 }
 
 func (l *Lexer) emit(token TokenType, literal interface{}) {
 	l.tokens = append(l.tokens, Token{
 		token:   token,
-		lexeme:  l.source[l.start:l.current],
+		lexeme:  l.state.Source[l.start:l.current],
 		literal: literal,
 		line:    l.line,
 	})
 }
 
 func (l *Lexer) isAtEnd() bool {
-	return l.current >= len(l.source)
+	return l.current >= len(l.state.Source)
 }
 
 func (l *Lexer) isDigit() bool {
-	c := rune(l.source[l.current])
+	c := rune(l.state.Source[l.current-1])
 	return c >= '0' && c <= '9'
 }
 
 func (l *Lexer) isAlpha() bool {
-	c := rune(l.source[l.current])
+	c := rune(l.state.Source[l.current-1])
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
 }

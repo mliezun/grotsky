@@ -38,6 +38,7 @@ var keywords = map[string]TokenType{
 func NewLexer(state *InterpreterState) *Lexer {
 	return &Lexer{
 		state: state,
+		line:  1,
 	}
 }
 
@@ -121,9 +122,9 @@ func (l *Lexer) scanToken() {
 		l.string()
 
 	default:
-		if l.isDigit() {
+		if l.isDigit(c) {
 			l.number()
-		} else if l.isAlpha() {
+		} else if l.isAlpha(c) {
 			l.identifier()
 		} else {
 			l.state.setError(IllegalChar, l.line, l.start)
@@ -152,13 +153,13 @@ func (l *Lexer) string() {
 }
 
 func (l *Lexer) number() {
-	for l.isDigit() {
+	for l.isDigit(l.next()) {
 		l.advance()
 	}
 
 	if l.match('.') {
 		l.advance()
-		for l.isDigit() {
+		for l.isDigit(l.next()) {
 			l.advance()
 		}
 	}
@@ -169,7 +170,7 @@ func (l *Lexer) number() {
 }
 
 func (l *Lexer) identifier() {
-	for l.isAlpha() {
+	for l.isAlpha(l.next()) {
 		l.advance()
 	}
 
@@ -207,12 +208,14 @@ func (l *Lexer) isAtEnd() bool {
 	return l.current >= len(l.state.Source)
 }
 
-func (l *Lexer) isDigit() bool {
-	c := rune(l.state.Source[l.current-1])
+func (l *Lexer) next() rune {
+	return rune(l.state.Source[l.current])
+}
+
+func (l *Lexer) isDigit(c rune) bool {
 	return c >= '0' && c <= '9'
 }
 
-func (l *Lexer) isAlpha() bool {
-	c := rune(l.state.Source[l.current-1])
+func (l *Lexer) isAlpha(c rune) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
 }

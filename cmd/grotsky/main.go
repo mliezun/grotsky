@@ -27,15 +27,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	state := internal.NewInterpreterState(string(b))
+	source := string(b)
+
+	state := internal.NewInterpreterState()
 
 	l := internal.NewLexer(state)
-
-	tokens := l.Scan()
+	l.Scan()
 
 	if !state.Valid() {
 		state.PrintErrors()
+		return
 	}
 
-	fmt.Println(tokens)
+	p := internal.NewParser(state)
+
 }

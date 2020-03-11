@@ -34,8 +34,7 @@ funDecl        → "fn" function ;
 function       → IDENTIFIER "(" parameters? ")" block ;
 parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
 varDecl        → "let" IDENTIFIER ("=" expression)?;
-statement      → exprStmt
-                | forStmt
+statement      → forStmt
                 | ifStmt
                 | returnStmt
                 | whileStmt

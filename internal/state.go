@@ -14,10 +14,12 @@ type ParseError struct {
 	Pos   int
 }
 
-// InterpreterState stores the error state of a interpreter
+// InterpreterState stores the state of a interpreter
 type InterpreterState struct {
 	Errors []ParseError
 	Source string
+	Tokens []Token
+	Stmts  []Stmt
 }
 
 var state *InterpreterState

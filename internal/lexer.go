@@ -10,8 +10,6 @@ type Lexer struct {
 	start   int
 	current int
 	line    int
-
-	tokens []Token
 }
 
 var keywords = map[string]TokenType{
@@ -42,12 +40,17 @@ func NewLexer(state *InterpreterState) *Lexer {
 	}
 }
 
-func (l *Lexer) Scan() []Token {
+func (l *Lexer) Scan() {
 	for !l.isAtEnd() {
 		l.start = l.current
 		l.scanToken()
 	}
-	return l.tokens
+	l.state.Tokens = append(l.state.Tokens, Token{
+		token:   EOF,
+		lexeme:  "",
+		literal: nil,
+		line:    l.line,
+	})
 }
 
 func (l *Lexer) scanToken() {
@@ -196,7 +199,7 @@ func (l *Lexer) match(c rune) bool {
 }
 
 func (l *Lexer) emit(token TokenType, literal interface{}) {
-	l.tokens = append(l.tokens, Token{
+	l.state.Tokens = append(l.state.Tokens, Token{
 		token:   token,
 		lexeme:  l.state.Source[l.start:l.current],
 		literal: literal,

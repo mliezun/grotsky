@@ -48,22 +48,62 @@ func (p Parser) statement() Stmt {
 }
 
 func (p Parser) expressionStmt() Stmt {
+	expr := p.expression()
+	return StmtExpr{expression: expr}
+}
+
+func (p Parser) expression() Expr {
 	if p.match(LEFT_BRACE) {
 		return nil
 	}
 	if p.match(LEFT_CURLY_BRACE) {
 		return nil
 	}
-	expr := p.assignment()
-	return nil
+	return p.assignment()
 }
 
 func (p Parser) assignment() Expr {
+
+}
+
+func (p Parser) or() Expr {
+	expr := p.and()
+	for p.match(OR) {
+
+	}
+}
+
+func (p Parser) and() Expr {
+
+}
+
+func (p Parser) equality() Expr {
+
+}
+
+func (p Parser) comparison() Expr {
+
+}
+
+func (p Parser) addition() Expr {
+
+}
+
+func (p Parser) multiplication() Expr {
+
+}
+
+func (p Parser) power() Expr {
+
+}
+
+func (p Parser) unary() Expr {
+
 }
 
 func (p Parser) match(tokens ...TokenType) bool {
 	for _, token := range tokens {
-		if check(token) {
+		if p.check(token) {
 			return true
 		}
 	}
@@ -79,6 +119,10 @@ func (p Parser) check(token TokenType) bool {
 
 func (p Parser) peek() Token {
 	return p.state.Tokens[p.current]
+}
+
+func (p Parser) previous() Token {
+	return p.state.Tokens[p.current-1]
 }
 
 func (p Parser) isAtEnd() bool {

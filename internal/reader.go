@@ -53,7 +53,7 @@ func (v stringVisitor) visitAccessExpr(expr expr) R {
 
 func (v stringVisitor) visitSliceExpr(expr expr) R {
 	slice := expr.(*sliceExpr)
-	out := ""
+	out := "#"
 	if slice.first != nil {
 		out += fmt.Sprintf("%v", slice.first.accept(v))
 	}
@@ -94,7 +94,8 @@ func (v stringVisitor) visitSuperExpr(expr expr) R {
 }
 
 func (v stringVisitor) visitGroupingExpr(expr expr) R {
-	return ""
+	group := expr.(*groupingExpr)
+	return group.expression.accept(v)
 }
 
 func (v stringVisitor) visitLiteralExpr(expr expr) R {

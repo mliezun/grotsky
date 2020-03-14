@@ -20,6 +20,8 @@ func main() {
 			"List: elements []expr, brace *token",
 			"Dictionary: elements []expr, curlyBrace *token",
 			"Assign: name *token, value expr",
+			"Access: object expr, slice expr",
+			"Slice: first expr, firstColon *token, second expr, secondColon *token, third expr",
 			"Binary: left expr, operator *token, right expr",
 			"Call: callee expr, paren *token, arguments []expr",
 			"Get: object expr, name *token",

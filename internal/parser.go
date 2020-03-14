@@ -57,12 +57,6 @@ func (p *parser) expressionStmt() stmt {
 }
 
 func (p *parser) expression() expr {
-	if p.match(LEFT_BRACE) {
-		return p.list()
-	}
-	if p.match(LEFT_CURLY_BRACE) {
-		return p.dictionary()
-	}
 	return p.assignment()
 }
 
@@ -91,7 +85,7 @@ func (p *parser) dictionary() expr {
 func (p *parser) dictElements() []expr {
 	elements := make([]expr, 0)
 	for !p.check(RIGHT_CURLY_BRACE) {
-		key := p.assignment()
+		key := p.expression()
 		//TODO: set correct error
 		p.consume(COLON, errors.New("Expected ':' after key"))
 		value := p.expression()
@@ -104,17 +98,91 @@ func (p *parser) dictElements() []expr {
 }
 
 func (p *parser) assignment() expr {
-	expr := p.or()
+	expr := p.access()
 	if p.match(EQUAL) {
+		equals := p.previous()
+		value := p.assignment()
 
+		if variable, isVar := expr.(*variableExpr); isVar {
+			return &assignExpr{
+				name:  variable.name,
+				value: value,
+			}
+		} else if get, isGet := expr.(*getExpr); isGet {
+			return &setExpr{
+				name:   get.name,
+				object: get.object,
+				value:  value,
+			}
+		}
+
+		//TODO: handle error
+		//TODO: remove this if
+		if equals.lexeme != "==" {
+			return expr
+		}
 	}
 	return expr
+}
+
+func (p *parser) access() expr {
+	expr := p.or()
+	for p.matchSameLine(LEFT_BRACE) {
+		slice := p.slice()
+		expr = &accessExpr{
+			object: expr,
+			slice:  slice,
+		}
+		p.consume(RIGHT_BRACE, errors.New("Expected ']' at the end of slice"))
+	}
+	return expr
+}
+
+func (p *parser) slice() expr {
+	slice := &sliceExpr{}
+	if p.match(COLON) {
+		slice.firstColon = p.previous()
+		if p.match(COLON) {
+			slice.secondColon = p.previous()
+			slice.third = p.expression()
+		} else {
+			slice.first = p.expression()
+			if p.match(COLON) {
+				slice.secondColon = p.previous()
+				slice.third = p.expression()
+			}
+		}
+	} else {
+		slice.first = p.expression()
+		if p.match(COLON) {
+			slice.firstColon = p.previous()
+			if p.match(COLON) {
+				slice.secondColon = p.previous()
+				slice.third = p.expression()
+			} else if !p.check(RIGHT_BRACE) && !p.isAtEnd() {
+				slice.second = p.expression()
+				if p.match(COLON) {
+					slice.secondColon = p.previous()
+					if !p.check(RIGHT_BRACE) && !p.isAtEnd() {
+						slice.third = p.expression()
+					}
+				}
+			}
+		}
+	}
+	return slice
 }
 
 func (p *parser) or() expr {
 	expr := p.and()
 	for p.match(OR) {
-
+		operator := p.previous()
+		right := p.and()
+		expr = &logicalExpr{
+			left:     expr,
+			operator: operator,
+			right:    right,
+		}
 	}
 	return expr
 }
@@ -122,7 +190,13 @@ func (p *parser) or() expr {
 func (p *parser) and() expr {
 	expr := p.equality()
 	for p.match(AND) {
-
+		operator := p.previous()
+		right := p.equality()
+		expr = &logicalExpr{
+			left:     expr,
+			operator: operator,
+			right:    right,
+		}
 	}
 	return expr
 }
@@ -130,7 +204,13 @@ func (p *parser) and() expr {
 func (p *parser) equality() expr {
 	expr := p.comparison()
 	for p.match(EQUAL_EQUAL, BANG_EQUAL) {
-
+		operator := p.previous()
+		right := p.comparison()
+		expr = &binaryExpr{
+			left:     expr,
+			operator: operator,
+			right:    right,
+		}
 	}
 	return expr
 }
@@ -138,7 +218,13 @@ func (p *parser) equality() expr {
 func (p *parser) comparison() expr {
 	expr := p.addition()
 	for p.match(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL) {
-
+		operator := p.previous()
+		right := p.addition()
+		expr = &binaryExpr{
+			left:     expr,
+			operator: operator,
+			right:    right,
+		}
 	}
 	return expr
 }
@@ -160,7 +246,13 @@ func (p *parser) addition() expr {
 func (p *parser) multiplication() expr {
 	expr := p.power()
 	for p.match(SLASH, STAR) {
-
+		operator := p.previous()
+		right := p.power()
+		expr = &binaryExpr{
+			left:     expr,
+			operator: operator,
+			right:    right,
+		}
 	}
 	return expr
 }
@@ -168,13 +260,19 @@ func (p *parser) multiplication() expr {
 func (p *parser) power() expr {
 	expr := p.unary()
 	for p.match(POWER) {
-
+		operator := p.previous()
+		right := p.unary()
+		expr = &binaryExpr{
+			left:     expr,
+			operator: operator,
+			right:    right,
+		}
 	}
 	return expr
 }
 
 func (p *parser) unary() expr {
-	if p.match(NOT) {
+	if p.match(NOT, MINUS) {
 		operator := p.previous()
 		right := p.unary()
 		return &unaryExpr{
@@ -186,7 +284,7 @@ func (p *parser) unary() expr {
 }
 
 func (p *parser) call() expr {
-	expr := p.access()
+	expr := p.primary()
 	for {
 		if p.match(LEFT_PAREN) {
 			expr = p.finishCall(expr)
@@ -230,14 +328,6 @@ func (p *parser) arguments(tk tokenType) []expr {
 	return arguments
 }
 
-func (p *parser) access() expr {
-	expr := p.primary()
-	if p.match(LEFT_BRACE) {
-
-	}
-	return expr
-}
-
 func (p *parser) primary() expr {
 	if p.match(NUMBER, STRING) {
 		return &literalExpr{value: p.previous().literal}
@@ -259,6 +349,12 @@ func (p *parser) primary() expr {
 		// TODO: set correct error
 		p.consume(RIGHT_PAREN, errors.New("Expect ')' after expression"))
 		return &groupingExpr{expression: expr}
+	}
+	if p.match(LEFT_BRACE) {
+		return p.list()
+	}
+	if p.match(LEFT_CURLY_BRACE) {
+		return p.dictionary()
 	}
 
 	// TODO: handle error
@@ -291,11 +387,30 @@ func (p *parser) match(tokens ...tokenType) bool {
 	return false
 }
 
+func (p *parser) matchSameLine(tokens ...tokenType) bool {
+	for _, token := range tokens {
+		if !p.isAtEnd() && p.peek().token == token {
+			p.current++
+			return true
+		}
+	}
+	return false
+}
+
 func (p *parser) check(token tokenType) bool {
 	if p.isAtEnd() {
 		return false
 	}
-	return p.peek().token == token
+	ignoreNewLine := token != NEWLINE
+	oldCurrent := p.current
+	for ignoreNewLine && !p.isAtEnd() && p.peek().token == NEWLINE {
+		p.current++
+	}
+	matchs := p.peek().token == token
+	if !matchs {
+		p.current = oldCurrent
+	}
+	return matchs
 }
 
 func (p *parser) peek() token {

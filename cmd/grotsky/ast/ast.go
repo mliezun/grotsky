@@ -16,7 +16,21 @@ func main() {
 			"Expr: expression Expr",
 		})
 	case "Expr":
-		out = generateAst("Expr", []string{})
+		out = generateAst("Expr", []string{
+			"Assign: name *Token, value Expr",
+			"Binary: left Expr, operator *Token, right Expr",
+			"Call: callee Expr, paren *Token, arguments []Expr",
+			"Get: object Expr, name *Token",
+			"Set: object Expr, name *Token, value Expr",
+			"Super: keyword *Token, method *Token",
+			"Grouping: expression Expr",
+			"Literal: value interface{}",
+			"Logical: left Expr, operator *Token, right Expr",
+			"This: keyword *Token",
+			"Unary: operator *Token, right Expr",
+			"Variable: name *Token",
+			"Function: params []*Token, body []Stmt",
+		})
 	}
 	fmt.Println(out)
 }
@@ -63,7 +77,7 @@ func generateType(baseName, name, fields string) string {
 	// End Structure Definition
 
 	// Start Method Definition
-	out += "func (s " + name + baseName + ") accept(visitor " + baseName + "Visitor) R {\n"
+	out += "func (s *" + name + baseName + ") accept(visitor " + baseName + "Visitor) R {\n"
 	out += "\treturn visitor.visit" + name + baseName + "(s)\n"
 	out += "}\n\n"
 	// End Method Definition

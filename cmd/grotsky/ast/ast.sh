@@ -1,4 +1,6 @@
 #!/bin/sh
 
-go run generate.go Stmt > ../../../internal/stmt.go
-go run generate.go Expr > ../../../internal/expr.go
+go run ast.go Stmt > ../../../internal/stmt.go
+go run ast.go Expr > ../../../internal/expr.go
+
+echo "AST Generated"

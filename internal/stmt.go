@@ -12,7 +12,7 @@ type ExprStmt struct {
 	expression Expr
 }
 
-func (s ExprStmt) accept(visitor StmtVisitor) R {
+func (s *ExprStmt) accept(visitor StmtVisitor) R {
 	return visitor.visitExprStmt(s)
 }
 

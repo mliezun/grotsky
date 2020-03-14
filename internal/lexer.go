@@ -156,7 +156,7 @@ func (l *Lexer) string() {
 }
 
 func (l *Lexer) number() {
-	for l.isDigit(l.next()) {
+	for !l.isAtEnd() && l.isDigit(l.next()) {
 		l.advance()
 	}
 
@@ -194,6 +194,9 @@ func (l *Lexer) advance() rune {
 }
 
 func (l *Lexer) match(c rune) bool {
+	if l.isAtEnd() {
+		return false
+	}
 	current := l.state.Source[l.current]
 	return rune(current) == c
 }

@@ -39,6 +39,10 @@ func main() {
 		return
 	}
 
-	p := internal.NewParser(state)
+	fmt.Println(state.Tokens)
 
+	p := internal.NewParser(state)
+	p.Parse()
+
+	internal.PrintTree(state)
 }

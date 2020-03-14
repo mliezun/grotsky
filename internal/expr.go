@@ -6,6 +6,7 @@ type expr interface {
 
 type exprVisitor interface {
 	visitListExpr(expr expr) R
+	visitDictionaryExpr(expr expr) R
 	visitAssignExpr(expr expr) R
 	visitBinaryExpr(expr expr) R
 	visitCallExpr(expr expr) R
@@ -28,6 +29,15 @@ type listExpr struct {
 
 func (s *listExpr) accept(visitor exprVisitor) R {
 	return visitor.visitListExpr(s)
+}
+
+type dictionaryExpr struct {
+	elements []expr
+	curlyBrace *token
+}
+
+func (s *dictionaryExpr) accept(visitor exprVisitor) R {
+	return visitor.visitDictionaryExpr(s)
 }
 
 type assignExpr struct {

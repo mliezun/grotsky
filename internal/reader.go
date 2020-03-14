@@ -30,6 +30,17 @@ func (v stringVisitor) visitListExpr(expr expr) R {
 	return out + ")"
 }
 
+func (v stringVisitor) visitDictionaryExpr(expr expr) R {
+	dict := expr.(*dictionaryExpr)
+	out := "(dict"
+	for i := 0; i < len(dict.elements)/2; i++ {
+		key := dict.elements[i*2]
+		value := dict.elements[i*2+1]
+		out += fmt.Sprintf(" %v=>%v", key.accept(v), value.accept(v))
+	}
+	return out + ")"
+}
+
 func (v stringVisitor) visitAssignExpr(expr expr) R {
 	assign := expr.(*assignExpr)
 	return fmt.Sprintf("(set %s %v)", assign.name.lexeme, assign.value.accept(v))
@@ -62,6 +73,10 @@ func (v stringVisitor) visitGroupingExpr(expr expr) R {
 
 func (v stringVisitor) visitLiteralExpr(expr expr) R {
 	literal := expr.(*literalExpr)
+	stringLiteral, isString := literal.value.(string)
+	if isString {
+		return "\"" + stringLiteral + "\""
+	}
 	return fmt.Sprintf("%v", literal.value)
 }
 

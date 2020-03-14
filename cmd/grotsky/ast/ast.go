@@ -18,6 +18,7 @@ func main() {
 	case "Expr":
 		out = generateAst("Expr", []string{
 			"List: elements []expr, brace *token",
+			"Dictionary: elements []expr, curlyBrace *token",
 			"Assign: name *token, value expr",
 			"Binary: left expr, operator *token, right expr",
 			"Call: callee expr, paren *token, arguments []expr",

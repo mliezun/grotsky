@@ -61,7 +61,7 @@ func (p *parser) expression() expr {
 		return p.list()
 	}
 	if p.match(LEFT_CURLY_BRACE) {
-		return nil
+		return p.dictionary()
 	}
 	return p.assignment()
 }
@@ -74,6 +74,33 @@ func (p *parser) list() expr {
 		elements: elements,
 		brace:    brace,
 	}
+}
+
+func (p *parser) dictionary() expr {
+	elements := p.dictElements()
+	//TODO: set correct error
+	curlyBrace := p.consume(RIGHT_CURLY_BRACE, errors.New("Expected '}' at the end of dict"))
+	return &dictionaryExpr{
+		elements:   elements,
+		curlyBrace: curlyBrace,
+	}
+}
+
+// dictElements returns array of keys & values where keys
+// are stored in even positions and values in odd positions
+func (p *parser) dictElements() []expr {
+	elements := make([]expr, 0)
+	for !p.check(RIGHT_CURLY_BRACE) {
+		key := p.assignment()
+		//TODO: set correct error
+		p.consume(COLON, errors.New("Expected ':' after key"))
+		value := p.expression()
+		elements = append(elements, key, value)
+		if !p.match(COMMA) {
+			break
+		}
+	}
+	return elements
 }
 
 func (p *parser) assignment() expr {

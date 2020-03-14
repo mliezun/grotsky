@@ -29,7 +29,7 @@ func main() {
 
 	source := string(b)
 
-	state := internal.NewInterpreterState()
+	state := internal.NewInterpreterState(source)
 
 	l := internal.NewLexer(state)
 	l.Scan()

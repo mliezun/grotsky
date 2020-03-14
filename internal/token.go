@@ -4,6 +4,7 @@ type tokenType int
 
 const (
 	EOF tokenType = iota - 1
+	NEWLINE
 
 	// Single-character tokens.
 	// (, ), [, ], {, } ',', ., -, +, ;, /, *, ^, :

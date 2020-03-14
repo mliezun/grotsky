@@ -10,7 +10,7 @@ type parser struct {
 	current int
 }
 
-func Parse(state *interpreterState) {
+func (state *interpreterState) Parse() {
 	p := &parser{
 		state: state,
 	}
@@ -50,17 +50,30 @@ func (p *parser) statement() stmt {
 
 func (p *parser) expressionStmt() stmt {
 	expr := p.expression()
+	if !p.isAtEnd() {
+		p.consume(NEWLINE, errors.New("Expected new line at the end of statement"))
+	}
 	return &exprStmt{expression: expr}
 }
 
 func (p *parser) expression() expr {
 	if p.match(LEFT_BRACE) {
-		return nil
+		return p.list()
 	}
 	if p.match(LEFT_CURLY_BRACE) {
 		return nil
 	}
 	return p.assignment()
+}
+
+func (p *parser) list() expr {
+	elements := p.arguments(RIGHT_BRACE)
+	//TODO: set correct error
+	brace := p.consume(RIGHT_BRACE, errors.New("Expected ']' at end of list"))
+	return &listExpr{
+		elements: elements,
+		brace:    brace,
+	}
 }
 
 func (p *parser) assignment() expr {
@@ -165,21 +178,29 @@ func (p *parser) call() expr {
 }
 
 func (p *parser) finishCall(callee expr) expr {
-	arguments := make([]expr, 0)
-	if !p.check(RIGHT_PAREN) {
-		for {
-			if len(arguments) >= 255 {
-				//TODO: handle error
-			}
-			arguments = append(arguments, p.expression())
-		}
-	}
+	arguments := p.arguments(RIGHT_PAREN)
 	paren := p.consume(RIGHT_PAREN, errors.New("Expect ')' after arguments"))
 	return &callExpr{
 		callee:    callee,
 		arguments: arguments,
 		paren:     paren,
 	}
+}
+
+func (p *parser) arguments(tk tokenType) []expr {
+	arguments := make([]expr, 0)
+	if !p.check(tk) {
+		for {
+			if tk == RIGHT_PAREN && len(arguments) >= 255 {
+				//TODO: handle error
+			}
+			arguments = append(arguments, p.expression())
+			if !p.match(COMMA) {
+				break
+			}
+		}
+	}
+	return arguments
 }
 
 func (p *parser) access() expr {

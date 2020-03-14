@@ -6,12 +6,12 @@ import "fmt"
 type R interface{}
 
 //PrintTree Prints ast
-func PrintTree(state *interpreterState) {
+func (state *interpreterState) PrintTree() {
 	out := ""
 	for _, stmt := range state.stmts {
-		out += stmt.accept(stringVisitor{}).(string)
+		out += stmt.accept(stringVisitor{}).(string) + "\n"
 	}
-	fmt.Println(out)
+	fmt.Print(out)
 }
 
 type stringVisitor struct{}
@@ -19,6 +19,15 @@ type stringVisitor struct{}
 func (v stringVisitor) visitExprStmt(stmt stmt) R {
 	exprStmt := stmt.(*exprStmt)
 	return exprStmt.expression.accept(v)
+}
+
+func (v stringVisitor) visitListExpr(expr expr) R {
+	list := expr.(*listExpr)
+	out := "(list"
+	for _, el := range list.elements {
+		out += fmt.Sprintf(" %v", el.accept(v))
+	}
+	return out + ")"
 }
 
 func (v stringVisitor) visitAssignExpr(expr expr) R {

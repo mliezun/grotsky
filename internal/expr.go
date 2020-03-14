@@ -5,6 +5,7 @@ type expr interface {
 }
 
 type exprVisitor interface {
+	visitListExpr(expr expr) R
 	visitAssignExpr(expr expr) R
 	visitBinaryExpr(expr expr) R
 	visitCallExpr(expr expr) R
@@ -18,6 +19,15 @@ type exprVisitor interface {
 	visitUnaryExpr(expr expr) R
 	visitVariableExpr(expr expr) R
 	visitFunctionExpr(expr expr) R
+}
+
+type listExpr struct {
+	elements []expr
+	brace *token
+}
+
+func (s *listExpr) accept(visitor exprVisitor) R {
+	return visitor.visitListExpr(s)
 }
 
 type assignExpr struct {

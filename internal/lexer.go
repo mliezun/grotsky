@@ -33,7 +33,7 @@ var keywords = map[string]tokenType{
 	"in":     IN,
 }
 
-func Scan(state *interpreterState) {
+func (state *interpreterState) Scan() {
 	l := &lexer{
 		state: state,
 		line:  1,
@@ -117,6 +117,7 @@ func (l *lexer) scanToken() {
 
 	case '\n':
 		l.line++
+		l.emit(NEWLINE, nil)
 
 	case '"':
 		l.string()

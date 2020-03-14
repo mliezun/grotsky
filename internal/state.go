@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sync"
 )
 
 type parseError struct {
@@ -21,13 +20,9 @@ type interpreterState struct {
 	stmts  []stmt
 }
 
-var state *interpreterState
-var once sync.Once
-
-func NewInterpreter(source string) *interpreterState {
-	once.Do(func() {
-		state = &interpreterState{source: source, errors: make([]parseError, 0)}
-	})
+// NewInterpreterState creates a new interpreter state
+func NewInterpreterState(source string) *interpreterState {
+	state := &interpreterState{source: source, errors: make([]parseError, 0)}
 	return state
 }
 

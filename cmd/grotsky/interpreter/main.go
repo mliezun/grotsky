@@ -29,20 +29,16 @@ func main() {
 
 	source := string(b)
 
-	state := internal.NewInterpreterState(source)
+	state := internal.NewInterpreter(source)
 
-	l := internal.NewLexer(state)
-	l.Scan()
+	internal.Scan(state)
 
 	if !state.Valid() {
 		state.PrintErrors()
 		return
 	}
 
-	fmt.Println(state.Tokens)
-
-	p := internal.NewParser(state)
-	p.Parse()
+	internal.Parse(state)
 
 	internal.PrintTree(state)
 }

@@ -7,49 +7,48 @@ import (
 	"sync"
 )
 
-// ParseError stores a parser error
-type ParseError struct {
-	Error error
-	Line  int
-	Pos   int
+type parseError struct {
+	err  error
+	line int
+	pos  int
 }
 
-// InterpreterState stores the state of a interpreter
-type InterpreterState struct {
-	Errors []ParseError
-	Source string
-	Tokens []Token
-	Stmts  []Stmt
+// interpreterState stores the state of a interpreter
+type interpreterState struct {
+	errors []parseError
+	source string
+	tokens []token
+	stmts  []stmt
 }
 
-var state *InterpreterState
+var state *interpreterState
 var once sync.Once
 
-func NewInterpreterState(source string) *InterpreterState {
+func NewInterpreter(source string) *interpreterState {
 	once.Do(func() {
-		state = &InterpreterState{Source: source, Errors: make([]ParseError, 0)}
+		state = &interpreterState{source: source, errors: make([]parseError, 0)}
 	})
 	return state
 }
 
-func (s *InterpreterState) setError(err error, line, pos int) {
-	s.Errors = append(s.Errors, ParseError{
-		Error: err,
-		Line:  line,
-		Pos:   pos,
+func (s *interpreterState) setError(err error, line, pos int) {
+	s.errors = append(s.errors, parseError{
+		err:  err,
+		line: line,
+		pos:  pos,
 	})
 }
 
 // Valid returns true if the interpreter is in a valid states else false
-func (s *InterpreterState) Valid() bool {
-	return len(s.Errors) == 0
+func (s *interpreterState) Valid() bool {
+	return len(s.errors) == 0
 }
 
 // PrintErrors prints all errors
-func (s *InterpreterState) PrintErrors() {
-	for _, e := range s.Errors {
-		fmt.Fprintf(os.Stderr, "Error on line %d\n", e.Line)
-		fmt.Fprintln(os.Stderr, e.Error)
+func (s *interpreterState) PrintErrors() {
+	for _, e := range s.errors {
+		fmt.Fprintf(os.Stderr, "Error on line %d\n", e.line)
+		fmt.Fprintln(os.Stderr, e.err)
 	}
 }
 

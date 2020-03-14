@@ -4,15 +4,15 @@ import (
 	"strconv"
 )
 
-type Lexer struct {
-	state *InterpreterState
+type lexer struct {
+	state *interpreterState
 
 	start   int
 	current int
 	line    int
 }
 
-var keywords = map[string]TokenType{
+var keywords = map[string]tokenType{
 	"and":    AND,
 	"class":  CLASS,
 	"else":   ELSE,
@@ -33,19 +33,16 @@ var keywords = map[string]TokenType{
 	"in":     IN,
 }
 
-func NewLexer(state *InterpreterState) *Lexer {
-	return &Lexer{
+func Scan(state *interpreterState) {
+	l := &lexer{
 		state: state,
 		line:  1,
 	}
-}
-
-func (l *Lexer) Scan() {
 	for !l.isAtEnd() {
 		l.start = l.current
 		l.scanToken()
 	}
-	l.state.Tokens = append(l.state.Tokens, Token{
+	l.state.tokens = append(l.state.tokens, token{
 		token:   EOF,
 		lexeme:  "",
 		literal: nil,
@@ -53,7 +50,7 @@ func (l *Lexer) Scan() {
 	})
 }
 
-func (l *Lexer) scanToken() {
+func (l *lexer) scanToken() {
 	c := l.advance()
 	switch c {
 	case '[':
@@ -135,7 +132,7 @@ func (l *Lexer) scanToken() {
 	}
 }
 
-func (l *Lexer) string() {
+func (l *lexer) string() {
 	for !l.isAtEnd() && !l.match('"') {
 		if l.match('\n') {
 			l.line++
@@ -147,7 +144,7 @@ func (l *Lexer) string() {
 		l.state.setError(UnclosedString, l.line, l.start)
 	}
 
-	literal := l.state.Source[l.start+1 : l.current]
+	literal := l.state.source[l.start+1 : l.current]
 
 	// Consume ending "
 	l.advance()
@@ -155,7 +152,7 @@ func (l *Lexer) string() {
 	l.emit(STRING, literal)
 }
 
-func (l *Lexer) number() {
+func (l *lexer) number() {
 	for !l.isAtEnd() && l.isDigit(l.next()) {
 		l.advance()
 	}
@@ -167,17 +164,17 @@ func (l *Lexer) number() {
 		}
 	}
 
-	literal, _ := strconv.ParseFloat(l.state.Source[l.start:l.current], 64)
+	literal, _ := strconv.ParseFloat(l.state.source[l.start:l.current], 64)
 
 	l.emit(NUMBER, literal)
 }
 
-func (l *Lexer) identifier() {
+func (l *lexer) identifier() {
 	for l.isAlpha(l.next()) {
 		l.advance()
 	}
 
-	identifier := l.state.Source[l.start:l.current]
+	identifier := l.state.source[l.start:l.current]
 
 	tokenType, ok := keywords[identifier]
 	if !ok {
@@ -187,41 +184,41 @@ func (l *Lexer) identifier() {
 	l.emit(tokenType, nil)
 }
 
-func (l *Lexer) advance() rune {
-	current := l.state.Source[l.current]
+func (l *lexer) advance() rune {
+	current := l.state.source[l.current]
 	l.current++
 	return rune(current)
 }
 
-func (l *Lexer) match(c rune) bool {
+func (l *lexer) match(c rune) bool {
 	if l.isAtEnd() {
 		return false
 	}
-	current := l.state.Source[l.current]
+	current := l.state.source[l.current]
 	return rune(current) == c
 }
 
-func (l *Lexer) emit(token TokenType, literal interface{}) {
-	l.state.Tokens = append(l.state.Tokens, Token{
-		token:   token,
-		lexeme:  l.state.Source[l.start:l.current],
+func (l *lexer) emit(tk tokenType, literal interface{}) {
+	l.state.tokens = append(l.state.tokens, token{
+		token:   tk,
+		lexeme:  l.state.source[l.start:l.current],
 		literal: literal,
 		line:    l.line,
 	})
 }
 
-func (l *Lexer) isAtEnd() bool {
-	return l.current >= len(l.state.Source)
+func (l *lexer) isAtEnd() bool {
+	return l.current >= len(l.state.source)
 }
 
-func (l *Lexer) next() rune {
-	return rune(l.state.Source[l.current])
+func (l *lexer) next() rune {
+	return rune(l.state.source[l.current])
 }
 
-func (l *Lexer) isDigit(c rune) bool {
+func (l *lexer) isDigit(c rune) bool {
 	return c >= '0' && c <= '9'
 }
 
-func (l *Lexer) isAlpha(c rune) bool {
+func (l *lexer) isAlpha(c rune) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
 }

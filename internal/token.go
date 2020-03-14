@@ -1,10 +1,9 @@
 package internal
 
-// TokenType Holds a token
-type TokenType int
+type tokenType int
 
 const (
-	EOF TokenType = iota - 1
+	EOF tokenType = iota - 1
 
 	// Single-character tokens.
 	// (, ), [, ], {, } ',', ., -, +, ;, /, *, ^, :
@@ -62,8 +61,8 @@ const (
 	IN
 )
 
-type Token struct {
-	token   TokenType
+type token struct {
+	token   tokenType
 	lexeme  string
 	literal interface{}
 	line    int

@@ -1,18 +1,18 @@
 package internal
 
-type Stmt interface {
-	accept(StmtVisitor) R
+type stmt interface {
+	accept(stmtVisitor) R
 }
 
-type StmtVisitor interface {
-	visitExprStmt(stmt Stmt) R
+type stmtVisitor interface {
+	visitExprStmt(stmt stmt) R
 }
 
-type ExprStmt struct {
-	expression Expr
+type exprStmt struct {
+	expression expr
 }
 
-func (s *ExprStmt) accept(visitor StmtVisitor) R {
+func (s *exprStmt) accept(visitor stmtVisitor) R {
 	return visitor.visitExprStmt(s)
 }
 

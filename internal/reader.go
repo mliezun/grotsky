@@ -2,74 +2,76 @@ package internal
 
 import "fmt"
 
+//R generic type
 type R interface{}
 
-func PrintTree(state *InterpreterState) {
+//PrintTree Prints ast
+func PrintTree(state *interpreterState) {
 	out := ""
-	for _, stmt := range state.Stmts {
-		out += stmt.accept(StringVisitor{}).(string)
+	for _, stmt := range state.stmts {
+		out += stmt.accept(stringVisitor{}).(string)
 	}
 	fmt.Println(out)
 }
 
-type StringVisitor struct{}
+type stringVisitor struct{}
 
-func (v StringVisitor) visitExprStmt(stmt Stmt) R {
-	exprStmt := stmt.(*ExprStmt)
+func (v stringVisitor) visitExprStmt(stmt stmt) R {
+	exprStmt := stmt.(*exprStmt)
 	return exprStmt.expression.accept(v)
 }
 
-func (v StringVisitor) visitAssignExpr(expr Expr) R {
-	assign := expr.(*AssignExpr)
+func (v stringVisitor) visitAssignExpr(expr expr) R {
+	assign := expr.(*assignExpr)
 	return fmt.Sprintf("(set %s %v)", assign.name.lexeme, assign.value.accept(v))
 }
 
-func (v StringVisitor) visitBinaryExpr(expr Expr) R {
-	binary := expr.(*BinaryExpr)
+func (v stringVisitor) visitBinaryExpr(expr expr) R {
+	binary := expr.(*binaryExpr)
 	return fmt.Sprintf("(%s %v %v)", binary.operator.lexeme, binary.left.accept(v), binary.right.accept(v))
 }
 
-func (v StringVisitor) visitCallExpr(expr Expr) R {
+func (v stringVisitor) visitCallExpr(expr expr) R {
 	return ""
 }
 
-func (v StringVisitor) visitGetExpr(expr Expr) R {
+func (v stringVisitor) visitGetExpr(expr expr) R {
 	return ""
 }
 
-func (v StringVisitor) visitSetExpr(expr Expr) R {
+func (v stringVisitor) visitSetExpr(expr expr) R {
 	return ""
 }
 
-func (v StringVisitor) visitSuperExpr(expr Expr) R {
+func (v stringVisitor) visitSuperExpr(expr expr) R {
 	return ""
 }
 
-func (v StringVisitor) visitGroupingExpr(expr Expr) R {
+func (v stringVisitor) visitGroupingExpr(expr expr) R {
 	return ""
 }
 
-func (v StringVisitor) visitLiteralExpr(expr Expr) R {
-	literal := expr.(*LiteralExpr)
+func (v stringVisitor) visitLiteralExpr(expr expr) R {
+	literal := expr.(*literalExpr)
 	return fmt.Sprintf("%v", literal.value)
 }
 
-func (v StringVisitor) visitLogicalExpr(expr Expr) R {
+func (v stringVisitor) visitLogicalExpr(expr expr) R {
 	return ""
 }
 
-func (v StringVisitor) visitThisExpr(expr Expr) R {
+func (v stringVisitor) visitThisExpr(expr expr) R {
 	return ""
 }
 
-func (v StringVisitor) visitUnaryExpr(expr Expr) R {
+func (v stringVisitor) visitUnaryExpr(expr expr) R {
 	return ""
 }
 
-func (v StringVisitor) visitVariableExpr(expr Expr) R {
+func (v stringVisitor) visitVariableExpr(expr expr) R {
 	return ""
 }
 
-func (v StringVisitor) visitFunctionExpr(expr Expr) R {
+func (v stringVisitor) visitFunctionExpr(expr expr) R {
 	return ""
 }

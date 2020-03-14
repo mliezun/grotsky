@@ -1,139 +1,139 @@
 package internal
 
-type Expr interface {
-	accept(ExprVisitor) R
+type expr interface {
+	accept(exprVisitor) R
 }
 
-type ExprVisitor interface {
-	visitAssignExpr(expr Expr) R
-	visitBinaryExpr(expr Expr) R
-	visitCallExpr(expr Expr) R
-	visitGetExpr(expr Expr) R
-	visitSetExpr(expr Expr) R
-	visitSuperExpr(expr Expr) R
-	visitGroupingExpr(expr Expr) R
-	visitLiteralExpr(expr Expr) R
-	visitLogicalExpr(expr Expr) R
-	visitThisExpr(expr Expr) R
-	visitUnaryExpr(expr Expr) R
-	visitVariableExpr(expr Expr) R
-	visitFunctionExpr(expr Expr) R
+type exprVisitor interface {
+	visitAssignExpr(expr expr) R
+	visitBinaryExpr(expr expr) R
+	visitCallExpr(expr expr) R
+	visitGetExpr(expr expr) R
+	visitSetExpr(expr expr) R
+	visitSuperExpr(expr expr) R
+	visitGroupingExpr(expr expr) R
+	visitLiteralExpr(expr expr) R
+	visitLogicalExpr(expr expr) R
+	visitThisExpr(expr expr) R
+	visitUnaryExpr(expr expr) R
+	visitVariableExpr(expr expr) R
+	visitFunctionExpr(expr expr) R
 }
 
-type AssignExpr struct {
-	name *Token
-	value Expr
+type assignExpr struct {
+	name *token
+	value expr
 }
 
-func (s *AssignExpr) accept(visitor ExprVisitor) R {
+func (s *assignExpr) accept(visitor exprVisitor) R {
 	return visitor.visitAssignExpr(s)
 }
 
-type BinaryExpr struct {
-	left Expr
-	operator *Token
-	right Expr
+type binaryExpr struct {
+	left expr
+	operator *token
+	right expr
 }
 
-func (s *BinaryExpr) accept(visitor ExprVisitor) R {
+func (s *binaryExpr) accept(visitor exprVisitor) R {
 	return visitor.visitBinaryExpr(s)
 }
 
-type CallExpr struct {
-	callee Expr
-	paren *Token
-	arguments []Expr
+type callExpr struct {
+	callee expr
+	paren *token
+	arguments []expr
 }
 
-func (s *CallExpr) accept(visitor ExprVisitor) R {
+func (s *callExpr) accept(visitor exprVisitor) R {
 	return visitor.visitCallExpr(s)
 }
 
-type GetExpr struct {
-	object Expr
-	name *Token
+type getExpr struct {
+	object expr
+	name *token
 }
 
-func (s *GetExpr) accept(visitor ExprVisitor) R {
+func (s *getExpr) accept(visitor exprVisitor) R {
 	return visitor.visitGetExpr(s)
 }
 
-type SetExpr struct {
-	object Expr
-	name *Token
-	value Expr
+type setExpr struct {
+	object expr
+	name *token
+	value expr
 }
 
-func (s *SetExpr) accept(visitor ExprVisitor) R {
+func (s *setExpr) accept(visitor exprVisitor) R {
 	return visitor.visitSetExpr(s)
 }
 
-type SuperExpr struct {
-	keyword *Token
-	method *Token
+type superExpr struct {
+	keyword *token
+	method *token
 }
 
-func (s *SuperExpr) accept(visitor ExprVisitor) R {
+func (s *superExpr) accept(visitor exprVisitor) R {
 	return visitor.visitSuperExpr(s)
 }
 
-type GroupingExpr struct {
-	expression Expr
+type groupingExpr struct {
+	expression expr
 }
 
-func (s *GroupingExpr) accept(visitor ExprVisitor) R {
+func (s *groupingExpr) accept(visitor exprVisitor) R {
 	return visitor.visitGroupingExpr(s)
 }
 
-type LiteralExpr struct {
+type literalExpr struct {
 	value interface{}
 }
 
-func (s *LiteralExpr) accept(visitor ExprVisitor) R {
+func (s *literalExpr) accept(visitor exprVisitor) R {
 	return visitor.visitLiteralExpr(s)
 }
 
-type LogicalExpr struct {
-	left Expr
-	operator *Token
-	right Expr
+type logicalExpr struct {
+	left expr
+	operator *token
+	right expr
 }
 
-func (s *LogicalExpr) accept(visitor ExprVisitor) R {
+func (s *logicalExpr) accept(visitor exprVisitor) R {
 	return visitor.visitLogicalExpr(s)
 }
 
-type ThisExpr struct {
-	keyword *Token
+type thisExpr struct {
+	keyword *token
 }
 
-func (s *ThisExpr) accept(visitor ExprVisitor) R {
+func (s *thisExpr) accept(visitor exprVisitor) R {
 	return visitor.visitThisExpr(s)
 }
 
-type UnaryExpr struct {
-	operator *Token
-	right Expr
+type unaryExpr struct {
+	operator *token
+	right expr
 }
 
-func (s *UnaryExpr) accept(visitor ExprVisitor) R {
+func (s *unaryExpr) accept(visitor exprVisitor) R {
 	return visitor.visitUnaryExpr(s)
 }
 
-type VariableExpr struct {
-	name *Token
+type variableExpr struct {
+	name *token
 }
 
-func (s *VariableExpr) accept(visitor ExprVisitor) R {
+func (s *variableExpr) accept(visitor exprVisitor) R {
 	return visitor.visitVariableExpr(s)
 }
 
-type FunctionExpr struct {
-	params []*Token
-	body []Stmt
+type functionExpr struct {
+	params []*token
+	body []stmt
 }
 
-func (s *FunctionExpr) accept(visitor ExprVisitor) R {
+func (s *functionExpr) accept(visitor exprVisitor) R {
 	return visitor.visitFunctionExpr(s)
 }
 

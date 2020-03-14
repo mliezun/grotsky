@@ -4,25 +4,22 @@ import (
 	"errors"
 )
 
-// Parser stores parser data
-type Parser struct {
-	state   *InterpreterState
+// parser stores parser data
+type parser struct {
+	state   *interpreterState
 	current int
 }
 
-func NewParser(state *InterpreterState) *Parser {
-	return &Parser{
+func Parse(state *interpreterState) {
+	p := &parser{
 		state: state,
 	}
-}
-
-func (p *Parser) Parse() {
 	for !p.isAtEnd() {
-		p.state.Stmts = append(p.state.Stmts, p.declaration())
+		p.state.stmts = append(p.state.stmts, p.declaration())
 	}
 }
 
-func (p *Parser) declaration() Stmt {
+func (p *parser) declaration() stmt {
 	if p.match(CLASS) {
 		return nil
 	}
@@ -35,7 +32,7 @@ func (p *Parser) declaration() Stmt {
 	return p.statement()
 }
 
-func (p *Parser) statement() Stmt {
+func (p *parser) statement() stmt {
 	if p.match(FOR) {
 		return nil
 	}
@@ -51,12 +48,12 @@ func (p *Parser) statement() Stmt {
 	return p.expressionStmt()
 }
 
-func (p *Parser) expressionStmt() Stmt {
+func (p *parser) expressionStmt() stmt {
 	expr := p.expression()
-	return &ExprStmt{expression: expr}
+	return &exprStmt{expression: expr}
 }
 
-func (p *Parser) expression() Expr {
+func (p *parser) expression() expr {
 	if p.match(LEFT_BRACE) {
 		return nil
 	}
@@ -66,7 +63,7 @@ func (p *Parser) expression() Expr {
 	return p.assignment()
 }
 
-func (p *Parser) assignment() Expr {
+func (p *parser) assignment() expr {
 	expr := p.or()
 	if p.match(EQUAL) {
 
@@ -74,7 +71,7 @@ func (p *Parser) assignment() Expr {
 	return expr
 }
 
-func (p *Parser) or() Expr {
+func (p *parser) or() expr {
 	expr := p.and()
 	for p.match(OR) {
 
@@ -82,7 +79,7 @@ func (p *Parser) or() Expr {
 	return expr
 }
 
-func (p *Parser) and() Expr {
+func (p *parser) and() expr {
 	expr := p.equality()
 	for p.match(AND) {
 
@@ -90,7 +87,7 @@ func (p *Parser) and() Expr {
 	return expr
 }
 
-func (p *Parser) equality() Expr {
+func (p *parser) equality() expr {
 	expr := p.comparison()
 	for p.match(EQUAL_EQUAL, BANG_EQUAL) {
 
@@ -98,7 +95,7 @@ func (p *Parser) equality() Expr {
 	return expr
 }
 
-func (p *Parser) comparison() Expr {
+func (p *parser) comparison() expr {
 	expr := p.addition()
 	for p.match(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL) {
 
@@ -106,12 +103,12 @@ func (p *Parser) comparison() Expr {
 	return expr
 }
 
-func (p *Parser) addition() Expr {
+func (p *parser) addition() expr {
 	expr := p.multiplication()
 	for p.match(PLUS, MINUS) {
 		operator := p.previous()
 		right := p.multiplication()
-		expr = &BinaryExpr{
+		expr = &binaryExpr{
 			left:     expr,
 			operator: operator,
 			right:    right,
@@ -120,7 +117,7 @@ func (p *Parser) addition() Expr {
 	return expr
 }
 
-func (p *Parser) multiplication() Expr {
+func (p *parser) multiplication() expr {
 	expr := p.power()
 	for p.match(SLASH, STAR) {
 
@@ -128,7 +125,7 @@ func (p *Parser) multiplication() Expr {
 	return expr
 }
 
-func (p *Parser) power() Expr {
+func (p *parser) power() expr {
 	expr := p.unary()
 	for p.match(POWER) {
 
@@ -136,11 +133,11 @@ func (p *Parser) power() Expr {
 	return expr
 }
 
-func (p *Parser) unary() Expr {
+func (p *parser) unary() expr {
 	if p.match(NOT) {
 		operator := p.previous()
 		right := p.unary()
-		return &UnaryExpr{
+		return &unaryExpr{
 			operator: operator,
 			right:    right,
 		}
@@ -148,7 +145,7 @@ func (p *Parser) unary() Expr {
 	return p.call()
 }
 
-func (p *Parser) call() Expr {
+func (p *parser) call() expr {
 	expr := p.access()
 	for {
 		if p.match(LEFT_PAREN) {
@@ -156,7 +153,7 @@ func (p *Parser) call() Expr {
 		} else if p.match(DOT) {
 			//TODO: set correct error
 			name := p.consume(IDENTIFIER, errors.New("Expect property name after '.'"))
-			expr = &GetExpr{
+			expr = &getExpr{
 				object: expr,
 				name:   name,
 			}
@@ -167,8 +164,8 @@ func (p *Parser) call() Expr {
 	return expr
 }
 
-func (p *Parser) finishCall(callee Expr) Expr {
-	arguments := make([]Expr, 0)
+func (p *parser) finishCall(callee expr) expr {
+	arguments := make([]expr, 0)
 	if !p.check(RIGHT_PAREN) {
 		for {
 			if len(arguments) >= 255 {
@@ -178,14 +175,14 @@ func (p *Parser) finishCall(callee Expr) Expr {
 		}
 	}
 	paren := p.consume(RIGHT_PAREN, errors.New("Expect ')' after arguments"))
-	return &CallExpr{
+	return &callExpr{
 		callee:    callee,
 		arguments: arguments,
 		paren:     paren,
 	}
 }
 
-func (p *Parser) access() Expr {
+func (p *parser) access() expr {
 	expr := p.primary()
 	if p.match(LEFT_BRACE) {
 
@@ -193,50 +190,50 @@ func (p *Parser) access() Expr {
 	return expr
 }
 
-func (p *Parser) primary() Expr {
+func (p *parser) primary() expr {
 	if p.match(NUMBER, STRING) {
-		return &LiteralExpr{value: p.previous().literal}
+		return &literalExpr{value: p.previous().literal}
 	}
 	if p.match(FALSE) {
-		return &LiteralExpr{value: false}
+		return &literalExpr{value: false}
 	}
 	if p.match(TRUE) {
-		return &LiteralExpr{value: true}
+		return &literalExpr{value: true}
 	}
 	if p.match(NIL) {
-		return &LiteralExpr{value: nil}
+		return &literalExpr{value: nil}
 	}
 	if p.match(IDENTIFIER) {
-		return &VariableExpr{name: p.previous()}
+		return &variableExpr{name: p.previous()}
 	}
 	if p.match(LEFT_PAREN) {
 		expr := p.expression()
 		// TODO: set correct error
 		p.consume(RIGHT_PAREN, errors.New("Expect ')' after expression"))
-		return &GroupingExpr{expression: expr}
+		return &groupingExpr{expression: expr}
 	}
 
 	// TODO: handle error
-	return &LiteralExpr{}
+	return &literalExpr{}
 }
 
-func (p *Parser) consume(token TokenType, err error) *Token {
-	if p.check(token) {
+func (p *parser) consume(tk tokenType, err error) *token {
+	if p.check(tk) {
 		return p.advance()
 	}
 
 	p.state.setError(err, 0, 0)
-	return &Token{}
+	return &token{}
 }
 
-func (p *Parser) advance() *Token {
+func (p *parser) advance() *token {
 	if !p.isAtEnd() {
 		p.current++
 	}
 	return p.previous()
 }
 
-func (p *Parser) match(tokens ...TokenType) bool {
+func (p *parser) match(tokens ...tokenType) bool {
 	for _, token := range tokens {
 		if p.check(token) {
 			p.current++
@@ -246,21 +243,21 @@ func (p *Parser) match(tokens ...TokenType) bool {
 	return false
 }
 
-func (p *Parser) check(token TokenType) bool {
+func (p *parser) check(token tokenType) bool {
 	if p.isAtEnd() {
 		return false
 	}
 	return p.peek().token == token
 }
 
-func (p *Parser) peek() Token {
-	return p.state.Tokens[p.current]
+func (p *parser) peek() token {
+	return p.state.tokens[p.current]
 }
 
-func (p *Parser) previous() *Token {
-	return &p.state.Tokens[p.current-1]
+func (p *parser) previous() *token {
+	return &p.state.tokens[p.current-1]
 }
 
-func (p *Parser) isAtEnd() bool {
+func (p *parser) isAtEnd() bool {
 	return p.peek().token == EOF
 }

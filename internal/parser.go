@@ -100,7 +100,7 @@ func (p *parser) dictElements() []expr {
 func (p *parser) assignment() expr {
 	expr := p.access()
 	if p.match(EQUAL) {
-		equals := p.previous()
+		equal := p.previous()
 		value := p.assignment()
 
 		if variable, isVar := expr.(*variableExpr); isVar {
@@ -118,7 +118,7 @@ func (p *parser) assignment() expr {
 
 		//TODO: handle error
 		//TODO: remove this if
-		if equals.lexeme != "==" {
+		if equal.lexeme != "==" {
 			return expr
 		}
 	}

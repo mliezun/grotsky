@@ -108,7 +108,8 @@ func (v stringVisitor) visitLiteralExpr(expr expr) R {
 }
 
 func (v stringVisitor) visitLogicalExpr(expr expr) R {
-	return ""
+	logical := expr.(*logicalExpr)
+	return fmt.Sprintf("(%s %v %v)", logical.operator.lexeme, logical.left.accept(v), logical.right.accept(v))
 }
 
 func (v stringVisitor) visitThisExpr(expr expr) R {
@@ -116,7 +117,8 @@ func (v stringVisitor) visitThisExpr(expr expr) R {
 }
 
 func (v stringVisitor) visitUnaryExpr(expr expr) R {
-	return ""
+	unary := expr.(*unaryExpr)
+	return fmt.Sprintf("(%s %v)", unary.operator.lexeme, unary.right.accept(v))
 }
 
 func (v stringVisitor) visitVariableExpr(expr expr) R {

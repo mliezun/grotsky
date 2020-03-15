@@ -87,24 +87,28 @@ func (l *lexer) scanToken() {
 		}
 	case '!':
 		if l.match('=') {
+			l.advance()
 			l.emit(BANG_EQUAL, nil)
 		} else {
 			l.state.setError(WrongBang, l.line, l.start)
 		}
 	case '=':
 		if l.match('=') {
+			l.advance()
 			l.emit(EQUAL_EQUAL, nil)
 		} else {
 			l.emit(EQUAL, nil)
 		}
 	case '<':
 		if l.match('=') {
+			l.advance()
 			l.emit(LESS_EQUAL, nil)
 		} else {
 			l.emit(LESS, nil)
 		}
 	case '>':
 		if l.match('=') {
+			l.advance()
 			l.emit(GREATER_EQUAL, nil)
 		} else {
 			l.emit(GREATER, nil)

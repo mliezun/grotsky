@@ -15,37 +15,81 @@ func (state *interpreterState) Parse() {
 		state: state,
 	}
 	for !p.isAtEnd() {
-		p.state.stmts = append(p.state.stmts, p.declaration())
+		p.state.stmts = append(p.state.stmts, p.stmt())
 	}
+}
+
+func (p *parser) stmt() stmt {
+	defer func() {
+		if r := recover(); r != nil {
+			p.synchronize()
+		}
+	}()
+	return p.declaration()
 }
 
 func (p *parser) declaration() stmt {
 	if p.match(CLASS) {
-		return nil
+		return p.class()
 	}
 	if p.match(FN) {
-		return nil
+		return p.fn()
 	}
-	if p.match(FN) {
-		return nil
+	if p.match(LET) {
+		return p.let()
 	}
 	return p.statement()
 }
 
+func (p *parser) class() stmt {
+	//TODO: implement
+	return nil
+}
+
+func (p *parser) fn() stmt {
+	//TODO: implement
+	return nil
+}
+
+func (p *parser) let() stmt {
+	//TODO: implement
+	return nil
+}
+
 func (p *parser) statement() stmt {
 	if p.match(FOR) {
-		return nil
+		return p.forLoop()
 	}
 	if p.match(IF) {
-		return nil
+		return p.ifStmt()
 	}
 	if p.match(RETURN) {
-		return nil
+		return p.ret()
 	}
 	if p.match(WHILE) {
-		return nil
+		return p.while()
 	}
 	return p.expressionStmt()
+}
+
+func (p *parser) forLoop() stmt {
+	//TODO: implement
+	return nil
+}
+
+func (p *parser) ifStmt() stmt {
+	//TODO: implement
+	return nil
+}
+
+func (p *parser) ret() stmt {
+	//TODO: implement
+	return nil
+}
+
+func (p *parser) while() stmt {
+	//TODO: implement
+	return nil
 }
 
 func (p *parser) expressionStmt() stmt {
@@ -414,4 +458,34 @@ func (p *parser) previous() *token {
 
 func (p *parser) isAtEnd() bool {
 	return p.peek().token == EOF
+}
+
+func (p *parser) synchronize() {
+	p.advance()
+	for !p.isAtEnd() {
+		if p.previous().token == NEWLINE {
+			return
+		}
+
+		switch p.peek().token {
+		case CLASS:
+			return
+		case FN:
+			return
+		case LET:
+			return
+		case FOR:
+			return
+		case IF:
+			return
+		case WHILE:
+			return
+		case RETURN:
+			return
+		default:
+			break
+		}
+
+		p.advance()
+	}
 }

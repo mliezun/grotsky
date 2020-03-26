@@ -34,6 +34,15 @@ func (s *interpreterState) setError(err error, line, pos int) {
 	})
 }
 
+func (s *interpreterState) fatalError(err error, line, pos int) {
+	s.errors = append(s.errors, parseError{
+		err:  err,
+		line: line,
+		pos:  pos,
+	})
+	panic(err)
+}
+
 // Valid returns true if the interpreter is in a valid states else false
 func (s *interpreterState) Valid() bool {
 	return len(s.errors) == 0
@@ -47,7 +56,17 @@ func (s *interpreterState) PrintErrors() {
 	}
 }
 
-// Posible errors
-var IllegalChar = errors.New("Illegal character")
-var WrongBang = errors.New("'!' cannot be used here")
-var UnclosedString = errors.New("Closing \" was expected")
+// Lexer errors
+var errIllegalChar = errors.New("Illegal character")
+var errWrongBang = errors.New("'!' cannot be used here")
+var errUnclosedString = errors.New("Closing \" was expected")
+
+// Parser errors
+var errUnclosedParen = errors.New("Expect ')' after expression")
+var errUnclosedBracket = errors.New("Expected ']' at end of list")
+var errUnclosedCurlyBrace = errors.New("Expected '}' at the end of dict")
+var errExpectedColon = errors.New("Expected ':' after key")
+var errExpectedProp = errors.New("Expect property name after '.'")
+var errUndefinedExpr = errors.New("Undefined expression")
+var errUndefinedStmt = errors.New("Undefined statement")
+var errMaxArguments = errors.New("Max number of arguments is 255")

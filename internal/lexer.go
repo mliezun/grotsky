@@ -90,7 +90,7 @@ func (l *lexer) scanToken() {
 			l.advance()
 			l.emit(BANG_EQUAL, nil)
 		} else {
-			l.state.setError(WrongBang, l.line, l.start)
+			l.state.setError(errWrongBang, l.line, l.start)
 		}
 	case '=':
 		if l.match('=') {
@@ -132,7 +132,7 @@ func (l *lexer) scanToken() {
 		} else if l.isAlpha(c) {
 			l.identifier()
 		} else {
-			l.state.setError(IllegalChar, l.line, l.start)
+			l.state.setError(errIllegalChar, l.line, l.start)
 		}
 	}
 }
@@ -146,7 +146,7 @@ func (l *lexer) string() {
 	}
 
 	if l.isAtEnd() {
-		l.state.setError(UnclosedString, l.line, l.start)
+		l.state.setError(errUnclosedString, l.line, l.start)
 	}
 
 	literal := l.state.source[l.start+1 : l.current]

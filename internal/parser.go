@@ -62,8 +62,7 @@ func (p *parser) expression() expr {
 
 func (p *parser) list() expr {
 	elements := p.arguments(RIGHT_BRACE)
-	//TODO: set correct error
-	brace := p.consume(RIGHT_BRACE, errors.New("Expected ']' at end of list"))
+	brace := p.consume(RIGHT_BRACE, errUnclosedBracket)
 	return &listExpr{
 		elements: elements,
 		brace:    brace,
@@ -72,8 +71,7 @@ func (p *parser) list() expr {
 
 func (p *parser) dictionary() expr {
 	elements := p.dictElements()
-	//TODO: set correct error
-	curlyBrace := p.consume(RIGHT_CURLY_BRACE, errors.New("Expected '}' at the end of dict"))
+	curlyBrace := p.consume(RIGHT_CURLY_BRACE, errUnclosedCurlyBrace)
 	return &dictionaryExpr{
 		elements:   elements,
 		curlyBrace: curlyBrace,
@@ -86,8 +84,7 @@ func (p *parser) dictElements() []expr {
 	elements := make([]expr, 0)
 	for !p.check(RIGHT_CURLY_BRACE) {
 		key := p.expression()
-		//TODO: set correct error
-		p.consume(COLON, errors.New("Expected ':' after key"))
+		p.consume(COLON, errExpectedColon)
 		value := p.expression()
 		elements = append(elements, key, value)
 		if !p.match(COMMA) {
@@ -116,11 +113,7 @@ func (p *parser) assignment() expr {
 			}
 		}
 
-		//TODO: handle error
-		//TODO: remove this if
-		if equal.lexeme != "==" {
-			return expr
-		}
+		p.state.fatalError(errUndefinedStmt, equal.line, 0)
 	}
 	return expr
 }
@@ -289,8 +282,7 @@ func (p *parser) call() expr {
 		if p.match(LEFT_PAREN) {
 			expr = p.finishCall(expr)
 		} else if p.match(DOT) {
-			//TODO: set correct error
-			name := p.consume(IDENTIFIER, errors.New("Expect property name after '.'"))
+			name := p.consume(IDENTIFIER, errExpectedProp)
 			expr = &getExpr{
 				object: expr,
 				name:   name,
@@ -317,7 +309,7 @@ func (p *parser) arguments(tk tokenType) []expr {
 	if !p.check(tk) {
 		for {
 			if tk == RIGHT_PAREN && len(arguments) >= 255 {
-				//TODO: handle error
+				p.state.fatalError(errMaxArguments, p.peek().line, 0)
 			}
 			arguments = append(arguments, p.expression())
 			if !p.match(COMMA) {
@@ -346,8 +338,7 @@ func (p *parser) primary() expr {
 	}
 	if p.match(LEFT_PAREN) {
 		expr := p.expression()
-		// TODO: set correct error
-		p.consume(RIGHT_PAREN, errors.New("Expect ')' after expression"))
+		p.consume(RIGHT_PAREN, errUnclosedParen)
 		return &groupingExpr{expression: expr}
 	}
 	if p.match(LEFT_BRACE) {
@@ -357,7 +348,7 @@ func (p *parser) primary() expr {
 		return p.dictionary()
 	}
 
-	// TODO: handle error
+	p.state.fatalError(errUndefinedExpr, p.peek().line, 0)
 	return &literalExpr{}
 }
 
@@ -366,7 +357,7 @@ func (p *parser) consume(tk tokenType, err error) *token {
 		return p.advance()
 	}
 
-	p.state.setError(err, 0, 0)
+	p.state.setError(err, p.peek().line, 0)
 	return &token{}
 }
 

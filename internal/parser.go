@@ -52,8 +52,19 @@ func (p *parser) fn() stmt {
 }
 
 func (p *parser) let() stmt {
-	//TODO: implement
-	return nil
+	name := p.consume(IDENTIFIER, errExpectedIdentifier)
+
+	var init expr
+	if p.match(EQUAL) {
+		init = p.expression()
+	}
+
+	p.consume(NEWLINE, errExpectedNewline)
+
+	return &letStmt{
+		name:        name,
+		initializer: init,
+	}
 }
 
 func (p *parser) statement() stmt {

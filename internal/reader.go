@@ -21,6 +21,31 @@ func (v stringVisitor) visitExprStmt(stmt stmt) R {
 	return exprStmt.expression.accept(v)
 }
 
+func (v stringVisitor) visitLetStmt(stmt stmt) R {
+	letStmt := stmt.(*letStmt)
+	return fmt.Sprintf("(set %s %v)", letStmt.name.lexeme, letStmt.initializer.accept(v))
+}
+
+func (v stringVisitor) visitBlockStmt(stmt stmt) R {
+	return nil
+}
+
+func (v stringVisitor) visitWhileStmt(stmt stmt) R {
+	return nil
+}
+
+func (v stringVisitor) visitReturnStmt(stmt stmt) R {
+	return nil
+}
+
+func (v stringVisitor) visitIfStmt(stmt stmt) R {
+	return nil
+}
+
+func (v stringVisitor) visitElifStmt(stmt stmt) R {
+	return nil
+}
+
 func (v stringVisitor) visitListExpr(expr expr) R {
 	list := expr.(*listExpr)
 	out := "(list"

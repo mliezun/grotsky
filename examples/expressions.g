@@ -25,3 +25,6 @@ true or false
 
 # Dictionary key lookup
 {"key":0.6}["key"]
+
+# Variable definition
+let asd = "asd"

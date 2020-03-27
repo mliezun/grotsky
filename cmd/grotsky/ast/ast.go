@@ -14,6 +14,12 @@ func main() {
 	case "Stmt":
 		out = generateAst("Stmt", []string{
 			"Expr: expression expr",
+			"Let: name *token, initializer expr",
+			"Block: stmts []stmt",
+			"While: condition expr, body stmt",
+			"Return: keyword *token, value expr",
+			"If: condition expr, thenBranch stmt, elifs []elifStmt, elseBranch stmt",
+			"Elif: condition expr, body expr",
 		})
 	case "Expr":
 		out = generateAst("Expr", []string{

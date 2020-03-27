@@ -31,6 +31,8 @@ var keywords = map[string]tokenType{
 	"while":  WHILE,
 	"not":    NOT,
 	"in":     IN,
+	"begin":  BEGIN,
+	"end":    END,
 }
 
 func (state *interpreterState) Scan() {
@@ -175,7 +177,7 @@ func (l *lexer) number() {
 }
 
 func (l *lexer) identifier() {
-	for l.isAlpha(l.next()) {
+	for !l.isAtEnd() && l.isAlpha(l.next()) {
 		l.advance()
 	}
 

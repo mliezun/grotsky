@@ -14,12 +14,14 @@ func main() {
 	case "Stmt":
 		out = generateAst("Stmt", []string{
 			"Expr: expression expr",
+			"ClassicFor: initializer stmt, condition expr, increment expr, body stmt",
+			"EnhancedFor: identifiers []*token, collection expr, body stmt",
 			"Let: name *token, initializer expr",
 			"Block: stmts []stmt",
 			"While: condition expr, body stmt",
 			"Return: keyword *token, value expr",
-			"If: condition expr, thenBranch stmt, elifs []elifStmt, elseBranch stmt",
-			"Elif: condition expr, body expr",
+			"If: condition expr, thenBranch stmt, elifs []*elifStmt, elseBranch stmt",
+			"Elif: condition expr, body stmt",
 		})
 	case "Expr":
 		out = generateAst("Expr", []string{

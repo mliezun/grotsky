@@ -8,7 +8,9 @@ type R interface{}
 //PrintTree Prints ast
 func (state *interpreterState) PrintTree() {
 	out := ""
+	fmt.Println(state.stmts)
 	for _, stmt := range state.stmts {
+		fmt.Println(stmt)
 		out += stmt.accept(stringVisitor{}).(string) + "\n"
 	}
 	fmt.Print(out)
@@ -21,29 +23,69 @@ func (v stringVisitor) visitExprStmt(stmt stmt) R {
 	return exprStmt.expression.accept(v)
 }
 
+func (v stringVisitor) visitClassicForStmt(stmt stmt) R {
+	forStmt := stmt.(*classicForStmt)
+	return fmt.Sprintf(
+		"(for %v %v %v %v)",
+		forStmt.initializer.accept(v),
+		forStmt.condition.accept(v),
+		forStmt.increment.accept(v),
+		forStmt.body.accept(v),
+	)
+}
+
+func (v stringVisitor) visitEnhancedForStmt(stmt stmt) R {
+	forStmt := stmt.(*enhancedForStmt)
+	out := "(for (in ("
+	for i, id := range forStmt.identifiers {
+		out += id.lexeme
+		if i < len(forStmt.identifiers)-1 {
+			out += ", "
+		}
+	}
+	out += fmt.Sprintf(") %v) %v)", forStmt.collection.accept(v), forStmt.body.accept(v))
+	return out
+}
+
 func (v stringVisitor) visitLetStmt(stmt stmt) R {
 	letStmt := stmt.(*letStmt)
-	return fmt.Sprintf("(set %s %v)", letStmt.name.lexeme, letStmt.initializer.accept(v))
+	return fmt.Sprintf("(let %s %v)", letStmt.name.lexeme, letStmt.initializer.accept(v))
 }
 
 func (v stringVisitor) visitBlockStmt(stmt stmt) R {
-	return nil
+	blockStmt := stmt.(*blockStmt)
+	out := "(scope"
+	for _, s := range blockStmt.stmts {
+		out += fmt.Sprintf(" %v", s.accept(v))
+	}
+	return out + ")"
 }
 
 func (v stringVisitor) visitWhileStmt(stmt stmt) R {
-	return nil
+	whileStmt := stmt.(*whileStmt)
+	return fmt.Sprintf("(while %v %v)", whileStmt.condition.accept(v), whileStmt.body.accept(v))
 }
 
 func (v stringVisitor) visitReturnStmt(stmt stmt) R {
-	return nil
+	returnStmt := stmt.(*returnStmt)
+	return fmt.Sprintf("(return %v)", returnStmt.value.accept(v))
 }
 
 func (v stringVisitor) visitIfStmt(stmt stmt) R {
-	return nil
+	ifStmt := stmt.(*ifStmt)
+	out := fmt.Sprintf("(if (then %v %v)", ifStmt.condition.accept(v), ifStmt.thenBranch.accept(v))
+	for _, elif := range ifStmt.elifs {
+		out += fmt.Sprintf(" %v", elif.accept(v))
+	}
+	if ifStmt.elseBranch != nil {
+		out += fmt.Sprintf(" (else %v)", ifStmt.elseBranch.accept(v))
+	}
+	return out + ")"
 }
 
 func (v stringVisitor) visitElifStmt(stmt stmt) R {
-	return nil
+	elifStmt := stmt.(*elifStmt)
+	return fmt.Sprintf("(elif %v %v)", elifStmt.condition.accept(v), elifStmt.body.accept(v))
 }
 
 func (v stringVisitor) visitListExpr(expr expr) R {
@@ -147,7 +189,8 @@ func (v stringVisitor) visitUnaryExpr(expr expr) R {
 }
 
 func (v stringVisitor) visitVariableExpr(expr expr) R {
-	return ""
+	variableExpr := expr.(*variableExpr)
+	return variableExpr.name.lexeme
 }
 
 func (v stringVisitor) visitFunctionExpr(expr expr) R {

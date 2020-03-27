@@ -80,27 +80,117 @@ func (p *parser) statement() stmt {
 	if p.match(WHILE) {
 		return p.while()
 	}
+	if p.match(BEGIN) {
+		return p.block()
+	}
 	return p.expressionStmt()
 }
 
 func (p *parser) forLoop() stmt {
-	//TODO: implement
-	return nil
+	if p.check(IDENTIFIER) {
+		// Enhanced for
+		return p.enhancedFor()
+	}
+	// Classic for
+	var init stmt
+	if p.match(COMMA) {
+		init = nil
+	} else if p.match(LET) {
+		init = p.let()
+		p.consume(COMMA, errExpectedComma)
+	} else {
+		init = p.expressionStmt()
+		p.consume(COMMA, errExpectedComma)
+	}
+
+	cond := p.expression()
+	p.consume(COMMA, errExpectedComma)
+
+	inc := p.expression()
+
+	body := p.statement()
+
+	return &classicForStmt{
+		initializer: init,
+		condition:   cond,
+		increment:   inc,
+		body:        body,
+	}
+}
+
+func (p *parser) enhancedFor() stmt {
+	var ids []*token
+	for p.match(IDENTIFIER) {
+		ids = append(ids, p.previous())
+		p.match(COMMA)
+	}
+	p.consume(IN, errExpectedIn)
+	collection := p.expression()
+	body := p.statement()
+	return &enhancedForStmt{
+		identifiers: ids,
+		body:        body,
+		collection:  collection,
+	}
 }
 
 func (p *parser) ifStmt() stmt {
-	//TODO: implement
-	return nil
+	cond := p.expression()
+	thenBranch := p.statement()
+
+	var elifs []*elifStmt
+	for p.match(ELIF) {
+		elifs = append(elifs, &elifStmt{
+			condition: p.expression(),
+			body:      p.statement(),
+		})
+	}
+
+	var elseBranch stmt
+	if p.match(ELSE) {
+		elseBranch = p.statement()
+	}
+
+	return &ifStmt{
+		condition:  cond,
+		thenBranch: thenBranch,
+		elifs:      elifs,
+		elseBranch: elseBranch,
+	}
 }
 
 func (p *parser) ret() stmt {
-	//TODO: implement
-	return nil
+	var value expr
+	keyword := p.previous()
+	if !p.check(NEWLINE) {
+		value = p.expression()
+	}
+	p.consume(NEWLINE, errExpectedNewline)
+	return &returnStmt{
+		keyword: keyword,
+		value:   value,
+	}
 }
 
 func (p *parser) while() stmt {
-	//TODO: implement
-	return nil
+	cond := p.expression()
+	body := p.statement()
+	return &whileStmt{
+		condition: cond,
+		body:      body,
+	}
+}
+
+func (p *parser) block() stmt {
+	var stmts []stmt
+	p.consume(NEWLINE, errExpectedNewline)
+	for !p.match(END) {
+		stmts = append(stmts, p.declaration())
+	}
+	p.consume(NEWLINE, errExpectedNewline)
+	return &blockStmt{
+		stmts: stmts,
+	}
 }
 
 func (p *parser) expressionStmt() stmt {

@@ -6,6 +6,8 @@ type stmt interface {
 
 type stmtVisitor interface {
 	visitExprStmt(stmt stmt) R
+	visitClassicForStmt(stmt stmt) R
+	visitEnhancedForStmt(stmt stmt) R
 	visitLetStmt(stmt stmt) R
 	visitBlockStmt(stmt stmt) R
 	visitWhileStmt(stmt stmt) R
@@ -20,6 +22,27 @@ type exprStmt struct {
 
 func (s *exprStmt) accept(visitor stmtVisitor) R {
 	return visitor.visitExprStmt(s)
+}
+
+type classicForStmt struct {
+	initializer stmt
+	condition expr
+	increment expr
+	body stmt
+}
+
+func (s *classicForStmt) accept(visitor stmtVisitor) R {
+	return visitor.visitClassicForStmt(s)
+}
+
+type enhancedForStmt struct {
+	identifiers []*token
+	collection expr
+	body stmt
+}
+
+func (s *enhancedForStmt) accept(visitor stmtVisitor) R {
+	return visitor.visitEnhancedForStmt(s)
 }
 
 type letStmt struct {
@@ -60,7 +83,7 @@ func (s *returnStmt) accept(visitor stmtVisitor) R {
 type ifStmt struct {
 	condition expr
 	thenBranch stmt
-	elifs []elifStmt
+	elifs []*elifStmt
 	elseBranch stmt
 }
 
@@ -70,7 +93,7 @@ func (s *ifStmt) accept(visitor stmtVisitor) R {
 
 type elifStmt struct {
 	condition expr
-	body expr
+	body stmt
 }
 
 func (s *elifStmt) accept(visitor stmtVisitor) R {

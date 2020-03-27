@@ -41,7 +41,7 @@ const (
 
 	// Keywords.
 	// and, class, else, false, fn, for, if, elif, nil, or,
-	// return, super, this, true, let, while, not, in
+	// return, super, this, true, let, while, not, in, begin, end
 	AND
 	CLASS
 	ELSE
@@ -60,6 +60,8 @@ const (
 	WHILE
 	NOT
 	IN
+	BEGIN
+	END
 )
 
 type token struct {

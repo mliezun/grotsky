@@ -14,6 +14,7 @@ type stmtVisitor interface {
 	visitReturnStmt(stmt stmt) R
 	visitIfStmt(stmt stmt) R
 	visitElifStmt(stmt stmt) R
+	visitFnStmt(stmt stmt) R
 }
 
 type exprStmt struct {
@@ -98,6 +99,16 @@ type elifStmt struct {
 
 func (s *elifStmt) accept(visitor stmtVisitor) R {
 	return visitor.visitElifStmt(s)
+}
+
+type fnStmt struct {
+	name *token
+	params []*token
+	body []stmt
+}
+
+func (s *fnStmt) accept(visitor stmtVisitor) R {
+	return visitor.visitFnStmt(s)
 }
 
 

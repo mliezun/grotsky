@@ -8,9 +8,7 @@ type R interface{}
 //PrintTree Prints ast
 func (state *interpreterState) PrintTree() {
 	out := ""
-	fmt.Println(state.stmts)
 	for _, stmt := range state.stmts {
-		fmt.Println(stmt)
 		out += stmt.accept(stringVisitor{}).(string) + "\n"
 	}
 	fmt.Print(out)
@@ -21,6 +19,22 @@ type stringVisitor struct{}
 func (v stringVisitor) visitExprStmt(stmt stmt) R {
 	exprStmt := stmt.(*exprStmt)
 	return exprStmt.expression.accept(v)
+}
+
+func (v stringVisitor) visitFnStmt(stmt stmt) R {
+	fnStmt := stmt.(*fnStmt)
+	out := "(fn " + fnStmt.name.lexeme + " ("
+	for i, param := range fnStmt.params {
+		out += param.lexeme
+		if i < len(fnStmt.params)-1 {
+			out += ", "
+		}
+	}
+	out += ")"
+	for _, st := range fnStmt.body {
+		out += fmt.Sprintf(" %v", st.accept(v))
+	}
+	return out + ")"
 }
 
 func (v stringVisitor) visitClassicForStmt(stmt stmt) R {

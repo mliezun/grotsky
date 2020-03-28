@@ -10,16 +10,22 @@ type parser struct {
 	current int
 }
 
+const maxFunctionParams = 255
+
 func (state *interpreterState) Parse() {
 	p := &parser{
 		state: state,
 	}
 	for !p.isAtEnd() {
-		p.state.stmts = append(p.state.stmts, p.stmt())
+		if p.match(NEWLINE) {
+			p.advance()
+			continue
+		}
+		p.state.stmts = append(p.state.stmts, p.parseStmt())
 	}
 }
 
-func (p *parser) stmt() stmt {
+func (p *parser) parseStmt() stmt {
 	defer func() {
 		if r := recover(); r != nil {
 			p.synchronize()
@@ -47,8 +53,32 @@ func (p *parser) class() stmt {
 }
 
 func (p *parser) fn() stmt {
-	//TODO: implement
-	return nil
+	name := p.consume(IDENTIFIER, errExpectedFunctionName)
+	p.consume(LEFT_PAREN, errExpectedParen)
+
+	var params []*token
+	if !p.check(RIGHT_PAREN) {
+		for {
+			if len(params) > maxFunctionParams {
+				p.state.fatalError(errMaxParameters, p.peek().line, 0)
+			}
+			params = append(params, p.consume(IDENTIFIER, errExpectedFunctionParam))
+			if !p.match(COMMA) {
+				break
+			}
+		}
+	}
+	p.consume(RIGHT_PAREN, errUnclosedParen)
+
+	p.consume(BEGIN, errExpectedBegin)
+
+	body := p.block()
+
+	return &fnStmt{
+		name:   name,
+		params: params,
+		body:   body,
+	}
 }
 
 func (p *parser) let() stmt {
@@ -81,7 +111,7 @@ func (p *parser) statement() stmt {
 		return p.while()
 	}
 	if p.match(BEGIN) {
-		return p.block()
+		return &blockStmt{stmts: p.block()}
 	}
 	return p.expressionStmt()
 }
@@ -181,16 +211,14 @@ func (p *parser) while() stmt {
 	}
 }
 
-func (p *parser) block() stmt {
+func (p *parser) block() []stmt {
 	var stmts []stmt
 	p.consume(NEWLINE, errExpectedNewline)
 	for !p.match(END) {
 		stmts = append(stmts, p.declaration())
 	}
 	p.consume(NEWLINE, errExpectedNewline)
-	return &blockStmt{
-		stmts: stmts,
-	}
+	return stmts
 }
 
 func (p *parser) expressionStmt() stmt {
@@ -453,7 +481,7 @@ func (p *parser) arguments(tk tokenType) []expr {
 	arguments := make([]expr, 0)
 	if !p.check(tk) {
 		for {
-			if tk == RIGHT_PAREN && len(arguments) >= 255 {
+			if tk == RIGHT_PAREN && len(arguments) >= maxFunctionParams {
 				p.state.fatalError(errMaxArguments, p.peek().line, 0)
 			}
 			arguments = append(arguments, p.expression())

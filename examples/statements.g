@@ -30,3 +30,8 @@ end
 for a, b in [[1, 2], [3, 4]] begin
 
 end
+
+# Function statement
+fn foo(a) begin
+    let b = [a, 1, 2, a^2*3]
+end

@@ -53,13 +53,30 @@ func (e *exec) visitEnhancedForStmt(stmt stmt) R {
 }
 
 func (e *exec) visitLetStmt(stmt stmt) R {
-	//TODO: implement
+	letStmt := stmt.(*letStmt)
+	var val interface{}
+	if letStmt.initializer != nil {
+		val = letStmt.initializer.accept(e)
+	}
+	e.env.define(letStmt.name.lexeme, val)
 	return nil
 }
 
 func (e *exec) visitBlockStmt(stmt stmt) R {
-	//TODO: implement
+	blockStmt := stmt.(*blockStmt)
+	e.executeBlock(blockStmt.stmts, newEnv(e.state, e.env))
 	return nil
+}
+
+func (e *exec) executeBlock(stmts []stmt, env *env) {
+	previous := e.env
+	defer func() {
+		e.env = previous
+	}()
+	e.env = env
+	for _, s := range stmts {
+		e.execute(s)
+	}
 }
 
 func (e *exec) visitWhileStmt(stmt stmt) R {
@@ -106,8 +123,10 @@ func (e *exec) visitDictionaryExpr(expr expr) R {
 }
 
 func (e *exec) visitAssignExpr(expr expr) R {
-	//TODO: implement
-	return nil
+	assignExpr := expr.(*assignExpr)
+	val := assignExpr.value.accept(e)
+	e.env.assign(assignExpr.name, val)
+	return val
 }
 
 func (e *exec) visitAccessExpr(expr expr) R {

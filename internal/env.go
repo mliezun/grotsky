@@ -7,6 +7,14 @@ type env struct {
 	values    map[string]interface{}
 }
 
+func newEnv(state *state, enclosing *env) *env {
+	return &env{
+		state:     state,
+		enclosing: enclosing,
+		values:    make(map[string]interface{}),
+	}
+}
+
 func (e *env) get(name *token) interface{} {
 	if value, ok := e.values[name.lexeme]; ok {
 		return value

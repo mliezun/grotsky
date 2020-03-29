@@ -10,11 +10,12 @@ func RunSource(source string) {
 	parser := &parser{
 		state: state,
 	}
+	env := newEnv(state, nil)
 	exec := &exec{
-		state: state,
-		env:   new(env),
+		state:   state,
+		env:     env,
+		globals: env,
 	}
-	exec.globals = exec.env
 
 	lexer.scan()
 

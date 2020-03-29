@@ -111,13 +111,102 @@ func (e *exec) visitAssignExpr(expr expr) R {
 }
 
 func (e *exec) visitAccessExpr(expr expr) R {
-	//TODO: implement
+	accessExpr := expr.(*accessExpr)
+	object := accessExpr.object.accept(e)
+	list, isList := object.([]interface{})
+	if isList {
+		return e.sliceList(list, accessExpr)
+	}
+	dict, isDict := object.(map[interface{}]interface{})
+	if isDict {
+		if accessExpr.first == nil {
+			e.state.runtimeErr(errExpectedKey, accessExpr.brace)
+		}
+		return dict[accessExpr.first.accept(e)]
+	}
+	e.state.runtimeErr(errInvalidAccess, accessExpr.brace)
 	return nil
 }
 
-func (e *exec) visitSliceExpr(expr expr) R {
-	//TODO: implement
-	return nil
+func (e *exec) sliceList(list []interface{}, accessExpr *accessExpr) interface{} {
+	first, second, third := e.exprToInt(accessExpr.first, accessExpr.brace),
+		e.exprToInt(accessExpr.second, accessExpr.brace),
+		e.exprToInt(accessExpr.third, accessExpr.brace)
+
+	if first != nil {
+		if accessExpr.firstColon != nil {
+			if second != nil {
+				// [a:b:c]
+				if accessExpr.secondColon != nil {
+					if third == nil {
+						e.state.runtimeErr(errExpectedStep, accessExpr.secondColon)
+					}
+					return e.stepList(list[*first:*second], *third)
+				}
+				// [a:b]
+				return list[*first:*second]
+			}
+
+			// [a::c]
+			if accessExpr.secondColon != nil {
+				if third == nil {
+					e.state.runtimeErr(errExpectedStep, accessExpr.secondColon)
+				}
+				return e.stepList(list[*first:], *third)
+			}
+
+			// [a:]
+			return list[*first:]
+		}
+		// [a]
+		return list[*first]
+	}
+
+	if second != nil {
+		// [:b:c]
+		if accessExpr.secondColon != nil {
+			if third == nil {
+				e.state.runtimeErr(errExpectedStep, accessExpr.secondColon)
+			}
+			return e.stepList(list[:*second], *third)
+		}
+		// [:b]
+		return list[:*second]
+	}
+
+	if third == nil {
+		e.state.runtimeErr(errExpectedStep, accessExpr.secondColon)
+	}
+	// [::c]
+	return e.stepList(list, *third)
+}
+
+func (e *exec) exprToInt(expr expr, token *token) *int64 {
+	if expr == nil {
+		return nil
+	}
+	valueF, ok := expr.accept(e).(float64)
+	if !ok {
+		e.state.runtimeErr(errOnlyNumbers, token)
+	}
+	valueI := int64(valueF)
+	return &valueI
+}
+
+func (e *exec) stepList(list []interface{}, step int64) []interface{} {
+	if step <= 1 {
+		return list
+	}
+	out := make([]interface{}, 0)
+	if step > int64(len(list)) {
+		return out
+	}
+	for i, el := range list {
+		if int64(i)%step == 0 {
+			out = append(out, el)
+		}
+	}
+	return out
 }
 
 func (e *exec) visitBinaryExpr(expr expr) R {
@@ -195,8 +284,8 @@ func (e *exec) visitSuperExpr(expr expr) R {
 }
 
 func (e *exec) visitGroupingExpr(expr expr) R {
-	//TODO: implement
-	return nil
+	groupExpr := expr.(*groupingExpr)
+	return groupExpr.expression.accept(e)
 }
 
 func (e *exec) visitLiteralExpr(expr expr) R {
@@ -272,8 +361,8 @@ func (e *exec) truthy(value interface{}) bool {
 }
 
 func (e *exec) visitVariableExpr(expr expr) R {
-	//TODO: implement
-	return nil
+	varExpr := expr.(*variableExpr)
+	return e.env.get(varExpr.name)
 }
 
 func (e *exec) visitFunctionExpr(expr expr) R {

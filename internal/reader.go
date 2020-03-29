@@ -129,28 +129,23 @@ func (v stringVisitor) visitAssignExpr(expr expr) R {
 
 func (v stringVisitor) visitAccessExpr(expr expr) R {
 	access := expr.(*accessExpr)
-	return fmt.Sprintf("(%v %v)", access.slice.accept(v), access.object.accept(v))
-}
-
-func (v stringVisitor) visitSliceExpr(expr expr) R {
-	slice := expr.(*sliceExpr)
-	out := "#"
-	if slice.first != nil {
-		out += fmt.Sprintf("%v", slice.first.accept(v))
+	slice := "#"
+	if access.first != nil {
+		slice += fmt.Sprintf("%v", access.first.accept(v))
 	}
-	if slice.firstColon != nil {
-		out += ":"
+	if access.firstColon != nil {
+		slice += ":"
 	}
-	if slice.second != nil {
-		out += fmt.Sprintf("%v", slice.second.accept(v))
+	if access.second != nil {
+		slice += fmt.Sprintf("%v", access.second.accept(v))
 	}
-	if slice.secondColon != nil {
-		out += ":"
+	if access.secondColon != nil {
+		slice += ":"
 	}
-	if slice.third != nil {
-		out += fmt.Sprintf("%v", slice.third.accept(v))
+	if access.third != nil {
+		slice += fmt.Sprintf("%v", access.third.accept(v))
 	}
-	return out
+	return fmt.Sprintf("(%v %v)", slice, access.object.accept(v))
 }
 
 func (v stringVisitor) visitBinaryExpr(expr expr) R {

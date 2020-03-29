@@ -9,7 +9,6 @@ type exprVisitor interface {
 	visitDictionaryExpr(expr expr) R
 	visitAssignExpr(expr expr) R
 	visitAccessExpr(expr expr) R
-	visitSliceExpr(expr expr) R
 	visitBinaryExpr(expr expr) R
 	visitCallExpr(expr expr) R
 	visitGetExpr(expr expr) R
@@ -53,14 +52,7 @@ func (s *assignExpr) accept(visitor exprVisitor) R {
 
 type accessExpr struct {
 	object expr
-	slice expr
-}
-
-func (s *accessExpr) accept(visitor exprVisitor) R {
-	return visitor.visitAccessExpr(s)
-}
-
-type sliceExpr struct {
+	brace *token
 	first expr
 	firstColon *token
 	second expr
@@ -68,8 +60,8 @@ type sliceExpr struct {
 	third expr
 }
 
-func (s *sliceExpr) accept(visitor exprVisitor) R {
-	return visitor.visitSliceExpr(s)
+func (s *accessExpr) accept(visitor exprVisitor) R {
+	return visitor.visitAccessExpr(s)
 }
 
 type binaryExpr struct {

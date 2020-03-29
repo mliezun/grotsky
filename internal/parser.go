@@ -291,25 +291,25 @@ func (p *parser) assignment() expr {
 func (p *parser) access() expr {
 	expr := p.or()
 	for p.matchSameLine(LEFT_BRACE) {
-		slice := p.slice()
-		expr = &accessExpr{
+		slice := &accessExpr{
 			object: expr,
-			slice:  slice,
+			brace:  p.previous(),
 		}
+		p.slice(slice)
+		expr = slice
 		p.consume(RIGHT_BRACE, errors.New("Expected ']' at the end of slice"))
 	}
 	return expr
 }
 
-func (p *parser) slice() expr {
-	slice := &sliceExpr{}
+func (p *parser) slice(slice *accessExpr) {
 	if p.match(COLON) {
 		slice.firstColon = p.previous()
 		if p.match(COLON) {
 			slice.secondColon = p.previous()
 			slice.third = p.expression()
 		} else {
-			slice.first = p.expression()
+			slice.second = p.expression()
 			if p.match(COLON) {
 				slice.secondColon = p.previous()
 				slice.third = p.expression()
@@ -333,7 +333,6 @@ func (p *parser) slice() expr {
 			}
 		}
 	}
-	return slice
 }
 
 func (p *parser) or() expr {

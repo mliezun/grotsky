@@ -12,21 +12,21 @@ type parseError struct {
 	pos  int
 }
 
-// interpreterState stores the state of a interpreter
-type interpreterState struct {
-	errors []parseError
-	source string
-	tokens []token
-	stmts  []stmt
+type runtimeError struct {
+	err   error
+	token *token
 }
 
-// NewInterpreterState creates a new interpreter state
-func NewInterpreterState(source string) *interpreterState {
-	state := &interpreterState{source: source, errors: make([]parseError, 0)}
-	return state
+// state stores the state of a interpreter
+type state struct {
+	errors       []parseError
+	source       string
+	tokens       []token
+	stmts        []stmt
+	runtimeError *runtimeError
 }
 
-func (s *interpreterState) setError(err error, line, pos int) {
+func (s *state) setError(err error, line, pos int) {
 	s.errors = append(s.errors, parseError{
 		err:  err,
 		line: line,
@@ -34,7 +34,7 @@ func (s *interpreterState) setError(err error, line, pos int) {
 	})
 }
 
-func (s *interpreterState) fatalError(err error, line, pos int) {
+func (s *state) fatalError(err error, line, pos int) {
 	s.errors = append(s.errors, parseError{
 		err:  err,
 		line: line,
@@ -43,13 +43,21 @@ func (s *interpreterState) fatalError(err error, line, pos int) {
 	panic(err)
 }
 
+func (s *state) runtimeErr(err error, token *token) {
+	s.runtimeError = &runtimeError{
+		err:   err,
+		token: token,
+	}
+	panic(err)
+}
+
 // Valid returns true if the interpreter is in a valid states else false
-func (s *interpreterState) Valid() bool {
+func (s *state) Valid() bool {
 	return len(s.errors) == 0
 }
 
 // PrintErrors prints all errors
-func (s *interpreterState) PrintErrors() {
+func (s *state) PrintErrors() {
 	for _, e := range s.errors {
 		fmt.Fprintf(os.Stderr, "Error on line %d\n", e.line)
 		fmt.Fprintln(os.Stderr, e.err)
@@ -79,3 +87,8 @@ var errExpectedParen = errors.New("Expect '(' after function name")
 var errExpectedFunctionParam = errors.New("Expect function parameter")
 var errMaxParameters = fmt.Errorf("Max number of parameters is %d", maxFunctionParams)
 var errExpectedBegin = errors.New("Expected 'begin' at this position")
+
+// Runtime errors
+var errUndefinedVar = errors.New("Undefined variable")
+var errOnlyNumbers = errors.New("The operation is only defined for numbers")
+var errUndefinedOp = errors.New("Undefined operation")

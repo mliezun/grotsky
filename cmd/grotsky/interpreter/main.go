@@ -29,16 +29,5 @@ func main() {
 
 	source := string(b)
 
-	state := internal.NewInterpreterState(source)
-
-	state.Scan()
-
-	if !state.Valid() {
-		state.PrintErrors()
-		return
-	}
-
-	state.Parse()
-
-	state.PrintTree()
+	internal.RunSource(source)
 }

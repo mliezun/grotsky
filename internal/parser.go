@@ -6,16 +6,13 @@ import (
 
 // parser stores parser data
 type parser struct {
-	state   *interpreterState
+	state   *state
 	current int
 }
 
 const maxFunctionParams = 255
 
-func (state *interpreterState) Parse() {
-	p := &parser{
-		state: state,
-	}
+func (p *parser) parse() {
 	for !p.isAtEnd() {
 		if p.match(NEWLINE) {
 			p.advance()

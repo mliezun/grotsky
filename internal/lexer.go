@@ -5,7 +5,7 @@ import (
 )
 
 type lexer struct {
-	state *interpreterState
+	state *state
 
 	start   int
 	current int
@@ -35,11 +35,7 @@ var keywords = map[string]tokenType{
 	"end":    END,
 }
 
-func (state *interpreterState) Scan() {
-	l := &lexer{
-		state: state,
-		line:  1,
-	}
+func (l *lexer) scan() {
 	for !l.isAtEnd() {
 		l.start = l.current
 		l.scanToken()

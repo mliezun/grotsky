@@ -6,7 +6,7 @@ import "fmt"
 type R interface{}
 
 //PrintTree Prints ast
-func (state *interpreterState) PrintTree() {
+func (state *state) PrintTree() {
 	out := ""
 	for _, stmt := range state.stmts {
 		out += stmt.accept(stringVisitor{}).(string) + "\n"

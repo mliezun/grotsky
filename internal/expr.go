@@ -5,22 +5,22 @@ type expr interface {
 }
 
 type exprVisitor interface {
-	visitListExpr(expr expr) R
-	visitDictionaryExpr(expr expr) R
-	visitAssignExpr(expr expr) R
-	visitAccessExpr(expr expr) R
-	visitBinaryExpr(expr expr) R
-	visitCallExpr(expr expr) R
-	visitGetExpr(expr expr) R
-	visitSetExpr(expr expr) R
-	visitSuperExpr(expr expr) R
-	visitGroupingExpr(expr expr) R
-	visitLiteralExpr(expr expr) R
-	visitLogicalExpr(expr expr) R
-	visitThisExpr(expr expr) R
-	visitUnaryExpr(expr expr) R
-	visitVariableExpr(expr expr) R
-	visitFunctionExpr(expr expr) R
+	visitListExpr(expr *listExpr) R
+	visitDictionaryExpr(expr *dictionaryExpr) R
+	visitAssignExpr(expr *assignExpr) R
+	visitAccessExpr(expr *accessExpr) R
+	visitBinaryExpr(expr *binaryExpr) R
+	visitCallExpr(expr *callExpr) R
+	visitGetExpr(expr *getExpr) R
+	visitSetExpr(expr *setExpr) R
+	visitSuperExpr(expr *superExpr) R
+	visitGroupingExpr(expr *groupingExpr) R
+	visitLiteralExpr(expr *literalExpr) R
+	visitLogicalExpr(expr *logicalExpr) R
+	visitThisExpr(expr *thisExpr) R
+	visitUnaryExpr(expr *unaryExpr) R
+	visitVariableExpr(expr *variableExpr) R
+	visitFunctionExpr(expr *functionExpr) R
 }
 
 type listExpr struct {

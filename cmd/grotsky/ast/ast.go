@@ -61,7 +61,8 @@ func generateAst(baseName string, types []string) string {
 	for _, t := range types {
 		typeDef := strings.Split(t, ":")
 		name := strings.TrimSpace(typeDef[0])
-		out += "\tvisit" + name + baseName + "(" + strings.ToLower(baseName) + " " + strings.ToLower(baseName) + ") R\n"
+		structType := strings.ToLower(string(name[0])) + name[1:] + baseName
+		out += "\tvisit" + name + baseName + "(" + strings.ToLower(baseName) + " *" + structType + ") R\n"
 	}
 	out += "}\n\n"
 	// End Visitor interface

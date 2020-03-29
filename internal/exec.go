@@ -37,34 +37,31 @@ func (e *exec) execute(stmt stmt) R {
 	return stmt.accept(e)
 }
 
-func (e *exec) visitExprStmt(stmt stmt) R {
-	exprStmt := stmt.(*exprStmt)
-	return exprStmt.expression.accept(e)
+func (e *exec) visitExprStmt(stmt *exprStmt) R {
+	return stmt.expression.accept(e)
 }
 
-func (e *exec) visitClassicForStmt(stmt stmt) R {
+func (e *exec) visitClassicForStmt(stmt *classicForStmt) R {
 	//TODO: implement
 	return nil
 }
 
-func (e *exec) visitEnhancedForStmt(stmt stmt) R {
+func (e *exec) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 	//TODO: implement
 	return nil
 }
 
-func (e *exec) visitLetStmt(stmt stmt) R {
-	letStmt := stmt.(*letStmt)
+func (e *exec) visitLetStmt(stmt *letStmt) R {
 	var val interface{}
-	if letStmt.initializer != nil {
-		val = letStmt.initializer.accept(e)
+	if stmt.initializer != nil {
+		val = stmt.initializer.accept(e)
 	}
-	e.env.define(letStmt.name.lexeme, val)
+	e.env.define(stmt.name.lexeme, val)
 	return nil
 }
 
-func (e *exec) visitBlockStmt(stmt stmt) R {
-	blockStmt := stmt.(*blockStmt)
-	e.executeBlock(blockStmt.stmts, newEnv(e.state, e.env))
+func (e *exec) visitBlockStmt(stmt *blockStmt) R {
+	e.executeBlock(stmt.stmts, newEnv(e.state, e.env))
 	return nil
 }
 
@@ -79,71 +76,67 @@ func (e *exec) executeBlock(stmts []stmt, env *env) {
 	}
 }
 
-func (e *exec) visitWhileStmt(stmt stmt) R {
+func (e *exec) visitWhileStmt(stmt *whileStmt) R {
 	//TODO: implement
 	return nil
 }
 
-func (e *exec) visitReturnStmt(stmt stmt) R {
+func (e *exec) visitReturnStmt(stmt *returnStmt) R {
 	//TODO: implement
 	return nil
 }
 
-func (e *exec) visitIfStmt(stmt stmt) R {
+func (e *exec) visitIfStmt(stmt *ifStmt) R {
 	//TODO: implement
 	return nil
 }
 
-func (e *exec) visitElifStmt(stmt stmt) R {
+func (e *exec) visitElifStmt(stmt *elifStmt) R {
 	//TODO: implement
 	return nil
 }
 
-func (e *exec) visitFnStmt(stmt stmt) R {
+func (e *exec) visitFnStmt(stmt *fnStmt) R {
 	//TODO: implement
 	return nil
 }
 
-func (e *exec) visitListExpr(expr expr) R {
-	listExpr := expr.(*listExpr)
-	list := make([]interface{}, len(listExpr.elements))
-	for i, el := range listExpr.elements {
+func (e *exec) visitListExpr(expr *listExpr) R {
+	list := make([]interface{}, len(expr.elements))
+	for i, el := range expr.elements {
 		list[i] = el.accept(e)
 	}
 	return list
 }
 
-func (e *exec) visitDictionaryExpr(expr expr) R {
-	dictExpr := expr.(*dictionaryExpr)
+func (e *exec) visitDictionaryExpr(expr *dictionaryExpr) R {
 	dict := make(map[interface{}]interface{})
-	for i := 0; i < len(dictExpr.elements)/2; i++ {
-		dict[dictExpr.elements[i*2].accept(e)] = dictExpr.elements[i*2+1].accept(e)
+	for i := 0; i < len(expr.elements)/2; i++ {
+		dict[expr.elements[i*2].accept(e)] = expr.elements[i*2+1].accept(e)
 	}
 	return dict
 }
 
-func (e *exec) visitAssignExpr(expr expr) R {
-	assignExpr := expr.(*assignExpr)
-	val := assignExpr.value.accept(e)
-	e.env.assign(assignExpr.name, val)
+func (e *exec) visitAssignExpr(expr *assignExpr) R {
+	val := expr.value.accept(e)
+	e.env.assign(expr.name, val)
 	return val
 }
 
-func (e *exec) visitAccessExpr(expr expr) R {
-	accessExpr := expr.(*accessExpr)
-	object := accessExpr.object.accept(e)
+func (e *exec) visitAccessExpr(expr *accessExpr) R {
+	object := expr.object.accept(e)
 	list, isList := object.([]interface{})
 	if isList {
-		return e.sliceList(list, accessExpr)
+		return e.sliceList(list, expr)
 	}
 	dict, isDict := object.(map[interface{}]interface{})
 	if isDict {
-		if accessExpr.first == nil {
-			e.state.runtimeErr(errExpectedKey, accessExpr.brace)
+		if expr.first == nil {
+			e.state.runtimeErr(errExpectedKey, expr.brace)
 		}
-		return dict[accessExpr.first.accept(e)]
+		return dict[expr.first.accept(e)]
 	}
-	e.state.runtimeErr(errInvalidAccess, accessExpr.brace)
+	e.state.runtimeErr(errInvalidAccess, expr.brace)
 	return nil
 }
 
@@ -228,44 +221,43 @@ func (e *exec) stepList(list []interface{}, step int64) []interface{} {
 	return out
 }
 
-func (e *exec) visitBinaryExpr(expr expr) R {
-	binExpr := expr.(*binaryExpr)
-	left := binExpr.left.accept(e)
-	right := binExpr.right.accept(e)
-	switch binExpr.operator.token {
+func (e *exec) visitBinaryExpr(expr *binaryExpr) R {
+	left := expr.left.accept(e)
+	right := expr.right.accept(e)
+	switch expr.operator.token {
 	case EQUAL_EQUAL:
 		return left == right
 	case BANG_EQUAL:
 		return left != right
 	case GREATER:
-		leftNum, rightNum := e.getNums(binExpr, left, right)
+		leftNum, rightNum := e.getNums(expr, left, right)
 		return leftNum > rightNum
 	case GREATER_EQUAL:
-		leftNum, rightNum := e.getNums(binExpr, left, right)
+		leftNum, rightNum := e.getNums(expr, left, right)
 		return leftNum >= rightNum
 	case LESS:
-		leftNum, rightNum := e.getNums(binExpr, left, right)
+		leftNum, rightNum := e.getNums(expr, left, right)
 		return leftNum < rightNum
 	case LESS_EQUAL:
-		leftNum, rightNum := e.getNums(binExpr, left, right)
+		leftNum, rightNum := e.getNums(expr, left, right)
 		return leftNum <= rightNum
 	case PLUS:
-		leftNum, rightNum := e.getNums(binExpr, left, right)
+		leftNum, rightNum := e.getNums(expr, left, right)
 		return leftNum + rightNum
 	case MINUS:
-		leftNum, rightNum := e.getNums(binExpr, left, right)
+		leftNum, rightNum := e.getNums(expr, left, right)
 		return leftNum - rightNum
 	case SLASH:
-		leftNum, rightNum := e.getNums(binExpr, left, right)
+		leftNum, rightNum := e.getNums(expr, left, right)
 		return leftNum / rightNum
 	case STAR:
-		leftNum, rightNum := e.getNums(binExpr, left, right)
+		leftNum, rightNum := e.getNums(expr, left, right)
 		return leftNum * rightNum
 	case POWER:
-		leftNum, rightNum := e.getNums(binExpr, left, right)
+		leftNum, rightNum := e.getNums(expr, left, right)
 		return math.Pow(leftNum, rightNum)
 	default:
-		e.state.runtimeErr(errUndefinedOp, binExpr.operator)
+		e.state.runtimeErr(errUndefinedOp, expr.operator)
 	}
 	return nil
 }
@@ -282,80 +274,76 @@ func (e *exec) getNums(binExpr *binaryExpr, left, right interface{}) (float64, f
 	return leftNum, rightNum
 }
 
-func (e *exec) visitCallExpr(expr expr) R {
+func (e *exec) visitCallExpr(expr *callExpr) R {
 	//TODO: implement
 	return nil
 }
 
-func (e *exec) visitGetExpr(expr expr) R {
+func (e *exec) visitGetExpr(expr *getExpr) R {
 	//TODO: implement
 	return nil
 }
 
-func (e *exec) visitSetExpr(expr expr) R {
+func (e *exec) visitSetExpr(expr *setExpr) R {
 	//TODO: implement
 	return nil
 }
 
-func (e *exec) visitSuperExpr(expr expr) R {
+func (e *exec) visitSuperExpr(expr *superExpr) R {
 	//TODO: implement
 	return nil
 }
 
-func (e *exec) visitGroupingExpr(expr expr) R {
-	groupExpr := expr.(*groupingExpr)
-	return groupExpr.expression.accept(e)
+func (e *exec) visitGroupingExpr(expr *groupingExpr) R {
+	return expr.expression.accept(e)
 }
 
-func (e *exec) visitLiteralExpr(expr expr) R {
-	litExpr := expr.(*literalExpr)
-	return litExpr.value
+func (e *exec) visitLiteralExpr(expr *literalExpr) R {
+	return expr.value
 }
 
-func (e *exec) visitLogicalExpr(expr expr) R {
-	logExpr := expr.(*logicalExpr)
-	left := e.truthy(logExpr.left.accept(e))
+func (e *exec) visitLogicalExpr(expr *logicalExpr) R {
+	left := e.truthy(expr.left.accept(e))
 
-	if logExpr.operator.token == OR {
+	if expr.operator.token == OR {
 		if left {
 			return true
 		}
-		right := e.truthy(logExpr.right.accept(e))
+		right := e.truthy(expr.right.accept(e))
 		return left || right
 	}
 
-	if logExpr.operator.token == AND {
+	if expr.operator.token == AND {
 		if !left {
 			return false
 		}
-		right := e.truthy(logExpr.right.accept(e))
+		right := e.truthy(expr.right.accept(e))
 		return left && right
 	}
 
-	e.state.runtimeErr(errUndefinedOp, logExpr.operator)
+	e.state.runtimeErr(errUndefinedOp, expr.operator)
 
 	return nil
 }
 
-func (e *exec) visitThisExpr(expr expr) R {
+func (e *exec) visitThisExpr(expr *thisExpr) R {
 	//TODO: implement
 	return nil
 }
 
-func (e *exec) visitUnaryExpr(expr expr) R {
-	unaryExpr := expr.(*unaryExpr)
-	value := unaryExpr.right.accept(e)
-	switch unaryExpr.operator.token {
+func (e *exec) visitUnaryExpr(expr *unaryExpr) R {
+	value := expr.right.accept(e)
+	switch expr.operator.token {
 	case NOT:
 		return !e.truthy(value)
 	case MINUS:
 		valueNum, ok := value.(float64)
 		if !ok {
-			e.state.runtimeErr(errOnlyNumbers, unaryExpr.operator)
+			e.state.runtimeErr(errOnlyNumbers, expr.operator)
 		}
 		return -valueNum
 	default:
-		e.state.runtimeErr(errUndefinedOp, unaryExpr.operator)
+		e.state.runtimeErr(errUndefinedOp, expr.operator)
 	}
 	return nil
 }
@@ -379,12 +367,11 @@ func (e *exec) truthy(value interface{}) bool {
 	return true
 }
 
-func (e *exec) visitVariableExpr(expr expr) R {
-	varExpr := expr.(*variableExpr)
-	return e.env.get(varExpr.name)
+func (e *exec) visitVariableExpr(expr *variableExpr) R {
+	return e.env.get(expr.name)
 }
 
-func (e *exec) visitFunctionExpr(expr expr) R {
+func (e *exec) visitFunctionExpr(expr *functionExpr) R {
 	//TODO: implement
 	return nil
 }

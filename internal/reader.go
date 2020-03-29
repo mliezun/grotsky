@@ -16,192 +16,172 @@ func (state *state) PrintTree() {
 
 type stringVisitor struct{}
 
-func (v stringVisitor) visitExprStmt(stmt stmt) R {
-	exprStmt := stmt.(*exprStmt)
-	return exprStmt.expression.accept(v)
+func (v stringVisitor) visitExprStmt(stmt *exprStmt) R {
+	return stmt.expression.accept(v)
 }
 
-func (v stringVisitor) visitFnStmt(stmt stmt) R {
-	fnStmt := stmt.(*fnStmt)
-	out := "(fn " + fnStmt.name.lexeme + " ("
-	for i, param := range fnStmt.params {
+func (v stringVisitor) visitFnStmt(stmt *fnStmt) R {
+	out := "(fn " + stmt.name.lexeme + " ("
+	for i, param := range stmt.params {
 		out += param.lexeme
-		if i < len(fnStmt.params)-1 {
+		if i < len(stmt.params)-1 {
 			out += ", "
 		}
 	}
 	out += ")"
-	for _, st := range fnStmt.body {
+	for _, st := range stmt.body {
 		out += fmt.Sprintf(" %v", st.accept(v))
 	}
 	return out + ")"
 }
 
-func (v stringVisitor) visitClassicForStmt(stmt stmt) R {
-	forStmt := stmt.(*classicForStmt)
+func (v stringVisitor) visitClassicForStmt(stmt *classicForStmt) R {
 	return fmt.Sprintf(
 		"(for %v %v %v %v)",
-		forStmt.initializer.accept(v),
-		forStmt.condition.accept(v),
-		forStmt.increment.accept(v),
-		forStmt.body.accept(v),
+		stmt.initializer.accept(v),
+		stmt.condition.accept(v),
+		stmt.increment.accept(v),
+		stmt.body.accept(v),
 	)
 }
 
-func (v stringVisitor) visitEnhancedForStmt(stmt stmt) R {
-	forStmt := stmt.(*enhancedForStmt)
+func (v stringVisitor) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 	out := "(for (in ("
-	for i, id := range forStmt.identifiers {
+	for i, id := range stmt.identifiers {
 		out += id.lexeme
-		if i < len(forStmt.identifiers)-1 {
+		if i < len(stmt.identifiers)-1 {
 			out += ", "
 		}
 	}
-	out += fmt.Sprintf(") %v) %v)", forStmt.collection.accept(v), forStmt.body.accept(v))
+	out += fmt.Sprintf(") %v) %v)", stmt.collection.accept(v), stmt.body.accept(v))
 	return out
 }
 
-func (v stringVisitor) visitLetStmt(stmt stmt) R {
-	letStmt := stmt.(*letStmt)
-	return fmt.Sprintf("(let %s %v)", letStmt.name.lexeme, letStmt.initializer.accept(v))
+func (v stringVisitor) visitLetStmt(stmt *letStmt) R {
+	return fmt.Sprintf("(let %s %v)", stmt.name.lexeme, stmt.initializer.accept(v))
 }
 
-func (v stringVisitor) visitBlockStmt(stmt stmt) R {
-	blockStmt := stmt.(*blockStmt)
+func (v stringVisitor) visitBlockStmt(stmt *blockStmt) R {
 	out := "(scope"
-	for _, s := range blockStmt.stmts {
+	for _, s := range stmt.stmts {
 		out += fmt.Sprintf(" %v", s.accept(v))
 	}
 	return out + ")"
 }
 
-func (v stringVisitor) visitWhileStmt(stmt stmt) R {
-	whileStmt := stmt.(*whileStmt)
-	return fmt.Sprintf("(while %v %v)", whileStmt.condition.accept(v), whileStmt.body.accept(v))
+func (v stringVisitor) visitWhileStmt(stmt *whileStmt) R {
+	return fmt.Sprintf("(while %v %v)", stmt.condition.accept(v), stmt.body.accept(v))
 }
 
-func (v stringVisitor) visitReturnStmt(stmt stmt) R {
-	returnStmt := stmt.(*returnStmt)
-	return fmt.Sprintf("(return %v)", returnStmt.value.accept(v))
+func (v stringVisitor) visitReturnStmt(stmt *returnStmt) R {
+	return fmt.Sprintf("(return %v)", stmt.value.accept(v))
 }
 
-func (v stringVisitor) visitIfStmt(stmt stmt) R {
-	ifStmt := stmt.(*ifStmt)
-	out := fmt.Sprintf("(if (then %v %v)", ifStmt.condition.accept(v), ifStmt.thenBranch.accept(v))
-	for _, elif := range ifStmt.elifs {
+func (v stringVisitor) visitIfStmt(stmt *ifStmt) R {
+	out := fmt.Sprintf("(if (then %v %v)", stmt.condition.accept(v), stmt.thenBranch.accept(v))
+	for _, elif := range stmt.elifs {
 		out += fmt.Sprintf(" %v", elif.accept(v))
 	}
-	if ifStmt.elseBranch != nil {
-		out += fmt.Sprintf(" (else %v)", ifStmt.elseBranch.accept(v))
+	if stmt.elseBranch != nil {
+		out += fmt.Sprintf(" (else %v)", stmt.elseBranch.accept(v))
 	}
 	return out + ")"
 }
 
-func (v stringVisitor) visitElifStmt(stmt stmt) R {
-	elifStmt := stmt.(*elifStmt)
-	return fmt.Sprintf("(elif %v %v)", elifStmt.condition.accept(v), elifStmt.body.accept(v))
+func (v stringVisitor) visitElifStmt(stmt *elifStmt) R {
+	return fmt.Sprintf("(elif %v %v)", stmt.condition.accept(v), stmt.body.accept(v))
 }
 
-func (v stringVisitor) visitListExpr(expr expr) R {
-	list := expr.(*listExpr)
+func (v stringVisitor) visitListExpr(expr *listExpr) R {
 	out := "(list"
-	for _, el := range list.elements {
+	for _, el := range expr.elements {
 		out += fmt.Sprintf(" %v", el.accept(v))
 	}
 	return out + ")"
 }
 
-func (v stringVisitor) visitDictionaryExpr(expr expr) R {
-	dict := expr.(*dictionaryExpr)
+func (v stringVisitor) visitDictionaryExpr(expr *dictionaryExpr) R {
 	out := "(dict"
-	for i := 0; i < len(dict.elements)/2; i++ {
-		key := dict.elements[i*2]
-		value := dict.elements[i*2+1]
+	for i := 0; i < len(expr.elements)/2; i++ {
+		key := expr.elements[i*2]
+		value := expr.elements[i*2+1]
 		out += fmt.Sprintf(" %v=>%v", key.accept(v), value.accept(v))
 	}
 	return out + ")"
 }
 
-func (v stringVisitor) visitAssignExpr(expr expr) R {
-	assign := expr.(*assignExpr)
-	return fmt.Sprintf("(set %s %v)", assign.name.lexeme, assign.value.accept(v))
+func (v stringVisitor) visitAssignExpr(expr *assignExpr) R {
+	return fmt.Sprintf("(set %s %v)", expr.name.lexeme, expr.value.accept(v))
 }
 
-func (v stringVisitor) visitAccessExpr(expr expr) R {
-	access := expr.(*accessExpr)
+func (v stringVisitor) visitAccessExpr(expr *accessExpr) R {
 	slice := "#"
-	if access.first != nil {
-		slice += fmt.Sprintf("%v", access.first.accept(v))
+	if expr.first != nil {
+		slice += fmt.Sprintf("%v", expr.first.accept(v))
 	}
-	if access.firstColon != nil {
+	if expr.firstColon != nil {
 		slice += ":"
 	}
-	if access.second != nil {
-		slice += fmt.Sprintf("%v", access.second.accept(v))
+	if expr.second != nil {
+		slice += fmt.Sprintf("%v", expr.second.accept(v))
 	}
-	if access.secondColon != nil {
+	if expr.secondColon != nil {
 		slice += ":"
 	}
-	if access.third != nil {
-		slice += fmt.Sprintf("%v", access.third.accept(v))
+	if expr.third != nil {
+		slice += fmt.Sprintf("%v", expr.third.accept(v))
 	}
-	return fmt.Sprintf("(%v %v)", slice, access.object.accept(v))
+	return fmt.Sprintf("(%v %v)", slice, expr.object.accept(v))
 }
 
-func (v stringVisitor) visitBinaryExpr(expr expr) R {
-	binary := expr.(*binaryExpr)
-	return fmt.Sprintf("(%s %v %v)", binary.operator.lexeme, binary.left.accept(v), binary.right.accept(v))
+func (v stringVisitor) visitBinaryExpr(expr *binaryExpr) R {
+	return fmt.Sprintf("(%s %v %v)", expr.operator.lexeme, expr.left.accept(v), expr.right.accept(v))
 }
 
-func (v stringVisitor) visitCallExpr(expr expr) R {
+func (v stringVisitor) visitCallExpr(expr *callExpr) R {
 	return ""
 }
 
-func (v stringVisitor) visitGetExpr(expr expr) R {
+func (v stringVisitor) visitGetExpr(expr *getExpr) R {
 	return ""
 }
 
-func (v stringVisitor) visitSetExpr(expr expr) R {
+func (v stringVisitor) visitSetExpr(expr *setExpr) R {
 	return ""
 }
 
-func (v stringVisitor) visitSuperExpr(expr expr) R {
+func (v stringVisitor) visitSuperExpr(expr *superExpr) R {
 	return ""
 }
 
-func (v stringVisitor) visitGroupingExpr(expr expr) R {
-	group := expr.(*groupingExpr)
-	return group.expression.accept(v)
+func (v stringVisitor) visitGroupingExpr(expr *groupingExpr) R {
+	return expr.expression.accept(v)
 }
 
-func (v stringVisitor) visitLiteralExpr(expr expr) R {
-	literal := expr.(*literalExpr)
-	stringLiteral, isString := literal.value.(string)
+func (v stringVisitor) visitLiteralExpr(expr *literalExpr) R {
+	stringLiteral, isString := expr.value.(string)
 	if isString {
 		return "\"" + stringLiteral + "\""
 	}
-	return fmt.Sprintf("%v", literal.value)
+	return fmt.Sprintf("%v", expr.value)
 }
 
-func (v stringVisitor) visitLogicalExpr(expr expr) R {
-	logical := expr.(*logicalExpr)
-	return fmt.Sprintf("(%s %v %v)", logical.operator.lexeme, logical.left.accept(v), logical.right.accept(v))
+func (v stringVisitor) visitLogicalExpr(expr *logicalExpr) R {
+	return fmt.Sprintf("(%s %v %v)", expr.operator.lexeme, expr.left.accept(v), expr.right.accept(v))
 }
 
-func (v stringVisitor) visitThisExpr(expr expr) R {
+func (v stringVisitor) visitThisExpr(expr *thisExpr) R {
 	return ""
 }
 
-func (v stringVisitor) visitUnaryExpr(expr expr) R {
-	unary := expr.(*unaryExpr)
-	return fmt.Sprintf("(%s %v)", unary.operator.lexeme, unary.right.accept(v))
+func (v stringVisitor) visitUnaryExpr(expr *unaryExpr) R {
+	return fmt.Sprintf("(%s %v)", expr.operator.lexeme, expr.right.accept(v))
 }
 
-func (v stringVisitor) visitVariableExpr(expr expr) R {
-	variableExpr := expr.(*variableExpr)
-	return variableExpr.name.lexeme
+func (v stringVisitor) visitVariableExpr(expr *variableExpr) R {
+	return expr.name.lexeme
 }
 
-func (v stringVisitor) visitFunctionExpr(expr expr) R {
+func (v stringVisitor) visitFunctionExpr(expr *functionExpr) R {
 	return ""
 }

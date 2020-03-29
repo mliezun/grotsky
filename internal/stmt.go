@@ -5,16 +5,16 @@ type stmt interface {
 }
 
 type stmtVisitor interface {
-	visitExprStmt(stmt stmt) R
-	visitClassicForStmt(stmt stmt) R
-	visitEnhancedForStmt(stmt stmt) R
-	visitLetStmt(stmt stmt) R
-	visitBlockStmt(stmt stmt) R
-	visitWhileStmt(stmt stmt) R
-	visitReturnStmt(stmt stmt) R
-	visitIfStmt(stmt stmt) R
-	visitElifStmt(stmt stmt) R
-	visitFnStmt(stmt stmt) R
+	visitExprStmt(stmt *exprStmt) R
+	visitClassicForStmt(stmt *classicForStmt) R
+	visitEnhancedForStmt(stmt *enhancedForStmt) R
+	visitLetStmt(stmt *letStmt) R
+	visitBlockStmt(stmt *blockStmt) R
+	visitWhileStmt(stmt *whileStmt) R
+	visitReturnStmt(stmt *returnStmt) R
+	visitIfStmt(stmt *ifStmt) R
+	visitElifStmt(stmt *elifStmt) R
+	visitFnStmt(stmt *fnStmt) R
 }
 
 type exprStmt struct {

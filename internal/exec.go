@@ -27,14 +27,8 @@ func (e *exec) interpret() {
 		}
 	}()
 	for _, s := range e.state.stmts {
-		if result := e.execute(s); result != nil {
-			fmt.Printf("%v\n", result)
-		}
+		s.accept(e)
 	}
-}
-
-func (e *exec) execute(stmt stmt) R {
-	return stmt.accept(e)
 }
 
 func (e *exec) visitExprStmt(stmt *exprStmt) R {
@@ -42,7 +36,9 @@ func (e *exec) visitExprStmt(stmt *exprStmt) R {
 }
 
 func (e *exec) visitClassicForStmt(stmt *classicForStmt) R {
-	//TODO: implement
+	for stmt.initializer.accept(e); e.truthy(stmt.condition.accept(e)); stmt.increment.accept(e) {
+		stmt.body.accept(e)
+	}
 	return nil
 }
 
@@ -72,32 +68,53 @@ func (e *exec) executeBlock(stmts []stmt, env *env) {
 	}()
 	e.env = env
 	for _, s := range stmts {
-		e.execute(s)
+		s.accept(e)
 	}
 }
 
 func (e *exec) visitWhileStmt(stmt *whileStmt) R {
-	//TODO: implement
+	for e.truthy(stmt.condition.accept(e)) {
+		stmt.body.accept(e)
+	}
 	return nil
 }
 
 func (e *exec) visitReturnStmt(stmt *returnStmt) R {
-	//TODO: implement
+	if stmt.value != nil {
+		panic(returnValue(stmt.value.accept(e)))
+	}
 	return nil
 }
 
 func (e *exec) visitIfStmt(stmt *ifStmt) R {
-	//TODO: implement
+	if e.truthy(stmt.condition.accept(e)) {
+		return stmt.thenBranch.accept(e)
+	}
+	for _, elif := range stmt.elifs {
+		if e.truthy(elif.accept(e)) {
+			return nil
+		}
+	}
+	if stmt.elseBranch != nil {
+		return stmt.elseBranch.accept(e)
+	}
 	return nil
 }
 
 func (e *exec) visitElifStmt(stmt *elifStmt) R {
-	//TODO: implement
+	if e.truthy(stmt.condition.accept(e)) {
+		stmt.body.accept(e)
+		return true
+	}
 	return nil
 }
 
 func (e *exec) visitFnStmt(stmt *fnStmt) R {
-	//TODO: implement
+	e.env.define(stmt.name.lexeme, &function{
+		declaration:   stmt,
+		closure:       e.env,
+		isInitializer: false,
+	})
 	return nil
 }
 
@@ -275,8 +292,22 @@ func (e *exec) getNums(binExpr *binaryExpr, left, right interface{}) (float64, f
 }
 
 func (e *exec) visitCallExpr(expr *callExpr) R {
-	//TODO: implement
-	return nil
+	callee := expr.callee.accept(e)
+	arguments := make([]interface{}, len(expr.arguments))
+	for i := range expr.arguments {
+		arguments[i] = expr.arguments[i].accept(e)
+	}
+
+	fn, isFn := callee.(callable)
+	if !isFn {
+		e.state.runtimeErr(errOnlyFunction, expr.paren)
+	}
+
+	if len(arguments) != fn.arity() {
+		e.state.runtimeErr(errInvalidNumberArguments, expr.paren)
+	}
+
+	return fn.call(e, arguments)
 }
 
 func (e *exec) visitGetExpr(expr *getExpr) R {

@@ -17,6 +17,8 @@ type runtimeError struct {
 	token *token
 }
 
+type returnValue interface{}
+
 // state stores the state of a interpreter
 type state struct {
 	errors       []parseError
@@ -95,3 +97,5 @@ var errUndefinedOp = errors.New("Undefined operation")
 var errExpectedStep = errors.New("Expected step of the slice")
 var errExpectedKey = errors.New("Expected key for accessing dictionary")
 var errInvalidAccess = errors.New("The object is not subscriptable")
+var errOnlyFunction = errors.New("Can only call functions")
+var errInvalidNumberArguments = errors.New("Invalid number of arguments")

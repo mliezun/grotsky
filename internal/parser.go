@@ -14,10 +14,6 @@ const maxFunctionParams = 255
 
 func (p *parser) parse() {
 	for !p.isAtEnd() {
-		if p.match(NEWLINE) {
-			p.advance()
-			continue
-		}
 		p.state.stmts = append(p.state.stmts, p.parseStmt())
 	}
 }
@@ -32,6 +28,7 @@ func (p *parser) parseStmt() stmt {
 }
 
 func (p *parser) declaration() stmt {
+	defer p.consume(NEWLINE, errExpectedNewline)
 	if p.match(CLASS) {
 		return p.class()
 	}
@@ -85,8 +82,6 @@ func (p *parser) let() stmt {
 	if p.match(EQUAL) {
 		init = p.expression()
 	}
-
-	p.consume(NEWLINE, errExpectedNewline)
 
 	return &letStmt{
 		name:        name,
@@ -192,7 +187,6 @@ func (p *parser) ret() stmt {
 	if !p.check(NEWLINE) {
 		value = p.expression()
 	}
-	p.consume(NEWLINE, errExpectedNewline)
 	return &returnStmt{
 		keyword: keyword,
 		value:   value,
@@ -214,15 +208,11 @@ func (p *parser) block() []stmt {
 	for !p.match(END) {
 		stmts = append(stmts, p.declaration())
 	}
-	p.consume(NEWLINE, errExpectedNewline)
 	return stmts
 }
 
 func (p *parser) expressionStmt() stmt {
 	expr := p.expression()
-	if !p.isAtEnd() {
-		p.consume(NEWLINE, errors.New("Expected new line at the end of statement"))
-	}
 	return &exprStmt{expression: expr}
 }
 
@@ -561,9 +551,8 @@ func (p *parser) check(token tokenType) bool {
 	if p.isAtEnd() {
 		return false
 	}
-	ignoreNewLine := token != NEWLINE
 	oldCurrent := p.current
-	for ignoreNewLine && !p.isAtEnd() && p.peek().token == NEWLINE {
+	for token != NEWLINE && !p.isAtEnd() && p.peek().token == NEWLINE {
 		p.current++
 	}
 	matchs := p.peek().token == token
@@ -588,11 +577,9 @@ func (p *parser) isAtEnd() bool {
 func (p *parser) synchronize() {
 	p.advance()
 	for !p.isAtEnd() {
-		if p.previous().token == NEWLINE {
-			return
-		}
-
 		switch p.peek().token {
+		case BEGIN:
+			return
 		case CLASS:
 			return
 		case FN:
@@ -608,7 +595,6 @@ func (p *parser) synchronize() {
 		case RETURN:
 			return
 		default:
-			break
 		}
 
 		p.advance()

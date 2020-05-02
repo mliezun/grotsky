@@ -40,6 +40,16 @@ func (l *lexer) scan() {
 		l.start = l.current
 		l.scanToken()
 	}
+	countTokens := len(l.state.tokens)
+	if countTokens > 0 && l.state.tokens[countTokens-1].token != NEWLINE {
+		// Add newline if not present to terminate last statement
+		l.state.tokens = append(l.state.tokens, token{
+			token:   NEWLINE,
+			lexeme:  "",
+			literal: nil,
+			line:    l.line,
+		})
+	}
 	l.state.tokens = append(l.state.tokens, token{
 		token:   EOF,
 		lexeme:  "",

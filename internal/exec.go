@@ -88,23 +88,23 @@ func (e *exec) visitReturnStmt(stmt *returnStmt) R {
 
 func (e *exec) visitIfStmt(stmt *ifStmt) R {
 	if e.truthy(stmt.condition.accept(e)) {
-		return stmt.thenBranch.accept(e)
+		for _, st := range stmt.thenBranch {
+			st.accept(e)
+		}
+		return nil
 	}
 	for _, elif := range stmt.elifs {
-		if e.truthy(elif.accept(e)) {
+		if e.truthy(elif.condition.accept(e)) {
+			for _, st := range elif.thenBranch {
+				st.accept(e)
+			}
 			return nil
 		}
 	}
 	if stmt.elseBranch != nil {
-		return stmt.elseBranch.accept(e)
-	}
-	return nil
-}
-
-func (e *exec) visitElifStmt(stmt *elifStmt) R {
-	if e.truthy(stmt.condition.accept(e)) {
-		stmt.body.accept(e)
-		return true
+		for _, st := range stmt.elseBranch {
+			st.accept(e)
+		}
 	}
 	return nil
 }

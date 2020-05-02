@@ -13,7 +13,6 @@ type stmtVisitor interface {
 	visitWhileStmt(stmt *whileStmt) R
 	visitReturnStmt(stmt *returnStmt) R
 	visitIfStmt(stmt *ifStmt) R
-	visitElifStmt(stmt *elifStmt) R
 	visitFnStmt(stmt *fnStmt) R
 }
 
@@ -83,22 +82,13 @@ func (s *returnStmt) accept(visitor stmtVisitor) R {
 
 type ifStmt struct {
 	condition expr
-	thenBranch stmt
-	elifs []*elifStmt
-	elseBranch stmt
+	thenBranch []stmt
+	elifs []*struct{condition expr; thenBranch []stmt}
+	elseBranch []stmt
 }
 
 func (s *ifStmt) accept(visitor stmtVisitor) R {
 	return visitor.visitIfStmt(s)
-}
-
-type elifStmt struct {
-	condition expr
-	body stmt
-}
-
-func (s *elifStmt) accept(visitor stmtVisitor) R {
-	return visitor.visitElifStmt(s)
 }
 
 type fnStmt struct {
@@ -110,5 +100,3 @@ type fnStmt struct {
 func (s *fnStmt) accept(visitor stmtVisitor) R {
 	return visitor.visitFnStmt(s)
 }
-
-

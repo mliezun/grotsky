@@ -163,28 +163,38 @@ func (p *parser) enhancedFor() stmt {
 }
 
 func (p *parser) ifStmt() stmt {
-	cond := p.expression()
-	thenBranch := p.statement()
+	st := &ifStmt{}
 
-	var elifs []*elifStmt
+	st.condition = p.expression()
+
+	p.consume(BEGIN, errExpectedBegin)
+
+	for !p.check(ELIF) && !p.check(ELSE) && !p.check(END) {
+		st.thenBranch = append(st.thenBranch, p.statement())
+	}
+
 	for p.match(ELIF) {
-		elifs = append(elifs, &elifStmt{
+		elif := &struct {
+			condition  expr
+			thenBranch []stmt
+		}{
 			condition: p.expression(),
-			body:      p.statement(),
-		})
+		}
+		for !p.check(ELIF) && !p.check(ELSE) && !p.check(END) {
+			elif.thenBranch = append(elif.thenBranch, p.statement())
+		}
+		st.elifs = append(st.elifs, elif)
 	}
 
-	var elseBranch stmt
 	if p.match(ELSE) {
-		elseBranch = p.statement()
+		for !p.check(END) {
+			st.elseBranch = append(st.elseBranch, p.statement())
+		}
 	}
 
-	return &ifStmt{
-		condition:  cond,
-		thenBranch: thenBranch,
-		elifs:      elifs,
-		elseBranch: elseBranch,
-	}
+	p.consume(END, errExpectedEnd)
+
+	return st
 }
 
 func (p *parser) ret() stmt {

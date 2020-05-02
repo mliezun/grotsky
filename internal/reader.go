@@ -77,19 +77,24 @@ func (v stringVisitor) visitReturnStmt(stmt *returnStmt) R {
 	return fmt.Sprintf("(return %v)", stmt.value.accept(v))
 }
 
-func (v stringVisitor) visitIfStmt(stmt *ifStmt) R {
-	out := fmt.Sprintf("(if (then %v %v)", stmt.condition.accept(v), stmt.thenBranch.accept(v))
-	for _, elif := range stmt.elifs {
-		out += fmt.Sprintf(" %v", elif.accept(v))
+func (v stringVisitor) printArray(stmts []stmt) string {
+	out := ""
+	for _, s := range stmts {
+		out += fmt.Sprintf(" %v", s.accept(v))
 	}
-	if stmt.elseBranch != nil {
-		out += fmt.Sprintf(" (else %v)", stmt.elseBranch.accept(v))
-	}
-	return out + ")"
+	return out
 }
 
-func (v stringVisitor) visitElifStmt(stmt *elifStmt) R {
-	return fmt.Sprintf("(elif %v %v)", stmt.condition.accept(v), stmt.body.accept(v))
+func (v stringVisitor) visitIfStmt(stmt *ifStmt) R {
+	out := fmt.Sprintf("(if (then %v%v)", stmt.condition.accept(v), v.printArray(stmt.thenBranch))
+
+	for _, elif := range stmt.elifs {
+		out += fmt.Sprintf(" (elif %v %v)", elif.condition.accept(v), v.printArray(elif.thenBranch))
+	}
+	if stmt.elseBranch != nil {
+		out += fmt.Sprintf(" (else %v)", v.printArray(stmt.elseBranch))
+	}
+	return out + ")"
 }
 
 func (v stringVisitor) visitListExpr(expr *listExpr) R {

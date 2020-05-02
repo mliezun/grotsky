@@ -61,7 +61,7 @@ func (s *state) Valid() bool {
 // PrintErrors prints all errors, returns true if any error printed
 func (s *state) PrintErrors() bool {
 	for _, e := range s.errors {
-		fmt.Fprintf(os.Stderr, "Error on line %d\n", e.line)
+		fmt.Fprintf(os.Stderr, "Error on line %d\n\t", e.line)
 		fmt.Fprintln(os.Stderr, e.err)
 	}
 	return len(s.errors) != 0
@@ -90,6 +90,7 @@ var errExpectedParen = errors.New("Expect '(' after function name")
 var errExpectedFunctionParam = errors.New("Expect function parameter")
 var errMaxParameters = fmt.Errorf("Max number of parameters is %d", maxFunctionParams)
 var errExpectedBegin = errors.New("Expected 'begin' at this position")
+var errExpectedEnd = errors.New("Expected 'end' at this position")
 
 // Runtime errors
 var errUndefinedVar = errors.New("Undefined variable")

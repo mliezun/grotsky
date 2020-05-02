@@ -10,10 +10,9 @@ let a = 3
 # If statement
 if a > 2 begin
     a = a - 1
-end
 elif a < 3
     a = a + 1
-else begin
+else
     a = a * 2
 end
 

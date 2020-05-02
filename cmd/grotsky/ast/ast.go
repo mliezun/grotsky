@@ -20,8 +20,7 @@ func main() {
 			"Block: stmts []stmt",
 			"While: condition expr, body stmt",
 			"Return: keyword *token, value expr",
-			"If: condition expr, thenBranch stmt, elifs []*elifStmt, elseBranch stmt",
-			"Elif: condition expr, body stmt",
+			"If: condition expr, thenBranch []stmt, elifs []*struct{condition expr; thenBranch []stmt}, elseBranch []stmt",
 			"Fn: name *token, params []*token, body []stmt",
 		})
 	case "Expr":

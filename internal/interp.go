@@ -20,9 +20,7 @@ func RunSource(source string) {
 	}
 
 	var println nativeFn
-	println.arityFn = func() int {
-		return 1
-	}
+	println.arityValue = 1
 	println.callFn = func(exec *exec, arguments []interface{}) interface{} {
 		fmt.Println(arguments[0])
 		return nil

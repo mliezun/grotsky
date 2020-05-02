@@ -14,12 +14,12 @@ type function struct {
 }
 
 type nativeFn struct {
-	arityFn func() int
-	callFn  func(exec *exec, arguments []interface{}) interface{}
+	arityValue int
+	callFn     func(exec *exec, arguments []interface{}) interface{}
 }
 
 func (n *nativeFn) arity() int {
-	return n.arityFn()
+	return n.arityValue
 }
 
 func (n *nativeFn) call(exec *exec, arguments []interface{}) interface{} {

@@ -1,6 +1,8 @@
 package internal
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // RunSource runs source code on a fresh interpreter instance
 func RunSource(source string) {
@@ -29,8 +31,15 @@ func RunSource(source string) {
 
 	lexer.scan()
 
+	if state.PrintErrors() {
+		return
+	}
+
 	parser.parse()
 
-	// state.PrintTree()
+	if state.PrintErrors() {
+		return
+	}
+
 	execute.interpret()
 }

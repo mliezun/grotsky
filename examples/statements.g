@@ -6,6 +6,7 @@ begin
     let asd = "asd"
 end
 
+let a = 3
 # If statement
 if a > 2 begin
     a = a - 1

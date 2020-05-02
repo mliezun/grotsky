@@ -14,7 +14,13 @@ const maxFunctionParams = 255
 
 func (p *parser) parse() {
 	for !p.isAtEnd() {
-		p.state.stmts = append(p.state.stmts, p.parseStmt())
+		st := p.parseStmt()
+		// When multiple empty lines are encountered after a statement
+		// the parser founds nil statements, we should avoid them to not
+		// break the execution stage
+		if st != nil {
+			p.state.stmts = append(p.state.stmts, st)
+		}
 	}
 }
 

@@ -58,12 +58,13 @@ func (s *state) Valid() bool {
 	return len(s.errors) == 0
 }
 
-// PrintErrors prints all errors
-func (s *state) PrintErrors() {
+// PrintErrors prints all errors, returns true if any error printed
+func (s *state) PrintErrors() bool {
 	for _, e := range s.errors {
 		fmt.Fprintf(os.Stderr, "Error on line %d\n", e.line)
 		fmt.Fprintln(os.Stderr, e.err)
 	}
+	return len(s.errors) != 0
 }
 
 // Lexer errors

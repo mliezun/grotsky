@@ -70,9 +70,13 @@ func (p *parser) fn() stmt {
 	}
 	p.consume(RIGHT_PAREN, errUnclosedParen)
 
-	p.consume(BEGIN, errExpectedBegin)
-
-	body := p.block()
+	body := make([]stmt, 0)
+	if p.check(BEGIN) {
+		p.consume(BEGIN, errExpectedBegin)
+		body = p.block()
+	} else {
+		body = append(body, p.expressionStmt())
+	}
 
 	return &fnStmt{
 		name:   name,

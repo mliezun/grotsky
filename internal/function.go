@@ -46,6 +46,12 @@ func (f *function) call(exec *exec, arguments []interface{}) (result interface{}
 		}
 	}()
 
+	if len(f.declaration.body) == 1 {
+		if exprSt, ok := f.declaration.body[0].(*exprStmt); ok {
+			return exec.executeOne(exprSt, env)
+		}
+	}
+
 	exec.executeBlock(f.declaration.body, env)
 
 	return nil

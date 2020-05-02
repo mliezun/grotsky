@@ -40,7 +40,7 @@ declaration    → (classDecl | funDecl | varDecl | statement) NEWLINE;
 classDecl      → "class" IDENTIFIER ( "<" IDENTIFIER )? "begin" methodDecl* "end";
 methodDecl     → "class"? function;
 funDecl        → "fn" function ;
-function       → IDENTIFIER "(" parameters? ")" block ;
+function       → IDENTIFIER "(" parameters? ")" (block | exprStmt) ;
 parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
 varDecl        → "let" IDENTIFIER ("=" expression)?;
 statement      → forStmt

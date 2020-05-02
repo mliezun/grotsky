@@ -61,6 +61,15 @@ func (e *exec) visitBlockStmt(stmt *blockStmt) R {
 	return nil
 }
 
+func (e *exec) executeOne(st stmt, env *env) R {
+	previous := e.env
+	defer func() {
+		e.env = previous
+	}()
+	e.env = env
+	return st.accept(e)
+}
+
 func (e *exec) executeBlock(stmts []stmt, env *env) {
 	previous := e.env
 	defer func() {

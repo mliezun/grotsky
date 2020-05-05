@@ -1,15 +1,12 @@
 package internal
 
 type env struct {
-	state *state
-
 	enclosing *env
 	values    map[string]interface{}
 }
 
-func newEnv(state *state, enclosing *env) *env {
+func newEnv(enclosing *env) *env {
 	return &env{
-		state:     state,
 		enclosing: enclosing,
 		values:    make(map[string]interface{}),
 	}
@@ -22,7 +19,7 @@ func (e *env) get(name *token) interface{} {
 	if e.enclosing != nil {
 		return e.enclosing.get(name)
 	}
-	e.state.runtimeErr(errUndefinedVar, name)
+	state.runtimeErr(errUndefinedVar, name)
 	return nil
 }
 
@@ -39,5 +36,5 @@ func (e *env) assign(name *token, value interface{}) {
 		e.enclosing.assign(name, value)
 		return
 	}
-	e.state.runtimeErr(errUndefinedVar, name)
+	state.runtimeErr(errUndefinedVar, name)
 }

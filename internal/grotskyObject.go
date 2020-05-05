@@ -5,9 +5,12 @@ type grotskyObject struct {
 	fields map[string]interface{}
 }
 
+type operatorApply func(arguments ...interface{}) interface{}
+
 type grotskyInstance interface {
 	get(tk *token) interface{}
 	set(name *token, value interface{})
+	getOperator(op operator) operatorApply
 }
 
 func (o *grotskyObject) get(tk *token) interface{} {
@@ -23,4 +26,9 @@ func (o *grotskyObject) get(tk *token) interface{} {
 
 func (o *grotskyObject) set(name *token, value interface{}) {
 	o.fields[name.lexeme] = value
+}
+
+func (o *grotskyObject) getOperator(op operator) operatorApply {
+	// TODO: handle error
+	return nil
 }

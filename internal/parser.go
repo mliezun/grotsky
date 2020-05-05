@@ -6,7 +6,6 @@ import (
 
 // parser stores parser data
 type parser struct {
-	state   *state
 	current int
 }
 
@@ -19,7 +18,7 @@ func (p *parser) parse() {
 		// the parser founds nil statements, we should avoid them to not
 		// break the execution stage
 		if st != nil {
-			p.state.stmts = append(p.state.stmts, st)
+			state.stmts = append(state.stmts, st)
 		}
 	}
 }
@@ -88,7 +87,7 @@ func (p *parser) fn() *fnStmt {
 	if !p.check(RIGHT_PAREN) {
 		for {
 			if len(params) > maxFunctionParams {
-				p.state.fatalError(errMaxParameters, p.peek().line, 0)
+				state.fatalError(errMaxParameters, p.peek().line, 0)
 			}
 			params = append(params, p.consume(IDENTIFIER, errExpectedFunctionParam))
 			if !p.match(COMMA) {
@@ -120,7 +119,7 @@ func (p *parser) fnExpr() *functionExpr {
 	if !p.check(RIGHT_PAREN) {
 		for {
 			if len(params) > maxFunctionParams {
-				p.state.fatalError(errMaxParameters, p.peek().line, 0)
+				state.fatalError(errMaxParameters, p.peek().line, 0)
 			}
 			params = append(params, p.consume(IDENTIFIER, errExpectedFunctionParam))
 			if !p.match(COMMA) {
@@ -352,7 +351,7 @@ func (p *parser) assignment() expr {
 			}
 		}
 
-		p.state.fatalError(errUndefinedStmt, equal.line, 0)
+		state.fatalError(errUndefinedStmt, equal.line, 0)
 	}
 	return expr
 }
@@ -547,7 +546,7 @@ func (p *parser) arguments(tk tokenType) []expr {
 	if !p.check(tk) {
 		for {
 			if tk == RIGHT_PAREN && len(arguments) >= maxFunctionParams {
-				p.state.fatalError(errMaxArguments, p.peek().line, 0)
+				state.fatalError(errMaxArguments, p.peek().line, 0)
 			}
 			arguments = append(arguments, p.expression())
 			if !p.match(COMMA) {
@@ -589,7 +588,7 @@ func (p *parser) primary() expr {
 		return p.fnExpr()
 	}
 
-	p.state.fatalError(errUndefinedExpr, p.peek().line, 0)
+	state.fatalError(errUndefinedExpr, p.peek().line, 0)
 	return &literalExpr{}
 }
 
@@ -598,7 +597,7 @@ func (p *parser) consume(tk tokenType, err error) *token {
 		return p.advance()
 	}
 
-	p.state.setError(err, p.peek().line, 0)
+	state.setError(err, p.peek().line, 0)
 	return &token{}
 }
 
@@ -645,11 +644,11 @@ func (p *parser) check(token tokenType) bool {
 }
 
 func (p *parser) peek() token {
-	return p.state.tokens[p.current]
+	return state.tokens[p.current]
 }
 
 func (p *parser) previous() *token {
-	return &p.state.tokens[p.current-1]
+	return &state.tokens[p.current-1]
 }
 
 func (p *parser) isAtEnd() bool {

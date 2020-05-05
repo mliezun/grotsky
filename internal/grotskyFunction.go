@@ -31,7 +31,7 @@ func (f *grotskyFunction) arity() int {
 }
 
 func (f *grotskyFunction) call(exec *exec, arguments []interface{}) (result interface{}) {
-	env := newEnv(exec.state, f.closure)
+	env := newEnv(f.closure)
 	for i := range f.declaration.params {
 		env.define(f.declaration.params[i].lexeme, arguments[i])
 	}
@@ -58,7 +58,7 @@ func (f *grotskyFunction) call(exec *exec, arguments []interface{}) (result inte
 }
 
 func (f *grotskyFunction) bind(object *grotskyObject) *grotskyFunction {
-	environment := newEnv(f.closure.state, f.closure)
+	environment := newEnv(f.closure)
 	environment.define("this", object)
 	return &grotskyFunction{
 		declaration: f.declaration,

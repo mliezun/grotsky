@@ -2,13 +2,10 @@ package internal
 
 import (
 	"fmt"
-	"math"
 	"os"
 )
 
 type exec struct {
-	state *state
-
 	globals *env
 	env     *env
 }
@@ -16,7 +13,7 @@ type exec struct {
 func (e *exec) interpret() {
 	defer func() {
 		if r := recover(); r != nil {
-			runErr := e.state.runtimeError
+			runErr := state.runtimeError
 			fmt.Fprintf(
 				os.Stderr,
 				"Error on line %d\n\t%s: %s\n",
@@ -26,7 +23,7 @@ func (e *exec) interpret() {
 			)
 		}
 	}()
-	for _, s := range e.state.stmts {
+	for _, s := range state.stmts {
 		s.accept(e)
 	}
 }
@@ -44,7 +41,7 @@ func (e *exec) visitClassicForStmt(stmt *classicForStmt) R {
 
 func (e *exec) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 	collection := stmt.collection.accept(e)
-	environment := newEnv(e.state, e.env)
+	environment := newEnv(e.env)
 
 	//TODO: add bound checking
 
@@ -74,7 +71,7 @@ func (e *exec) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 			e.executeOne(stmt.body, environment)
 		}
 	} else {
-		e.state.runtimeErr(errExpectedCollection, nil)
+		state.runtimeErr(errExpectedCollection, nil)
 	}
 
 	return nil
@@ -90,7 +87,7 @@ func (e *exec) visitLetStmt(stmt *letStmt) R {
 }
 
 func (e *exec) visitBlockStmt(stmt *blockStmt) R {
-	e.executeBlock(stmt.stmts, newEnv(e.state, e.env))
+	e.executeBlock(stmt.stmts, newEnv(e.env))
 	return nil
 }
 
@@ -196,11 +193,11 @@ func (e *exec) visitAccessExpr(expr *accessExpr) R {
 	dict, isDict := object.(map[interface{}]interface{})
 	if isDict {
 		if expr.first == nil {
-			e.state.runtimeErr(errExpectedKey, expr.brace)
+			state.runtimeErr(errExpectedKey, expr.brace)
 		}
 		return dict[expr.first.accept(e)]
 	}
-	e.state.runtimeErr(errInvalidAccess, expr.brace)
+	state.runtimeErr(errInvalidAccess, expr.brace)
 	return nil
 }
 
@@ -215,7 +212,7 @@ func (e *exec) sliceList(list []interface{}, accessExpr *accessExpr) interface{}
 				// [a:b:c]
 				if accessExpr.secondColon != nil {
 					if third == nil {
-						e.state.runtimeErr(errExpectedStep, accessExpr.secondColon)
+						state.runtimeErr(errExpectedStep, accessExpr.secondColon)
 					}
 					return e.stepList(list[*first:*second], *third)
 				}
@@ -226,7 +223,7 @@ func (e *exec) sliceList(list []interface{}, accessExpr *accessExpr) interface{}
 			// [a::c]
 			if accessExpr.secondColon != nil {
 				if third == nil {
-					e.state.runtimeErr(errExpectedStep, accessExpr.secondColon)
+					state.runtimeErr(errExpectedStep, accessExpr.secondColon)
 				}
 				return e.stepList(list[*first:], *third)
 			}
@@ -242,7 +239,7 @@ func (e *exec) sliceList(list []interface{}, accessExpr *accessExpr) interface{}
 		// [:b:c]
 		if accessExpr.secondColon != nil {
 			if third == nil {
-				e.state.runtimeErr(errExpectedStep, accessExpr.secondColon)
+				state.runtimeErr(errExpectedStep, accessExpr.secondColon)
 			}
 			return e.stepList(list[:*second], *third)
 		}
@@ -251,7 +248,7 @@ func (e *exec) sliceList(list []interface{}, accessExpr *accessExpr) interface{}
 	}
 
 	if third == nil {
-		e.state.runtimeErr(errExpectedStep, accessExpr.secondColon)
+		state.runtimeErr(errExpectedStep, accessExpr.secondColon)
 	}
 	// [::c]
 	return e.stepList(list, *third)
@@ -263,7 +260,7 @@ func (e *exec) exprToInt(expr expr, token *token) *int64 {
 	}
 	valueF, ok := expr.accept(e).(float64)
 	if !ok {
-		e.state.runtimeErr(errOnlyNumbers, token)
+		state.runtimeErr(errOnlyNumbers, token)
 	}
 	valueI := int64(valueF)
 	return &valueI
@@ -294,48 +291,35 @@ func (e *exec) visitBinaryExpr(expr *binaryExpr) R {
 	case BANG_EQUAL:
 		return left != right
 	case GREATER:
-		leftNum, rightNum := e.getNums(expr, left, right)
-		return leftNum > rightNum
+		return e.operate(expr, opGt, left, right)
 	case GREATER_EQUAL:
-		leftNum, rightNum := e.getNums(expr, left, right)
-		return leftNum >= rightNum
+		return e.operate(expr, opGte, left, right)
 	case LESS:
-		leftNum, rightNum := e.getNums(expr, left, right)
-		return leftNum < rightNum
+		return e.operate(expr, opLt, left, right)
 	case LESS_EQUAL:
-		leftNum, rightNum := e.getNums(expr, left, right)
-		return leftNum <= rightNum
+		return e.operate(expr, opLte, left, right)
 	case PLUS:
-		leftNum, rightNum := e.getNums(expr, left, right)
-		return leftNum + rightNum
+		return e.operate(expr, opAdd, left, right)
 	case MINUS:
-		leftNum, rightNum := e.getNums(expr, left, right)
-		return leftNum - rightNum
+		return e.operate(expr, opSub, left, right)
 	case SLASH:
-		leftNum, rightNum := e.getNums(expr, left, right)
-		return leftNum / rightNum
+		return e.operate(expr, opDiv, left, right)
 	case STAR:
-		leftNum, rightNum := e.getNums(expr, left, right)
-		return leftNum * rightNum
+		return e.operate(expr, opMul, left, right)
 	case POWER:
-		leftNum, rightNum := e.getNums(expr, left, right)
-		return math.Pow(leftNum, rightNum)
+		return e.operate(expr, opPow, left, right)
 	default:
-		e.state.runtimeErr(errUndefinedOp, expr.operator)
+		state.runtimeErr(errUndefinedOp, expr.operator)
 	}
 	return nil
 }
 
-func (e *exec) getNums(binExpr *binaryExpr, left, right interface{}) (float64, float64) {
-	leftNum, ok := left.(float64)
+func (e *exec) operate(binExpr *binaryExpr, op operator, left, right interface{}) interface{} {
+	leftVal, ok := left.(grotskyInstance)
 	if !ok {
-		e.state.runtimeErr(errOnlyNumbers, binExpr.operator)
+		state.runtimeErr(errOnlyNumbers, binExpr.operator)
 	}
-	rightNum, ok := right.(float64)
-	if !ok {
-		e.state.runtimeErr(errOnlyNumbers, binExpr.operator)
-	}
-	return leftNum, rightNum
+	return leftVal.getOperator(op)(left, right)
 }
 
 func (e *exec) visitCallExpr(expr *callExpr) R {
@@ -347,11 +331,11 @@ func (e *exec) visitCallExpr(expr *callExpr) R {
 
 	fn, isFn := callee.(grotskyCallable)
 	if !isFn {
-		e.state.runtimeErr(errOnlyFunction, expr.paren)
+		state.runtimeErr(errOnlyFunction, expr.paren)
 	}
 
 	if len(arguments) != fn.arity() {
-		e.state.runtimeErr(errInvalidNumberArguments, expr.paren)
+		state.runtimeErr(errInvalidNumberArguments, expr.paren)
 	}
 
 	return fn.call(e, arguments)
@@ -362,14 +346,14 @@ func (e *exec) visitGetExpr(expr *getExpr) R {
 	if obj, ok := object.(grotskyInstance); ok {
 		return obj.get(expr.name)
 	}
-	e.state.runtimeErr(errExpectedObject, expr.name)
+	state.runtimeErr(errExpectedObject, expr.name)
 	return nil
 }
 
 func (e *exec) visitSetExpr(expr *setExpr) R {
 	obj, ok := expr.object.accept(e).(grotskyInstance)
 	if !ok {
-		e.state.runtimeErr(errExpectedObject, expr.name)
+		state.runtimeErr(errExpectedObject, expr.name)
 	}
 	obj.set(expr.name, expr.value.accept(e))
 	return nil
@@ -407,7 +391,7 @@ func (e *exec) visitLogicalExpr(expr *logicalExpr) R {
 		return left && right
 	}
 
-	e.state.runtimeErr(errUndefinedOp, expr.operator)
+	state.runtimeErr(errUndefinedOp, expr.operator)
 
 	return nil
 }
@@ -424,11 +408,11 @@ func (e *exec) visitUnaryExpr(expr *unaryExpr) R {
 	case MINUS:
 		valueNum, ok := value.(float64)
 		if !ok {
-			e.state.runtimeErr(errOnlyNumbers, expr.operator)
+			state.runtimeErr(errOnlyNumbers, expr.operator)
 		}
 		return -valueNum
 	default:
-		e.state.runtimeErr(errUndefinedOp, expr.operator)
+		state.runtimeErr(errUndefinedOp, expr.operator)
 	}
 	return nil
 }

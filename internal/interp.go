@@ -6,17 +6,18 @@ import (
 
 // RunSource runs source code on a fresh interpreter instance
 func RunSource(source string) {
-	state := &state{source: source, errors: make([]parseError, 0)}
+	previousState := state
+	defer func() {
+		state = previousState
+	}()
+
+	state = interpreterState{source: source, errors: make([]parseError, 0)}
 	lexer := &lexer{
-		state: state,
-		line:  1,
+		line: 1,
 	}
-	parser := &parser{
-		state: state,
-	}
-	env := newEnv(state, nil)
+	parser := &parser{}
+	env := newEnv(nil)
 	execute := &exec{
-		state:   state,
 		env:     env,
 		globals: env,
 	}

@@ -18,3 +18,31 @@ func (c *grotskyClass) findMethod(name string) *grotskyFunction {
 	// TODO: handle error
 	return nil
 }
+
+func (c *grotskyClass) arity() int {
+	if init := c.findMethod("init"); init != nil {
+		return init.arity()
+	}
+	return 0
+}
+
+func (c *grotskyClass) call(exec *exec, arguments []interface{}) interface{} {
+	obj := &grotskyObject{class: c}
+	if init := c.findMethod("init"); init != nil {
+		init.bind(obj).call(exec, arguments)
+	}
+	return obj
+}
+
+func (c *grotskyClass) get(tk *token) interface{} {
+	if method, ok := c.staticMethods[tk.lexeme]; ok {
+		return method
+	}
+
+	// TODO: handle error
+	return nil
+}
+
+func (c *grotskyClass) set(name *token, value interface{}) {
+	// TODO: handle error
+}

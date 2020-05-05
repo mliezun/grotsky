@@ -97,6 +97,11 @@ func (v stringVisitor) visitIfStmt(stmt *ifStmt) R {
 	return out + ")"
 }
 
+func (v stringVisitor) visitClassStmt(stmt *classStmt) R {
+	out := fmt.Sprint("(class %s)", stmt.name.lexeme)
+	return out
+}
+
 func (v stringVisitor) visitListExpr(expr *listExpr) R {
 	out := "(list"
 	for _, el := range expr.elements {

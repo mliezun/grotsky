@@ -89,6 +89,8 @@ func (l *lexer) scanToken() {
 		l.emit(POWER, nil)
 	case ':':
 		l.emit(COLON, nil)
+	case ';':
+		l.emit(SEMICOLON, nil)
 	case '#':
 		for !l.match('\n') && !l.isAtEnd() {
 			l.advance()

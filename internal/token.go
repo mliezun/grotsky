@@ -7,7 +7,7 @@ const (
 	NEWLINE
 
 	// Single-character tokens.
-	// (, ), [, ], {, } ',', ., -, +, ;, /, *, ^, :
+	// (, ), [, ], {, } ',', ., -, +, ;, /, *, ^, :, ;
 	LEFT_PAREN
 	RIGHT_PAREN
 	LEFT_BRACE
@@ -22,6 +22,7 @@ const (
 	STAR
 	POWER
 	COLON
+	SEMICOLON
 
 	// One or two character tokens.
 	// !=, =, ==, >, >=, <, <=

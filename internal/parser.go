@@ -48,11 +48,39 @@ func (p *parser) declaration() stmt {
 }
 
 func (p *parser) class() stmt {
-	//TODO: implement
-	return nil
+	name := p.consume(IDENTIFIER, errExpectedIdentifier)
+
+	var superclass *variableExpr
+	if p.match(LESS) {
+		superclass = &variableExpr{
+			name: name,
+		}
+	}
+
+	p.consume(BEGIN, errExpectedBegin)
+
+	var methods []*fnStmt
+	var staticMethods []*fnStmt
+	for !p.check(END) && !p.isAtEnd() {
+		if p.check(CLASS) {
+			p.consume(CLASS, nil)
+			staticMethods = append(staticMethods, p.fn())
+		} else {
+			methods = append(methods, p.fn())
+		}
+	}
+
+	p.consume(END, errExpectedEnd)
+
+	return &classStmt{
+		name:          name,
+		methods:       methods,
+		staticMethods: staticMethods,
+		superclass:    superclass,
+	}
 }
 
-func (p *parser) fn() stmt {
+func (p *parser) fn() *fnStmt {
 	name := p.consume(IDENTIFIER, errExpectedFunctionName)
 	p.consume(LEFT_PAREN, errExpectedParen)
 
@@ -80,6 +108,37 @@ func (p *parser) fn() stmt {
 
 	return &fnStmt{
 		name:   name,
+		params: params,
+		body:   body,
+	}
+}
+
+func (p *parser) fnExpr() *functionExpr {
+	p.consume(LEFT_PAREN, errExpectedParen)
+
+	var params []*token
+	if !p.check(RIGHT_PAREN) {
+		for {
+			if len(params) > maxFunctionParams {
+				p.state.fatalError(errMaxParameters, p.peek().line, 0)
+			}
+			params = append(params, p.consume(IDENTIFIER, errExpectedFunctionParam))
+			if !p.match(COMMA) {
+				break
+			}
+		}
+	}
+	p.consume(RIGHT_PAREN, errUnclosedParen)
+
+	body := make([]stmt, 0)
+	if p.check(BEGIN) {
+		p.consume(BEGIN, errExpectedBegin)
+		body = p.block()
+	} else {
+		body = append(body, p.expressionStmt())
+	}
+
+	return &functionExpr{
 		params: params,
 		body:   body,
 	}
@@ -125,18 +184,18 @@ func (p *parser) forLoop() stmt {
 	}
 	// Classic for
 	var init stmt
-	if p.match(COMMA) {
+	if p.match(SEMICOLON) {
 		init = nil
 	} else if p.match(LET) {
 		init = p.let()
-		p.consume(COMMA, errExpectedComma)
+		p.consume(SEMICOLON, errExpectedSemicolon)
 	} else {
 		init = p.expressionStmt()
-		p.consume(COMMA, errExpectedComma)
+		p.consume(SEMICOLON, errExpectedSemicolon)
 	}
 
 	cond := p.expression()
-	p.consume(COMMA, errExpectedComma)
+	p.consume(SEMICOLON, errExpectedSemicolon)
 
 	inc := p.expression()
 
@@ -525,6 +584,9 @@ func (p *parser) primary() expr {
 	}
 	if p.match(LEFT_CURLY_BRACE) {
 		return p.dictionary()
+	}
+	if p.match(FN) {
+		return p.fnExpr()
 	}
 
 	p.state.fatalError(errUndefinedExpr, p.peek().line, 0)

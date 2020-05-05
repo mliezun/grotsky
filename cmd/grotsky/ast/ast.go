@@ -22,6 +22,7 @@ func main() {
 			"Return: keyword *token, value expr",
 			"If: condition expr, thenBranch []stmt, elifs []*struct{condition expr; thenBranch []stmt}, elseBranch []stmt",
 			"Fn: name *token, params []*token, body []stmt",
+			"Class: name *token, superclass *variableExpr, methods []*fnStmt, staticMethods []*fnStmt",
 		})
 	case "Expr":
 		out = generateAst("Expr", []string{

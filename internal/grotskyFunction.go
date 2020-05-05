@@ -2,12 +2,12 @@ package internal
 
 import "fmt"
 
-type callable interface {
+type grotskyCallable interface {
 	arity() int
 	call(exec *exec, arguments []interface{}) interface{}
 }
 
-type function struct {
+type grotskyFunction struct {
 	declaration   *fnStmt
 	closure       *env
 	isInitializer bool
@@ -26,11 +26,11 @@ func (n *nativeFn) call(exec *exec, arguments []interface{}) interface{} {
 	return n.callFn(exec, arguments)
 }
 
-func (f *function) arity() int {
+func (f *grotskyFunction) arity() int {
 	return len(f.declaration.params)
 }
 
-func (f *function) call(exec *exec, arguments []interface{}) (result interface{}) {
+func (f *grotskyFunction) call(exec *exec, arguments []interface{}) (result interface{}) {
 	env := newEnv(exec.state, f.closure)
 	for i := range f.declaration.params {
 		env.define(f.declaration.params[i].lexeme, arguments[i])
@@ -57,6 +57,19 @@ func (f *function) call(exec *exec, arguments []interface{}) (result interface{}
 	return nil
 }
 
-func (f *function) String() string {
-	return fmt.Sprintf("<fn %s>", f.declaration.name.lexeme)
+func (f *grotskyFunction) bind(object *grotskyObject) *grotskyFunction {
+	environment := newEnv(f.closure.state, f.closure)
+	environment.define("this", object)
+	return &grotskyFunction{
+		declaration: f.declaration,
+		closure:     environment,
+	}
+}
+
+func (f *grotskyFunction) String() string {
+	name := "anonymous"
+	if f.declaration.name != nil {
+		name = f.declaration.name.lexeme
+	}
+	return fmt.Sprintf("<fn %s>", name)
 }

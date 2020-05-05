@@ -14,6 +14,7 @@ type stmtVisitor interface {
 	visitReturnStmt(stmt *returnStmt) R
 	visitIfStmt(stmt *ifStmt) R
 	visitFnStmt(stmt *fnStmt) R
+	visitClassStmt(stmt *classStmt) R
 }
 
 type exprStmt struct {
@@ -100,3 +101,16 @@ type fnStmt struct {
 func (s *fnStmt) accept(visitor stmtVisitor) R {
 	return visitor.visitFnStmt(s)
 }
+
+type classStmt struct {
+	name *token
+	superclass *variableExpr
+	methods []*fnStmt
+	staticMethods []*fnStmt
+}
+
+func (s *classStmt) accept(visitor stmtVisitor) R {
+	return visitor.visitClassStmt(s)
+}
+
+

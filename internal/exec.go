@@ -43,7 +43,40 @@ func (e *exec) visitClassicForStmt(stmt *classicForStmt) R {
 }
 
 func (e *exec) visitEnhancedForStmt(stmt *enhancedForStmt) R {
-	//TODO: implement
+	collection := stmt.collection.accept(e)
+	environment := newEnv(e.state, e.env)
+
+	//TODO: add bound checking
+
+	if array, ok := collection.([]interface{}); ok {
+		for _, el := range array {
+			if len(stmt.identifiers) == 1 {
+				environment.define(stmt.identifiers[0].lexeme, el)
+			} else if array2, ok := el.([]interface{}); ok {
+				for i, id := range stmt.identifiers {
+					environment.define(id.lexeme, array2[i])
+				}
+			} else {
+				// TODO: handle error
+			}
+			e.executeOne(stmt.body, environment)
+		}
+	} else if dict, ok := collection.(map[interface{}]interface{}); ok {
+		for key, value := range dict {
+			if len(stmt.identifiers) == 1 {
+				environment.define(stmt.identifiers[0].lexeme, key)
+			} else if len(stmt.identifiers) == 2 {
+				environment.define(stmt.identifiers[0].lexeme, key)
+				environment.define(stmt.identifiers[1].lexeme, value)
+			} else {
+				// TODO: handle error
+			}
+			e.executeOne(stmt.body, environment)
+		}
+	} else {
+		e.state.runtimeErr(errExpectedCollection, nil)
+	}
+
 	return nil
 }
 
@@ -119,11 +152,16 @@ func (e *exec) visitIfStmt(stmt *ifStmt) R {
 }
 
 func (e *exec) visitFnStmt(stmt *fnStmt) R {
-	e.env.define(stmt.name.lexeme, &function{
+	e.env.define(stmt.name.lexeme, &grotskyFunction{
 		declaration:   stmt,
 		closure:       e.env,
 		isInitializer: false,
 	})
+	return nil
+}
+
+func (e *exec) visitClassStmt(stmt *classStmt) R {
+	// TODO: implement
 	return nil
 }
 
@@ -307,7 +345,7 @@ func (e *exec) visitCallExpr(expr *callExpr) R {
 		arguments[i] = expr.arguments[i].accept(e)
 	}
 
-	fn, isFn := callee.(callable)
+	fn, isFn := callee.(grotskyCallable)
 	if !isFn {
 		e.state.runtimeErr(errOnlyFunction, expr.paren)
 	}
@@ -412,6 +450,8 @@ func (e *exec) visitVariableExpr(expr *variableExpr) R {
 }
 
 func (e *exec) visitFunctionExpr(expr *functionExpr) R {
-	//TODO: implement
-	return nil
+	return &grotskyFunction{
+		declaration: &fnStmt{body: expr.body, params: expr.params},
+		closure:     e.env,
+	}
 }

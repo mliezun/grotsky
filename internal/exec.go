@@ -358,12 +358,20 @@ func (e *exec) visitCallExpr(expr *callExpr) R {
 }
 
 func (e *exec) visitGetExpr(expr *getExpr) R {
-	//TODO: implement
+	object := expr.object.accept(e)
+	if obj, ok := object.(*grotskyObject); ok {
+		return obj.get(expr.name)
+	}
+	e.state.runtimeErr(errExpectedObject, expr.name)
 	return nil
 }
 
 func (e *exec) visitSetExpr(expr *setExpr) R {
-	//TODO: implement
+	obj, ok := expr.object.accept(e).(*grotskyObject)
+	if !ok {
+		e.state.runtimeErr(errExpectedObject, expr.name)
+	}
+	obj.set(expr.name, expr.value.accept(e))
 	return nil
 }
 
@@ -405,8 +413,7 @@ func (e *exec) visitLogicalExpr(expr *logicalExpr) R {
 }
 
 func (e *exec) visitThisExpr(expr *thisExpr) R {
-	//TODO: implement
-	return nil
+	return e.env.get(expr.keyword)
 }
 
 func (e *exec) visitUnaryExpr(expr *unaryExpr) R {

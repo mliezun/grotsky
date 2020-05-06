@@ -157,7 +157,7 @@ func (l *lexer) string() {
 		state.setError(errUnclosedString, l.line, l.start)
 	}
 
-	literal := state.source[l.start+1 : l.current]
+	literal := grotskyString(state.source[l.start+1 : l.current])
 
 	// Consume ending "
 	l.advance()

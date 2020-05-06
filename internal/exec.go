@@ -330,6 +330,15 @@ func (e execute) visitBinaryExpr(expr *binaryExpr) R {
 	return value
 }
 
+func (e execute) operateUnary(op operator, left interface{}) (interface{}, error) {
+	leftVal := left.(grotskyInstance)
+	apply, err := leftVal.getOperator(op)
+	if err != nil {
+		return nil, err
+	}
+	return apply()
+}
+
 func (e execute) operateBinary(op operator, left, right interface{}) (interface{}, error) {
 	leftVal := left.(grotskyInstance)
 	apply, err := leftVal.getOperator(op)
@@ -419,18 +428,18 @@ func (e execute) visitThisExpr(expr *thisExpr) R {
 }
 
 func (e execute) visitUnaryExpr(expr *unaryExpr) R {
+	var err error
 	value := expr.right.accept(e)
 	switch expr.operator.token {
 	case NOT:
 		return !e.truthy(value)
 	case MINUS:
-		valueNum, ok := value.(float64)
-		if !ok {
-			state.runtimeErr(errOnlyNumbers, expr.operator)
-		}
-		return -valueNum
+		value, err = e.operateUnary(opNeg, value)
 	default:
 		state.runtimeErr(errUndefinedOp, expr.operator)
+	}
+	if err != nil {
+		state.runtimeErr(err, expr.operator)
 	}
 	return nil
 }
@@ -439,17 +448,17 @@ func (e execute) truthy(value interface{}) bool {
 	if value == nil {
 		return false
 	}
-	valueStr, isStr := value.(string)
+	valueStr, isStr := value.(grotskyString)
 	if isStr {
 		return valueStr != ""
 	}
-	valueNum, isNum := value.(float64)
+	valueNum, isNum := value.(grotskyNumber)
 	if isNum {
 		return valueNum != 0
 	}
-	valueBool, isBool := value.(bool)
+	valueBool, isBool := value.(grotskyBool)
 	if isBool {
-		return valueBool
+		return bool(valueBool)
 	}
 	return true
 }

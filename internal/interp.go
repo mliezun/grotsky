@@ -1,9 +1,5 @@
 package internal
 
-import (
-	"fmt"
-)
-
 // RunSource runs source code on a fresh interpreter instance
 func RunSource(source string) {
 	previousState := state
@@ -17,12 +13,7 @@ func RunSource(source string) {
 	}
 	parser := &parser{}
 
-	var println nativeFn
-	println.callFn = func(arguments []interface{}) (interface{}, error) {
-		fmt.Println(arguments...)
-		return nil, nil
-	}
-	exec.globals.define("println", &println)
+	defineGlobals(exec.globals)
 
 	lexer.scan()
 

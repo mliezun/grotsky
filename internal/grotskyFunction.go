@@ -12,14 +12,6 @@ type grotskyFunction struct {
 	isInitializer bool
 }
 
-type nativeFn struct {
-	callFn func(arguments []interface{}) (interface{}, error)
-}
-
-func (n *nativeFn) call(arguments []interface{}) (interface{}, error) {
-	return n.callFn(arguments)
-}
-
 func (f *grotskyFunction) call(arguments []interface{}) (result interface{}, err error) {
 	env := newEnv(f.closure)
 

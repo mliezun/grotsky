@@ -1,10 +1,5 @@
 package internal
 
-import (
-	"fmt"
-	"os"
-)
-
 type execute struct {
 	globals *env
 	env     *env
@@ -19,16 +14,7 @@ func init() {
 
 func (e execute) interpret() {
 	defer func() {
-		if r := recover(); r != nil {
-			runErr := state.runtimeError
-			fmt.Fprintf(
-				os.Stderr,
-				"Error on line %d\n\t%s: %s\n",
-				runErr.token.line,
-				runErr.err.Error(),
-				runErr.token.lexeme,
-			)
-		}
+		recover()
 	}()
 	for _, s := range state.stmts {
 		s.accept(e)
@@ -169,7 +155,32 @@ func (e execute) visitFnStmt(stmt *fnStmt) R {
 }
 
 func (e execute) visitClassStmt(stmt *classStmt) R {
-	// TODO: implement
+	class := &grotskyClass{
+		name: stmt.name.lexeme,
+	}
+	class.methods = make(map[string]*grotskyFunction)
+	for _, m := range stmt.methods {
+		class.methods[m.name.lexeme] = &grotskyFunction{
+			declaration:   m,
+			closure:       e.env,
+			isInitializer: m.name.lexeme == "init",
+		}
+	}
+	class.staticMethods = make(map[string]*grotskyFunction)
+	for _, m := range stmt.staticMethods {
+		class.staticMethods[m.name.lexeme] = &grotskyFunction{
+			declaration:   m,
+			closure:       e.env,
+			isInitializer: m.name.lexeme == "init",
+		}
+	}
+	if stmt.superclass != nil {
+		if superclass, ok := stmt.superclass.accept(e).(*grotskyClass); ok {
+			class.superclass = superclass
+		}
+		state.runtimeErr(errExpectedClass, stmt.name)
+	}
+	e.env.define(stmt.name.lexeme, class)
 	return nil
 }
 
@@ -404,18 +415,18 @@ func (e execute) visitLogicalExpr(expr *logicalExpr) R {
 
 	if expr.operator.token == OR {
 		if left {
-			return true
+			return grotskyBool(true)
 		}
 		right := e.truthy(expr.right.accept(e))
-		return left || right
+		return grotskyBool(left || right)
 	}
 
 	if expr.operator.token == AND {
 		if !left {
-			return false
+			return grotskyBool(false)
 		}
 		right := e.truthy(expr.right.accept(e))
-		return left && right
+		return grotskyBool(left && right)
 	}
 
 	state.runtimeErr(errUndefinedOp, expr.operator)
@@ -432,7 +443,7 @@ func (e execute) visitUnaryExpr(expr *unaryExpr) R {
 	value := expr.right.accept(e)
 	switch expr.operator.token {
 	case NOT:
-		return !e.truthy(value)
+		return grotskyBool(!e.truthy(value))
 	case MINUS:
 		value, err = e.operateUnary(opNeg, value)
 	default:

@@ -54,6 +54,13 @@ func (s interpreterState) runtimeErr(err error, token *token, msgs ...string) {
 		token: token,
 		msgs:  msgs,
 	}
+	fmt.Fprintf(
+		os.Stderr,
+		"Runtime Error on line %d\n\t%s: %s\n",
+		s.runtimeError.token.line,
+		s.runtimeError.err.Error(),
+		s.runtimeError.token.lexeme,
+	)
 	panic(err)
 }
 
@@ -116,3 +123,4 @@ var errUndefinedProp = errors.New("Undefined property")
 var errReadOnly = errors.New("Trying to set a property on a Read-Only object")
 var errUndefinedOperator = errors.New("Undefined operator for this object")
 var errExpectedNumber = errors.New("A number was expected at this position")
+var errExpectedClass = errors.New("A class was expected at this position")

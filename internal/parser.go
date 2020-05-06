@@ -98,8 +98,7 @@ func (p *parser) fn() *fnStmt {
 	p.consume(RIGHT_PAREN, errUnclosedParen)
 
 	body := make([]stmt, 0)
-	if p.check(BEGIN) {
-		p.consume(BEGIN, errExpectedBegin)
+	if p.match(BEGIN) {
 		body = p.block()
 	} else {
 		body = append(body, p.expressionStmt())

@@ -8,7 +8,7 @@ type grotskyObject struct {
 type grotskyInstance interface {
 	get(tk *token) interface{}
 	set(name *token, value interface{})
-	getOperator(op operator) operatorApply
+	getOperator(op operator) (operatorApply, error)
 }
 
 func (o *grotskyObject) get(tk *token) interface{} {
@@ -30,7 +30,7 @@ func (o *grotskyObject) getOperator(op operator) (operatorApply, error) {
 	if method := o.class.findMethod(string(op)); method != nil {
 		method.bind(o)
 		return func(arguments ...interface{}) (interface{}, error) {
-			return method.call(arguments), nil
+			return method.call(arguments)
 		}, nil
 	}
 	return nil, errUndefinedOperator

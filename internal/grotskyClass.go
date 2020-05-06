@@ -17,19 +17,14 @@ func (c *grotskyClass) findMethod(name string) *grotskyFunction {
 	return nil
 }
 
-func (c *grotskyClass) arity() int {
-	if init := c.findMethod("init"); init != nil {
-		return init.arity()
-	}
-	return 0
-}
-
-func (c *grotskyClass) call(arguments []interface{}) interface{} {
+func (c *grotskyClass) call(arguments []interface{}) (interface{}, error) {
 	obj := &grotskyObject{class: c}
 	if init := c.findMethod("init"); init != nil {
-		init.bind(obj).call(arguments)
+		if _, err := init.bind(obj).call(arguments); err != nil {
+			return nil, err
+		}
 	}
-	return obj
+	return obj, nil
 }
 
 func (c *grotskyClass) get(tk *token) interface{} {

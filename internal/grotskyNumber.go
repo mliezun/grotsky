@@ -1,43 +1,80 @@
 package internal
 
+import "math"
+
 type grotskyNumber float64
 
-var numberOperations = map[operator]operatorApply{
-	opAdd: func(arguments ...interface{}) (interface{}, error) {
-		n1, ok := arguments[0].(grotskyNumber)
-		if !ok {
-			// TODO: handle error
-		}
-		n2, ok := arguments[1].(grotskyNumber)
-		if !ok {
-			// TODO: handle error
-		}
-		return n1 + n2, nil
+func applyOpToNums(op func(x, y float64) interface{}, arguments ...interface{}) (interface{}, error) {
+	x, ok := arguments[0].(grotskyNumber)
+	if !ok {
+		return nil, errExpectedNumber
+	}
+	y, ok := arguments[1].(grotskyNumber)
+	if !ok {
+		return nil, errExpectedNumber
+	}
+	return op(float64(x), float64(y)), nil
+}
+
+var numberBinaryOperations = map[operator]func(x, y float64) interface{}{
+	opAdd: func(x, y float64) interface{} {
+		return grotskyNumber(x + y)
 	},
-	opSub: func(arguments ...interface{}) (interface{}, error) {
-		n1, ok := arguments[0].(grotskyNumber)
-		if !ok {
-			// TODO: handle error
-		}
-		n2, ok := arguments[1].(grotskyNumber)
-		if !ok {
-			// TODO: handle error
-		}
-		return n1 - n2, nil
+	opSub: func(x, y float64) interface{} {
+		return grotskyNumber(x - y)
+	},
+	opDiv: func(x, y float64) interface{} {
+		return grotskyNumber(x / y)
+	},
+	opMul: func(x, y float64) interface{} {
+		return grotskyNumber(x * y)
+	},
+	opPow: func(x, y float64) interface{} {
+		return grotskyNumber(math.Pow(x, y))
+	},
+	opEq: func(x, y float64) interface{} {
+		return grotskyBool(x == y)
+	},
+	opNeq: func(x, y float64) interface{} {
+		return grotskyBool(x != y)
+	},
+	opLt: func(x, y float64) interface{} {
+		return grotskyBool(x < y)
+	},
+	opLte: func(x, y float64) interface{} {
+		return grotskyBool(x <= y)
+	},
+	opGt: func(x, y float64) interface{} {
+		return grotskyBool(x > y)
+	},
+	opGte: func(x, y float64) interface{} {
+		return grotskyBool(x >= y)
 	},
 }
 
 func (n grotskyNumber) get(tk *token) interface{} {
+	state.runtimeErr(errUndefinedProp, tk)
 	return nil
 }
 
 func (n grotskyNumber) set(name *token, value interface{}) {
+	state.runtimeErr(errReadOnly, name)
 }
 
-func (n grotskyNumber) getOperator(op operator) operatorApply {
-	if apply, ok := numberOperations[op]; ok {
-		return makeOperatorApplier(n, apply)
+func (n grotskyNumber) getOperator(op operator) (operatorApply, error) {
+	if apply, ok := numberBinaryOperations[op]; ok {
+		return func(arguments ...interface{}) (interface{}, error) {
+			return applyOpToNums(apply, append([]interface{}{n}, arguments...)...)
+		}, nil
 	}
-	// TODO: handle error
-	return nil
+	if op == opNeg {
+		return func(arguments ...interface{}) (interface{}, error) {
+			x, ok := arguments[0].(grotskyNumber)
+			if !ok {
+				return nil, errExpectedNumber
+			}
+			return grotskyNumber(-x), nil
+		}, nil
+	}
+	return nil, errUndefinedOp
 }

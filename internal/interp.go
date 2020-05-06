@@ -18,10 +18,9 @@ func RunSource(source string) {
 	parser := &parser{}
 
 	var println nativeFn
-	println.arityValue = 1
-	println.callFn = func(arguments []interface{}) interface{} {
-		fmt.Println(arguments[0])
-		return nil
+	println.callFn = func(arguments []interface{}) (interface{}, error) {
+		fmt.Println(arguments...)
+		return nil, nil
 	}
 	exec.globals.define("println", &println)
 

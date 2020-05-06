@@ -300,27 +300,27 @@ func (e execute) visitBinaryExpr(expr *binaryExpr) R {
 	right := expr.right.accept(e)
 	switch expr.operator.token {
 	case EQUAL_EQUAL:
-		value, err = e.operate(opEq, left, right)
+		value, err = e.operateBinary(opEq, left, right)
 	case BANG_EQUAL:
-		value, err = e.operate(opNeq, left, right)
+		value, err = e.operateBinary(opNeq, left, right)
 	case GREATER:
-		value, err = e.operate(opGt, left, right)
+		value, err = e.operateBinary(opGt, left, right)
 	case GREATER_EQUAL:
-		value, err = e.operate(opGte, left, right)
+		value, err = e.operateBinary(opGte, left, right)
 	case LESS:
-		value, err = e.operate(opLt, left, right)
+		value, err = e.operateBinary(opLt, left, right)
 	case LESS_EQUAL:
-		value, err = e.operate(opLte, left, right)
+		value, err = e.operateBinary(opLte, left, right)
 	case PLUS:
-		value, err = e.operate(opAdd, left, right)
+		value, err = e.operateBinary(opAdd, left, right)
 	case MINUS:
-		value, err = e.operate(opSub, left, right)
+		value, err = e.operateBinary(opSub, left, right)
 	case SLASH:
-		value, err = e.operate(opDiv, left, right)
+		value, err = e.operateBinary(opDiv, left, right)
 	case STAR:
-		value, err = e.operate(opMul, left, right)
+		value, err = e.operateBinary(opMul, left, right)
 	case POWER:
-		value, err = e.operate(opPow, left, right)
+		value, err = e.operateBinary(opPow, left, right)
 	default:
 		state.runtimeErr(errUndefinedOp, expr.operator)
 	}
@@ -330,9 +330,13 @@ func (e execute) visitBinaryExpr(expr *binaryExpr) R {
 	return value
 }
 
-func (e execute) operate(op operator, left, right interface{}) (interface{}, error) {
+func (e execute) operateBinary(op operator, left, right interface{}) (interface{}, error) {
 	leftVal := left.(grotskyInstance)
-	return leftVal.getOperator(op)(right)
+	apply, err := leftVal.getOperator(op)
+	if err != nil {
+		return nil, err
+	}
+	return apply(right)
 }
 
 func (e execute) visitCallExpr(expr *callExpr) R {
@@ -347,11 +351,12 @@ func (e execute) visitCallExpr(expr *callExpr) R {
 		state.runtimeErr(errOnlyFunction, expr.paren)
 	}
 
-	if len(arguments) != fn.arity() {
-		state.runtimeErr(errInvalidNumberArguments, expr.paren)
+	result, err := fn.call(arguments)
+	if err != nil {
+		state.runtimeErr(err, expr.paren)
 	}
 
-	return fn.call(arguments)
+	return result
 }
 
 func (e execute) visitGetExpr(expr *getExpr) R {

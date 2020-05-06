@@ -3,8 +3,7 @@ package internal
 import "fmt"
 
 type grotskyCallable interface {
-	arity() int
-	call(arguments []interface{}) interface{}
+	call(arguments []interface{}) (interface{}, error)
 }
 
 type grotskyFunction struct {
@@ -14,24 +13,20 @@ type grotskyFunction struct {
 }
 
 type nativeFn struct {
-	arityValue int
-	callFn     func(arguments []interface{}) interface{}
+	callFn func(arguments []interface{}) (interface{}, error)
 }
 
-func (n *nativeFn) arity() int {
-	return n.arityValue
-}
-
-func (n *nativeFn) call(arguments []interface{}) interface{} {
+func (n *nativeFn) call(arguments []interface{}) (interface{}, error) {
 	return n.callFn(arguments)
 }
 
-func (f *grotskyFunction) arity() int {
-	return len(f.declaration.params)
-}
-
-func (f *grotskyFunction) call(arguments []interface{}) (result interface{}) {
+func (f *grotskyFunction) call(arguments []interface{}) (result interface{}, err error) {
 	env := newEnv(f.closure)
+
+	if len(arguments) != len(f.declaration.params) {
+		return nil, errInvalidNumberArguments
+	}
+
 	for i := range f.declaration.params {
 		env.define(f.declaration.params[i].lexeme, arguments[i])
 	}
@@ -48,13 +43,13 @@ func (f *grotskyFunction) call(arguments []interface{}) (result interface{}) {
 
 	if len(f.declaration.body) == 1 {
 		if exprSt, ok := f.declaration.body[0].(*exprStmt); ok {
-			return exec.executeOne(exprSt, env)
+			return exec.executeOne(exprSt, env), nil
 		}
 	}
 
 	exec.executeBlock(f.declaration.body, env)
 
-	return nil
+	return nil, nil
 }
 
 func (f *grotskyFunction) bind(object *grotskyObject) *grotskyFunction {

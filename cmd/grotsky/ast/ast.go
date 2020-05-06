@@ -13,14 +13,14 @@ func main() {
 	switch os.Args[1] {
 	case "Stmt":
 		out = generateAst("Stmt", []string{
-			"Expr: expression expr",
-			"ClassicFor: initializer stmt, condition expr, increment expr, body stmt",
-			"EnhancedFor: identifiers []*token, collection expr, body stmt",
+			"Expr: last *token, expression expr",
+			"ClassicFor: keyword *token, initializer stmt, condition expr, increment expr, body stmt",
+			"EnhancedFor: keyword *token, identifiers []*token, collection expr, body stmt",
 			"Let: name *token, initializer expr",
 			"Block: stmts []stmt",
-			"While: condition expr, body stmt",
+			"While: keyword *token, condition expr, body stmt",
 			"Return: keyword *token, value expr",
-			"If: condition expr, thenBranch []stmt, elifs []*struct{condition expr; thenBranch []stmt}, elseBranch []stmt",
+			"If: keyword *token, condition expr, thenBranch []stmt, elifs []*struct{condition expr; thenBranch []stmt}, elseBranch []stmt",
 			"Fn: name *token, params []*token, body []stmt",
 			"Class: name *token, superclass *variableExpr, methods []*fnStmt, staticMethods []*fnStmt",
 		})

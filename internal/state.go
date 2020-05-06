@@ -15,6 +15,7 @@ type parseError struct {
 type runtimeError struct {
 	err   error
 	token *token
+	msgs  []string
 }
 
 type returnValue interface{}
@@ -47,10 +48,11 @@ func (s interpreterState) fatalError(err error, line, pos int) {
 	panic(err)
 }
 
-func (s interpreterState) runtimeErr(err error, token *token) {
+func (s interpreterState) runtimeErr(err error, token *token, msgs ...string) {
 	s.runtimeError = &runtimeError{
 		err:   err,
 		token: token,
+		msgs:  msgs,
 	}
 	panic(err)
 }
@@ -106,3 +108,10 @@ var errOnlyFunction = errors.New("Can only call functions")
 var errInvalidNumberArguments = errors.New("Invalid number of arguments")
 var errExpectedCollection = errors.New("Collection expected")
 var errExpectedObject = errors.New("Object expected")
+var errExpectedIdentifiersDict = errors.New("Expected 1 or 2 identifiers for dict")
+var errCannotUnpack = errors.New("Cannot unpack value")
+var errWrongNumberOfValues = errors.New("Wrong number of values to unpack")
+var errMethodNotFound = errors.New("Method not found")
+var errUndefinedProp = errors.New("Undefined property")
+var errReadOnly = errors.New("Trying to set a property on a Read-Only object")
+var errUndefinedOperator = errors.New("Undefined operator for this object")

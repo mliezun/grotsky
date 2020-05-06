@@ -4,7 +4,7 @@ import "fmt"
 
 type grotskyCallable interface {
 	arity() int
-	call(exec *exec, arguments []interface{}) interface{}
+	call(arguments []interface{}) interface{}
 }
 
 type grotskyFunction struct {
@@ -15,22 +15,22 @@ type grotskyFunction struct {
 
 type nativeFn struct {
 	arityValue int
-	callFn     func(exec *exec, arguments []interface{}) interface{}
+	callFn     func(arguments []interface{}) interface{}
 }
 
 func (n *nativeFn) arity() int {
 	return n.arityValue
 }
 
-func (n *nativeFn) call(exec *exec, arguments []interface{}) interface{} {
-	return n.callFn(exec, arguments)
+func (n *nativeFn) call(arguments []interface{}) interface{} {
+	return n.callFn(arguments)
 }
 
 func (f *grotskyFunction) arity() int {
 	return len(f.declaration.params)
 }
 
-func (f *grotskyFunction) call(exec *exec, arguments []interface{}) (result interface{}) {
+func (f *grotskyFunction) call(arguments []interface{}) (result interface{}) {
 	env := newEnv(f.closure)
 	for i := range f.declaration.params {
 		env.define(f.declaration.params[i].lexeme, arguments[i])

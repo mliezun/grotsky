@@ -14,8 +14,6 @@ func (c *grotskyClass) findMethod(name string) *grotskyFunction {
 	if c.superclass != nil {
 		return c.superclass.findMethod(name)
 	}
-
-	// TODO: handle error
 	return nil
 }
 
@@ -26,10 +24,10 @@ func (c *grotskyClass) arity() int {
 	return 0
 }
 
-func (c *grotskyClass) call(exec *exec, arguments []interface{}) interface{} {
+func (c *grotskyClass) call(arguments []interface{}) interface{} {
 	obj := &grotskyObject{class: c}
 	if init := c.findMethod("init"); init != nil {
-		init.bind(obj).call(exec, arguments)
+		init.bind(obj).call(arguments)
 	}
 	return obj
 }
@@ -39,10 +37,10 @@ func (c *grotskyClass) get(tk *token) interface{} {
 		return method
 	}
 
-	// TODO: handle error
+	state.runtimeErr(errUndefinedProp, tk)
 	return nil
 }
 
 func (c *grotskyClass) set(name *token, value interface{}) {
-	// TODO: handle error
+	state.runtimeErr(errReadOnly, name)
 }

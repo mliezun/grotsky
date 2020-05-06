@@ -5,8 +5,6 @@ type grotskyObject struct {
 	fields map[string]interface{}
 }
 
-type operatorApply func(arguments ...interface{}) interface{}
-
 type grotskyInstance interface {
 	get(tk *token) interface{}
 	set(name *token, value interface{})
@@ -20,7 +18,7 @@ func (o *grotskyObject) get(tk *token) interface{} {
 	if method := o.class.findMethod(tk.lexeme); method != nil {
 		return method.bind(o)
 	}
-	// TODO: handle error
+	state.runtimeErr(errUndefinedProp, tk)
 	return nil
 }
 
@@ -28,7 +26,12 @@ func (o *grotskyObject) set(name *token, value interface{}) {
 	o.fields[name.lexeme] = value
 }
 
-func (o *grotskyObject) getOperator(op operator) operatorApply {
-	// TODO: handle error
-	return nil
+func (o *grotskyObject) getOperator(op operator) (operatorApply, error) {
+	if method := o.class.findMethod(string(op)); method != nil {
+		method.bind(o)
+		return func(arguments ...interface{}) (interface{}, error) {
+			return method.call(arguments), nil
+		}, nil
+	}
+	return nil, errUndefinedOperator
 }

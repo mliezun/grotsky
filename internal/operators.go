@@ -20,3 +20,11 @@ const (
 	opGte          = "gte"
 	opAcc          = "acc"
 )
+
+type operatorApply func(arguments ...interface{}) (interface{}, error)
+
+func makeOperatorApplier(obj interface{}, apply operatorApply) operatorApply {
+	return func(arguments ...interface{}) (interface{}, error) {
+		return apply(append([]interface{}{obj}, arguments...)...)
+	}
+}

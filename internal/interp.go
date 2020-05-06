@@ -16,19 +16,14 @@ func RunSource(source string) {
 		line: 1,
 	}
 	parser := &parser{}
-	env := newEnv(nil)
-	execute := &exec{
-		env:     env,
-		globals: env,
-	}
 
 	var println nativeFn
 	println.arityValue = 1
-	println.callFn = func(exec *exec, arguments []interface{}) interface{} {
+	println.callFn = func(arguments []interface{}) interface{} {
 		fmt.Println(arguments[0])
 		return nil
 	}
-	env.define("println", &println)
+	exec.globals.define("println", &println)
 
 	lexer.scan()
 
@@ -42,5 +37,5 @@ func RunSource(source string) {
 		return
 	}
 
-	execute.interpret()
+	exec.interpret()
 }

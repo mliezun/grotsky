@@ -18,6 +18,7 @@ type stmtVisitor interface {
 }
 
 type exprStmt struct {
+	last *token
 	expression expr
 }
 
@@ -26,6 +27,7 @@ func (s *exprStmt) accept(visitor stmtVisitor) R {
 }
 
 type classicForStmt struct {
+	keyword *token
 	initializer stmt
 	condition expr
 	increment expr
@@ -37,6 +39,7 @@ func (s *classicForStmt) accept(visitor stmtVisitor) R {
 }
 
 type enhancedForStmt struct {
+	keyword *token
 	identifiers []*token
 	collection expr
 	body stmt
@@ -64,6 +67,7 @@ func (s *blockStmt) accept(visitor stmtVisitor) R {
 }
 
 type whileStmt struct {
+	keyword *token
 	condition expr
 	body stmt
 }
@@ -82,6 +86,7 @@ func (s *returnStmt) accept(visitor stmtVisitor) R {
 }
 
 type ifStmt struct {
+	keyword *token
 	condition expr
 	thenBranch []stmt
 	elifs []*struct{condition expr; thenBranch []stmt}

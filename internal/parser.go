@@ -177,9 +177,11 @@ func (p *parser) statement() stmt {
 }
 
 func (p *parser) forLoop() stmt {
+	keyword := p.previous()
+
 	if p.check(IDENTIFIER) {
 		// Enhanced for
-		return p.enhancedFor()
+		return p.enhancedFor(keyword)
 	}
 	// Classic for
 	var init stmt
@@ -201,6 +203,7 @@ func (p *parser) forLoop() stmt {
 	body := p.statement()
 
 	return &classicForStmt{
+		keyword:     keyword,
 		initializer: init,
 		condition:   cond,
 		increment:   inc,
@@ -208,7 +211,7 @@ func (p *parser) forLoop() stmt {
 	}
 }
 
-func (p *parser) enhancedFor() stmt {
+func (p *parser) enhancedFor(keyword *token) stmt {
 	var ids []*token
 	for p.match(IDENTIFIER) {
 		ids = append(ids, p.previous())
@@ -218,6 +221,7 @@ func (p *parser) enhancedFor() stmt {
 	collection := p.expression()
 	body := p.statement()
 	return &enhancedForStmt{
+		keyword:     keyword,
 		identifiers: ids,
 		body:        body,
 		collection:  collection,
@@ -225,7 +229,9 @@ func (p *parser) enhancedFor() stmt {
 }
 
 func (p *parser) ifStmt() stmt {
-	st := &ifStmt{}
+	st := &ifStmt{
+		keyword: p.previous(),
+	}
 
 	st.condition = p.expression()
 
@@ -272,9 +278,11 @@ func (p *parser) ret() stmt {
 }
 
 func (p *parser) while() stmt {
+	keyword := p.previous()
 	cond := p.expression()
 	body := p.statement()
 	return &whileStmt{
+		keyword:   keyword,
 		condition: cond,
 		body:      body,
 	}
@@ -291,7 +299,10 @@ func (p *parser) block() []stmt {
 
 func (p *parser) expressionStmt() stmt {
 	expr := p.expression()
-	return &exprStmt{expression: expr}
+	return &exprStmt{
+		last:       p.previous(),
+		expression: expr,
+	}
 }
 
 func (p *parser) expression() expr {
@@ -648,6 +659,11 @@ func (p *parser) peek() token {
 }
 
 func (p *parser) previous() *token {
+	for i := 1; i <= p.current; i-- {
+		if state.tokens[p.current-i].token != NEWLINE {
+			return &state.tokens[p.current-i]
+		}
+	}
 	return &state.tokens[p.current-1]
 }
 

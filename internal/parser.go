@@ -61,8 +61,7 @@ func (p *parser) class() stmt {
 	var methods []*fnStmt
 	var staticMethods []*fnStmt
 	for !p.check(END) && !p.isAtEnd() {
-		if p.check(CLASS) {
-			p.consume(CLASS, nil)
+		if p.match(CLASS) {
 			staticMethods = append(staticMethods, p.fn())
 		} else {
 			methods = append(methods, p.fn())
@@ -596,6 +595,9 @@ func (p *parser) primary() expr {
 	}
 	if p.match(FN) {
 		return p.fnExpr()
+	}
+	if p.match(THIS) {
+		return &thisExpr{keyword: p.previous()}
 	}
 
 	state.fatalError(errUndefinedExpr, p.peek().line, 0)

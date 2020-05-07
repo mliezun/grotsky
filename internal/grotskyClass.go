@@ -18,7 +18,10 @@ func (c *grotskyClass) findMethod(name string) *grotskyFunction {
 }
 
 func (c *grotskyClass) call(arguments []interface{}) (interface{}, error) {
-	obj := &grotskyObject{class: c}
+	obj := &grotskyObject{
+		class:  c,
+		fields: make(map[string]interface{}),
+	}
 	if init := c.findMethod("init"); init != nil {
 		if _, err := init.bind(obj).call(arguments); err != nil {
 			return nil, err

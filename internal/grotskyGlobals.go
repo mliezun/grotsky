@@ -1,6 +1,12 @@
 package internal
 
-import "fmt"
+import (
+	"fmt"
+	"net/http"
+	"sync"
+)
+
+var gil sync.Mutex
 
 type nativeFn struct {
 	callFn func(arguments []interface{}) (interface{}, error)
@@ -52,7 +58,69 @@ func defineIo(e *env) {
 		getFn: func(tk *token) interface{} {
 			switch tk.lexeme {
 			case "println":
-				return println
+				return &println
+			default:
+				state.runtimeErr(errUndefinedProp, tk)
+			}
+			return nil
+		},
+	})
+
+	var handler nativeFn
+	handler.callFn = func(arguments []interface{}) (interface{}, error) {
+		if len(arguments) != 2 {
+			return nil, errInvalidNumberArguments
+		}
+		pattern, isString := arguments[0].(grotskyString)
+		if !isString {
+			return nil, errExpectedString
+		}
+		handle, isFunction := arguments[1].(grotskyCallable)
+		if !isFunction {
+			return nil, errExpectedFunction
+		}
+		http.HandleFunc(string(pattern), func(w http.ResponseWriter, req *http.Request) {
+			gil.Lock()
+			defer gil.Unlock()
+			result, err := handle.call(nil)
+			if err != nil {
+				// TODO: handle error
+			}
+			resultDict, ok := result.(map[interface{}]interface{})
+			if !ok {
+				// TODO: handle error
+			}
+			// TODO: handle incorrect dict
+			var body string
+			for k, v := range resultDict {
+				if fmt.Sprintf("%v", k) == "body" {
+					body = string(v.(grotskyString))
+				}
+			}
+			w.Write([]byte(body))
+		})
+		return nil, nil
+	}
+
+	var listen nativeFn
+	listen.callFn = func(arguments []interface{}) (interface{}, error) {
+		if len(arguments) != 1 {
+			return nil, errInvalidNumberArguments
+		}
+		if addr, ok := arguments[0].(grotskyString); ok {
+			http.ListenAndServe(string(addr), nil)
+			return nil, nil
+		}
+		return nil, errExpectedString
+	}
+
+	e.define("http", &nativeObj{
+		getFn: func(tk *token) interface{} {
+			switch tk.lexeme {
+			case "handler":
+				return &handler
+			case "listen":
+				return &listen
 			default:
 				state.runtimeErr(errUndefinedProp, tk)
 			}

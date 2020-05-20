@@ -31,16 +31,16 @@ type interpreterState struct {
 
 var state = interpreterState{}
 
-func (s interpreterState) setError(err error, line, pos int) {
-	s.errors = append(s.errors, parseError{
+func (interpreterState) setError(err error, line, pos int) {
+	state.errors = append(state.errors, parseError{
 		err:  err,
 		line: line,
 		pos:  pos,
 	})
 }
 
-func (s interpreterState) fatalError(err error, line, pos int) {
-	s.errors = append(s.errors, parseError{
+func (interpreterState) fatalError(err error, line, pos int) {
+	state.errors = append(state.errors, parseError{
 		err:  err,
 		line: line,
 		pos:  pos,
@@ -48,8 +48,8 @@ func (s interpreterState) fatalError(err error, line, pos int) {
 	panic(err)
 }
 
-func (s interpreterState) runtimeErr(err error, token *token, msgs ...string) {
-	s.runtimeError = &runtimeError{
+func (interpreterState) runtimeErr(err error, token *token, msgs ...string) {
+	state.runtimeError = &runtimeError{
 		err:   err,
 		token: token,
 		msgs:  msgs,
@@ -57,25 +57,25 @@ func (s interpreterState) runtimeErr(err error, token *token, msgs ...string) {
 	fmt.Fprintf(
 		os.Stderr,
 		"Runtime Error on line %d\n\t%s: %s\n",
-		s.runtimeError.token.line,
-		s.runtimeError.err.Error(),
-		s.runtimeError.token.lexeme,
+		state.runtimeError.token.line,
+		state.runtimeError.err.Error(),
+		state.runtimeError.token.lexeme,
 	)
 	panic(err)
 }
 
 // Valid returns true if the interpreter is in a valid states else false
-func (s interpreterState) Valid() bool {
-	return len(s.errors) == 0
+func (interpreterState) Valid() bool {
+	return len(state.errors) == 0
 }
 
 // PrintErrors prints all errors, returns true if any error printed
-func (s interpreterState) PrintErrors() bool {
-	for _, e := range s.errors {
+func (interpreterState) PrintErrors() bool {
+	for _, e := range state.errors {
 		fmt.Fprintf(os.Stderr, "Error on line %d\n\t", e.line)
 		fmt.Fprintln(os.Stderr, e.err)
 	}
-	return len(s.errors) != 0
+	return len(state.errors) != 0
 }
 
 // Lexer errors
@@ -126,3 +126,5 @@ var errExpectedNumber = errors.New("A number was expected at this position")
 var errExpectedClass = errors.New("A class was expected at this position")
 var errExpectedString = errors.New("A string was expected at this position")
 var errExpectedFunction = errors.New("A function was expected at this position")
+var errExpectedSuperclass = errors.New("Keyword 'super' is only valid inside an object")
+var errExpectedDot = errors.New("Keyword 'super' is only valid for property accessing")

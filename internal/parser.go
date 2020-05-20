@@ -51,8 +51,9 @@ func (p *parser) class() stmt {
 
 	var superclass *variableExpr
 	if p.match(LESS) {
+		class := p.consume(IDENTIFIER, errExpectedIdentifier)
 		superclass = &variableExpr{
-			name: name,
+			name: class,
 		}
 	}
 
@@ -599,9 +600,21 @@ func (p *parser) primary() expr {
 	if p.match(THIS) {
 		return &thisExpr{keyword: p.previous()}
 	}
+	if p.match(SUPER) {
+		return p.superExpr()
+	}
 
 	state.fatalError(errUndefinedExpr, p.peek().line, 0)
 	return &literalExpr{}
+}
+
+func (p *parser) superExpr() expr {
+	super := &superExpr{
+		keyword: p.previous(),
+	}
+	p.consume(DOT, errExpectedDot)
+	super.method = p.consume(IDENTIFIER, errExpectedIdentifier)
+	return super
 }
 
 func (p *parser) consume(tk tokenType, err error) *token {

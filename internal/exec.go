@@ -158,6 +158,22 @@ func (e execute) visitClassStmt(stmt *classStmt) R {
 	class := &grotskyClass{
 		name: stmt.name.lexeme,
 	}
+
+	if stmt.superclass != nil {
+		superclass, ok := stmt.superclass.accept(e).(*grotskyClass)
+		if !ok {
+			state.runtimeErr(errExpectedClass, stmt.name)
+		}
+		class.superclass = superclass
+	}
+
+	e.env.define(class.name, class)
+
+	if stmt.superclass != nil {
+		e.env = newEnv(e.env)
+		e.env.define("super", class.superclass)
+	}
+
 	class.methods = make(map[string]*grotskyFunction)
 	for _, m := range stmt.methods {
 		class.methods[m.name.lexeme] = &grotskyFunction{
@@ -174,13 +190,11 @@ func (e execute) visitClassStmt(stmt *classStmt) R {
 			isInitializer: m.name.lexeme == "init",
 		}
 	}
+
 	if stmt.superclass != nil {
-		if superclass, ok := stmt.superclass.accept(e).(*grotskyClass); ok {
-			class.superclass = superclass
-		}
-		state.runtimeErr(errExpectedClass, stmt.name)
+		e.env = e.env.enclosing
 	}
-	e.env.define(stmt.name.lexeme, class)
+
 	return nil
 }
 
@@ -398,8 +412,24 @@ func (e execute) visitSetExpr(expr *setExpr) R {
 }
 
 func (e execute) visitSuperExpr(expr *superExpr) R {
-	//TODO: implement
-	return nil
+	superclass, ok := e.env.get(expr.keyword).(*grotskyClass)
+	if !ok {
+		state.runtimeErr(errExpectedSuperclass, expr.keyword)
+	}
+	this := &token{
+		token:  THIS,
+		lexeme: "this",
+		line:   expr.keyword.line,
+	}
+	object, ok := e.env.get(this).(*grotskyObject)
+	if !ok {
+		state.runtimeErr(errExpectedObject, expr.keyword)
+	}
+	method := superclass.findMethod(expr.method.lexeme)
+	if method == nil {
+		state.runtimeErr(errMethodNotFound, expr.method)
+	}
+	return method.bind(object)
 }
 
 func (e execute) visitGroupingExpr(expr *groupingExpr) R {

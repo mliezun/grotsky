@@ -4,7 +4,7 @@ class HelloWorld begin
     end
 
     hello() begin
-        return "Hello,"
+        return "Hello, " + this.name
     end
 end
 
@@ -19,7 +19,7 @@ class ByeBye < HelloWorld begin
     end
 
     hello() begin
-        io.println(super.hello(), this.name)
+        io.println(super.hello())
     end
 end
 

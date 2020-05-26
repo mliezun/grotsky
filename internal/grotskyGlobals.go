@@ -83,7 +83,7 @@ func defineIo(e *env) {
 		http.HandleFunc(string(pattern), func(w http.ResponseWriter, req *http.Request) {
 			gil.Lock()
 			defer gil.Unlock()
-			headers := make(map[interface{}]interface{})
+			headers := make(grotskyDict)
 			for header, values := range req.Header {
 				vals := make([]interface{}, len(values))
 				for i, v := range values {
@@ -106,7 +106,7 @@ func defineIo(e *env) {
 			if err != nil {
 				// TODO: handle error
 			}
-			resultDict, ok := result.(map[interface{}]interface{})
+			resultDict, ok := result.(grotskyDict)
 			if !ok {
 				// TODO: handle error
 			}

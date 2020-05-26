@@ -42,11 +42,11 @@ func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 
 	identifiersCount := len(stmt.identifiers)
 
-	if array, ok := collection.([]interface{}); ok {
+	if array, ok := collection.(grotskyList); ok {
 		for _, el := range array {
 			if identifiersCount == 1 {
 				environment.define(stmt.identifiers[0].lexeme, el)
-			} else if array2, ok := el.([]interface{}); ok {
+			} else if array2, ok := el.(grotskyList); ok {
 				if len(array2) != identifiersCount {
 					state.runtimeErr(errWrongNumberOfValues, stmt.keyword)
 				}
@@ -60,7 +60,7 @@ func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 				return returnVal
 			}
 		}
-	} else if dict, ok := collection.(map[interface{}]interface{}); ok {
+	} else if dict, ok := collection.(grotskyDict); ok {
 		if identifiersCount > 2 {
 			state.runtimeErr(errExpectedIdentifiersDict, stmt.keyword)
 		}
@@ -217,7 +217,7 @@ func (e execute) visitClassStmt(stmt *classStmt) R {
 }
 
 func (e execute) visitListExpr(expr *listExpr) R {
-	list := make([]interface{}, len(expr.elements))
+	list := make(grotskyList, len(expr.elements))
 	for i, el := range expr.elements {
 		list[i] = el.accept(e)
 	}
@@ -225,7 +225,7 @@ func (e execute) visitListExpr(expr *listExpr) R {
 }
 
 func (e execute) visitDictionaryExpr(expr *dictionaryExpr) R {
-	dict := make(map[interface{}]interface{})
+	dict := make(grotskyDict)
 	for i := 0; i < len(expr.elements)/2; i++ {
 		dict[expr.elements[i*2].accept(e)] = expr.elements[i*2+1].accept(e)
 	}
@@ -240,11 +240,11 @@ func (e execute) visitAssignExpr(expr *assignExpr) R {
 
 func (e execute) visitAccessExpr(expr *accessExpr) R {
 	object := expr.object.accept(e)
-	list, isList := object.([]interface{})
+	list, isList := object.(grotskyList)
 	if isList {
 		return e.sliceList(list, expr)
 	}
-	dict, isDict := object.(map[interface{}]interface{})
+	dict, isDict := object.(grotskyDict)
 	if isDict {
 		if expr.first == nil {
 			state.runtimeErr(errExpectedKey, expr.brace)
@@ -255,7 +255,7 @@ func (e execute) visitAccessExpr(expr *accessExpr) R {
 	return nil
 }
 
-func (e execute) sliceList(list []interface{}, accessExpr *accessExpr) interface{} {
+func (e execute) sliceList(list grotskyList, accessExpr *accessExpr) interface{} {
 	first, second, third := e.exprToInt(accessExpr.first, accessExpr.brace),
 		e.exprToInt(accessExpr.second, accessExpr.brace),
 		e.exprToInt(accessExpr.third, accessExpr.brace)
@@ -320,11 +320,11 @@ func (e execute) exprToInt(expr expr, token *token) *int64 {
 	return &valueI
 }
 
-func (e execute) stepList(list []interface{}, step int64) []interface{} {
+func (e execute) stepList(list grotskyList, step int64) grotskyList {
 	if step <= 1 {
 		return list
 	}
-	out := make([]interface{}, 0)
+	out := make(grotskyList, 0)
 	if step > int64(len(list)) {
 		return out
 	}
@@ -500,7 +500,7 @@ func (e execute) visitUnaryExpr(expr *unaryExpr) R {
 	if err != nil {
 		state.runtimeErr(err, expr.operator)
 	}
-	return nil
+	return value
 }
 
 func (e execute) truthy(value interface{}) bool {

@@ -1,14 +1,13 @@
 package internal
 
-import "math"
+import (
+	"math"
+)
 
 type grotskyNumber float64
 
 func applyOpToNums(op func(x, y float64) interface{}, arguments ...interface{}) (interface{}, error) {
-	x, ok := arguments[0].(grotskyNumber)
-	if !ok {
-		return nil, errExpectedNumber
-	}
+	x := arguments[0].(grotskyNumber)
 	y, ok := arguments[1].(grotskyNumber)
 	if !ok {
 		return nil, errExpectedNumber
@@ -69,11 +68,7 @@ func (n grotskyNumber) getOperator(op operator) (operatorApply, error) {
 	}
 	if op == opNeg {
 		return func(arguments ...interface{}) (interface{}, error) {
-			x, ok := arguments[0].(grotskyNumber)
-			if !ok {
-				return nil, errExpectedNumber
-			}
-			return grotskyNumber(-x), nil
+			return grotskyNumber(-n), nil
 		}, nil
 	}
 	return nil, errUndefinedOp

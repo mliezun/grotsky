@@ -612,8 +612,16 @@ func (p *parser) superExpr() expr {
 	super := &superExpr{
 		keyword: p.previous(),
 	}
-	p.consume(DOT, errExpectedDot)
-	super.method = p.consume(IDENTIFIER, errExpectedIdentifier)
+	if !p.check(LEFT_PAREN) {
+		p.consume(DOT, errExpectedDot)
+		super.method = p.consume(IDENTIFIER, errExpectedIdentifier)
+	} else {
+		super.method = &token{
+			token:  IDENTIFIER,
+			lexeme: "init",
+			line:   super.keyword.line,
+		}
+	}
 	return super
 }
 

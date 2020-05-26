@@ -14,7 +14,9 @@ func init() {
 
 func (e execute) interpret() {
 	defer func() {
-		recover()
+		if state.runtimeError != nil {
+			recover()
+		}
 	}()
 	for _, s := range state.stmts {
 		s.accept(e)
@@ -27,7 +29,9 @@ func (e execute) visitExprStmt(stmt *exprStmt) R {
 
 func (e execute) visitClassicForStmt(stmt *classicForStmt) R {
 	for stmt.initializer.accept(e); e.truthy(stmt.condition.accept(e)); stmt.increment.accept(e) {
-		stmt.body.accept(e)
+		if returnVal, isReturn := stmt.body.accept(e).(returnValue); isReturn {
+			return returnVal
+		}
 	}
 	return nil
 }
@@ -52,7 +56,9 @@ func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 			} else {
 				state.runtimeErr(errCannotUnpack, stmt.keyword)
 			}
-			e.executeOne(stmt.body, environment)
+			if returnVal, isReturn := e.executeOne(stmt.body, environment).(returnValue); isReturn {
+				return returnVal
+			}
 		}
 	} else if dict, ok := collection.(map[interface{}]interface{}); ok {
 		if identifiersCount > 2 {
@@ -65,7 +71,9 @@ func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 				environment.define(stmt.identifiers[0].lexeme, key)
 				environment.define(stmt.identifiers[1].lexeme, value)
 			}
-			e.executeOne(stmt.body, environment)
+			if returnVal, isReturn := e.executeOne(stmt.body, environment).(returnValue); isReturn {
+				return returnVal
+			}
 		}
 	} else {
 		state.runtimeErr(errExpectedCollection, stmt.keyword)
@@ -84,8 +92,7 @@ func (e execute) visitLetStmt(stmt *letStmt) R {
 }
 
 func (e execute) visitBlockStmt(stmt *blockStmt) R {
-	e.executeBlock(stmt.stmts, newEnv(e.env))
-	return nil
+	return e.executeBlock(stmt.stmts, newEnv(e.env))
 }
 
 func (e execute) executeOne(st stmt, env *env) R {
@@ -97,27 +104,32 @@ func (e execute) executeOne(st stmt, env *env) R {
 	return st.accept(e)
 }
 
-func (e execute) executeBlock(stmts []stmt, env *env) {
+func (e execute) executeBlock(stmts []stmt, env *env) R {
 	previous := e.env
 	defer func() {
 		e.env = previous
 	}()
 	e.env = env
 	for _, s := range stmts {
-		s.accept(e)
+		if returnVal, isReturn := s.accept(e).(returnValue); isReturn {
+			return returnVal
+		}
 	}
+	return nil
 }
 
 func (e execute) visitWhileStmt(stmt *whileStmt) R {
 	for e.truthy(stmt.condition.accept(e)) {
-		stmt.body.accept(e)
+		if returnVal, isReturn := stmt.body.accept(e).(returnValue); isReturn {
+			return returnVal
+		}
 	}
 	return nil
 }
 
 func (e execute) visitReturnStmt(stmt *returnStmt) R {
 	if stmt.value != nil {
-		panic(returnValue(stmt.value.accept(e)))
+		return returnValue(stmt.value.accept(e))
 	}
 	return nil
 }
@@ -125,21 +137,27 @@ func (e execute) visitReturnStmt(stmt *returnStmt) R {
 func (e execute) visitIfStmt(stmt *ifStmt) R {
 	if e.truthy(stmt.condition.accept(e)) {
 		for _, st := range stmt.thenBranch {
-			st.accept(e)
+			if returnVal, isReturn := st.accept(e).(returnValue); isReturn {
+				return returnVal
+			}
 		}
 		return nil
 	}
 	for _, elif := range stmt.elifs {
 		if e.truthy(elif.condition.accept(e)) {
 			for _, st := range elif.thenBranch {
-				st.accept(e)
+				if returnVal, isReturn := st.accept(e).(returnValue); isReturn {
+					return returnVal
+				}
 			}
 			return nil
 		}
 	}
 	if stmt.elseBranch != nil {
 		for _, st := range stmt.elseBranch {
-			st.accept(e)
+			if returnVal, isReturn := st.accept(e).(returnValue); isReturn {
+				return returnVal
+			}
 		}
 	}
 	return nil
@@ -187,7 +205,7 @@ func (e execute) visitClassStmt(stmt *classStmt) R {
 		class.staticMethods[m.name.lexeme] = &grotskyFunction{
 			declaration:   m,
 			closure:       e.env,
-			isInitializer: m.name.lexeme == "init",
+			isInitializer: false,
 		}
 	}
 

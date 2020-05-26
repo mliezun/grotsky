@@ -23,25 +23,18 @@ func (f *grotskyFunction) call(arguments []interface{}) (result interface{}, err
 		env.define(f.declaration.params[i].lexeme, arguments[i])
 	}
 
-	defer func() {
-		if r := recover(); r != nil {
-			if returnVal, isReturn := r.(returnValue); isReturn {
-				result = returnVal
-			} else {
-				panic(r)
-			}
-		}
-	}()
-
 	if len(f.declaration.body) == 1 {
 		if exprSt, ok := f.declaration.body[0].(*exprStmt); ok {
 			return exec.executeOne(exprSt, env), nil
 		}
 	}
 
-	exec.executeBlock(f.declaration.body, env)
+	resultVal := exec.executeBlock(f.declaration.body, env)
+	if returnVal, isReturn := resultVal.(returnValue); isReturn {
+		return returnVal, nil
+	}
 
-	return nil, nil
+	return resultVal, nil
 }
 
 func (f *grotskyFunction) bind(object *grotskyObject) *grotskyFunction {

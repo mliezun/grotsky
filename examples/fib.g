@@ -1,5 +1,7 @@
 fn fib(n) begin
-    if n < 2 return n
+    if n < 2 begin
+        return n
+    end
     return fib(n-2) + fib(n-1)
 end
-println(fib(30))
+io.println(fib(30))

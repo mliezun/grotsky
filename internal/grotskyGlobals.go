@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"sync"
 )
@@ -82,7 +83,26 @@ func defineIo(e *env) {
 		http.HandleFunc(string(pattern), func(w http.ResponseWriter, req *http.Request) {
 			gil.Lock()
 			defer gil.Unlock()
-			result, err := handle.call(nil)
+			headers := make(map[interface{}]interface{})
+			for header, values := range req.Header {
+				vals := make([]interface{}, len(values))
+				for i, v := range values {
+					vals[i] = v
+				}
+				headers[header] = vals
+			}
+
+			rqBody, err := ioutil.ReadAll(req.Body)
+			if err != nil {
+				// TODO: handle error
+			}
+
+			arguments = []interface{}{
+				headers,
+				string(rqBody),
+			}
+
+			result, err := handle.call(arguments)
 			if err != nil {
 				// TODO: handle error
 			}

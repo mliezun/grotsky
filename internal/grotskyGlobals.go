@@ -18,16 +18,21 @@ func (n *nativeFn) call(arguments []interface{}) (interface{}, error) {
 }
 
 type nativeObj struct {
-	getFn         func(tk *token) interface{}
+	properties    map[string]interface{}
+	methods       map[string]*nativeFn
 	setFn         func(name *token, value interface{})
 	getOperatorFn func(op operator) (operatorApply, error)
 }
 
 func (n *nativeObj) get(tk *token) interface{} {
-	if n.getFn == nil {
-		state.runtimeErr(errUndefinedProp, tk)
+	if prop, ok := n.properties[tk.lexeme]; ok {
+		return prop
 	}
-	return n.getFn(tk)
+	if method, ok := n.methods[tk.lexeme]; ok {
+		return method
+	}
+	state.runtimeErr(errUndefinedProp, tk)
+	return nil
 }
 
 func (n *nativeObj) set(name *token, value interface{}) {
@@ -46,6 +51,7 @@ func (n *nativeObj) getOperator(op operator) (operatorApply, error) {
 
 func defineGlobals(e *env) {
 	defineIo(e)
+	defineHTTP(e)
 }
 
 func defineIo(e *env) {
@@ -56,17 +62,13 @@ func defineIo(e *env) {
 	}
 
 	e.define("io", &nativeObj{
-		getFn: func(tk *token) interface{} {
-			switch tk.lexeme {
-			case "println":
-				return &println
-			default:
-				state.runtimeErr(errUndefinedProp, tk)
-			}
-			return nil
+		methods: map[string]*nativeFn{
+			"println": &println,
 		},
 	})
+}
 
+func defineHTTP(e *env) {
 	var handler nativeFn
 	handler.callFn = func(arguments []interface{}) (interface{}, error) {
 		if len(arguments) != 2 {
@@ -81,43 +83,60 @@ func defineIo(e *env) {
 			return nil, errExpectedFunction
 		}
 		http.HandleFunc(string(pattern), func(w http.ResponseWriter, req *http.Request) {
-			gil.Lock()
-			defer gil.Unlock()
-			headers := make(grotskyDict)
-			for header, values := range req.Header {
-				vals := make([]interface{}, len(values))
-				for i, v := range values {
-					vals[i] = v
-				}
-				headers[header] = vals
+			responseWriter := &nativeObj{
+				methods: map[string]*nativeFn{
+					"write": {
+						callFn: func(arguments []interface{}) (interface{}, error) {
+							if len(arguments) != 2 {
+								// TODO: handle error
+							}
+							code, ok := arguments[0].(grotskyNumber)
+							if !ok {
+								// TODO: handle error
+							}
+							w.WriteHeader(int(code))
+							if _, err := w.Write([]byte(arguments[1].(grotskyString))); err != nil {
+								// TODO: handle error
+							}
+							return nil, nil
+						},
+					},
+				},
 			}
 
-			rqBody, err := ioutil.ReadAll(req.Body)
-			if err != nil {
-				// TODO: handle error
+			requestReader := &nativeObj{
+				properties: map[string]interface{}{
+					"method":    grotskyString(req.Method),
+					"address":   grotskyString(req.RemoteAddr),
+					"userAgent": grotskyString(req.UserAgent()),
+				},
+				methods: map[string]*nativeFn{
+					"body": {
+						callFn: func(arguments []interface{}) (interface{}, error) {
+							if len(arguments) != 0 {
+								// TODO: handle error
+							}
+							rqBody, err := ioutil.ReadAll(req.Body)
+							if err != nil {
+								// TODO: handle error
+							}
+							return grotskyString(rqBody), nil
+						},
+					},
+				},
 			}
 
 			arguments = []interface{}{
-				headers,
-				string(rqBody),
+				requestReader,
+				responseWriter,
 			}
 
-			result, err := handle.call(arguments)
+			gil.Lock()
+			defer gil.Unlock()
+			_, err := handle.call(arguments)
 			if err != nil {
 				// TODO: handle error
 			}
-			resultDict, ok := result.(grotskyDict)
-			if !ok {
-				// TODO: handle error
-			}
-			// TODO: handle incorrect dict
-			var body string
-			for k, v := range resultDict {
-				if fmt.Sprintf("%v", k) == "body" {
-					body = string(v.(grotskyString))
-				}
-			}
-			w.Write([]byte(body))
 		})
 		return nil, nil
 	}
@@ -135,16 +154,9 @@ func defineIo(e *env) {
 	}
 
 	e.define("http", &nativeObj{
-		getFn: func(tk *token) interface{} {
-			switch tk.lexeme {
-			case "handler":
-				return &handler
-			case "listen":
-				return &listen
-			default:
-				state.runtimeErr(errUndefinedProp, tk)
-			}
-			return nil
+		methods: map[string]*nativeFn{
+			"handler": &handler,
+			"listen":  &listen,
 		},
 	})
 }

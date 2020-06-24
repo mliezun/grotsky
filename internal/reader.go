@@ -98,7 +98,7 @@ func (v stringVisitor) visitIfStmt(stmt *ifStmt) R {
 }
 
 func (v stringVisitor) visitClassStmt(stmt *classStmt) R {
-	out := fmt.Sprint("(class %s)", stmt.name.lexeme)
+	out := fmt.Sprintf("(class %s)", stmt.name.lexeme)
 	return out
 }
 

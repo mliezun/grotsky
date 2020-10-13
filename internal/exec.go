@@ -33,7 +33,7 @@ func (e execute) visitClassicForStmt(stmt *classicForStmt) R {
 	}
 	for ; e.truthy(stmt.condition.accept(e)); stmt.increment.accept(e) {
 		if returnVal, isReturn := stmt.body.accept(e).(*returnValue); isReturn {
-			return returnVal.value
+			return returnVal
 		}
 	}
 	return nil
@@ -60,7 +60,7 @@ func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 				state.runtimeErr(errCannotUnpack, stmt.keyword)
 			}
 			if returnVal, isReturn := e.executeOne(stmt.body, environment).(*returnValue); isReturn {
-				return returnVal.value
+				return returnVal
 			}
 		}
 	} else if dict, ok := collection.(grotskyDict); ok {
@@ -75,7 +75,7 @@ func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 				environment.define(stmt.identifiers[1].lexeme, value)
 			}
 			if returnVal, isReturn := e.executeOne(stmt.body, environment).(*returnValue); isReturn {
-				return returnVal.value
+				return returnVal
 			}
 		}
 	} else {
@@ -114,8 +114,9 @@ func (e execute) executeBlock(stmts []stmt, env *env) R {
 	}()
 	e.env = env
 	for _, s := range stmts {
-		if returnVal, isReturn := s.accept(e).(*returnValue); isReturn {
-			return returnVal.value
+		val := s.accept(e)
+		if returnVal, isReturn := val.(*returnValue); isReturn {
+			return returnVal
 		}
 	}
 	return nil
@@ -125,7 +126,7 @@ func (e execute) visitWhileStmt(stmt *whileStmt) R {
 	for e.truthy(stmt.condition.accept(e)) {
 		val := stmt.body.accept(e)
 		if returnVal, isReturn := val.(*returnValue); isReturn {
-			return returnVal.value
+			return returnVal
 		}
 	}
 	return nil
@@ -143,7 +144,7 @@ func (e execute) visitIfStmt(stmt *ifStmt) R {
 	if e.truthy(stmt.condition.accept(e)) {
 		for _, st := range stmt.thenBranch {
 			if returnVal, isReturn := st.accept(e).(*returnValue); isReturn {
-				return returnVal.value
+				return returnVal
 			}
 		}
 		return nil
@@ -152,7 +153,7 @@ func (e execute) visitIfStmt(stmt *ifStmt) R {
 		if e.truthy(elif.condition.accept(e)) {
 			for _, st := range elif.thenBranch {
 				if returnVal, isReturn := st.accept(e).(*returnValue); isReturn {
-					return returnVal.value
+					return returnVal
 				}
 			}
 			return nil
@@ -161,7 +162,7 @@ func (e execute) visitIfStmt(stmt *ifStmt) R {
 	if stmt.elseBranch != nil {
 		for _, st := range stmt.elseBranch {
 			if returnVal, isReturn := st.accept(e).(*returnValue); isReturn {
-				return returnVal.value
+				return returnVal
 			}
 		}
 	}

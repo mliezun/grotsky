@@ -1,6 +1,8 @@
 package internal
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type grotskyCallable interface {
 	call(arguments []interface{}) (interface{}, error)
@@ -25,13 +27,14 @@ func (f *grotskyFunction) call(arguments []interface{}) (result interface{}, err
 
 	if len(f.declaration.body) == 1 {
 		if exprSt, ok := f.declaration.body[0].(*exprStmt); ok {
-			return exec.executeOne(exprSt, env), nil
+			resultVal := exec.executeOne(exprSt, env)
+			return resultVal, nil
 		}
 	}
 
 	resultVal := exec.executeBlock(f.declaration.body, env)
-	if returnVal, isReturn := resultVal.(returnValue); isReturn {
-		return returnVal, nil
+	if returnVal, isReturn := resultVal.(*returnValue); isReturn {
+		return returnVal.value, nil
 	}
 
 	return resultVal, nil

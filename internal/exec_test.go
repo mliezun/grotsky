@@ -138,6 +138,9 @@ func TestExpressions(t *testing.T) {
 		// Number lte
 		checkExpression(t, `5 <= 5`, "true")
 		checkExpression(t, `10 <= 5`, "false")
+
+		// Grouping
+		checkExpression(t, `(5 <= 5) and (not true or ((1*(1+4)) == 5))`, "true")
 	}
 
 	// Lists
@@ -168,6 +171,13 @@ func TestExpressions(t *testing.T) {
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[1]["a"]`, "3")
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[3][0]`, "7")
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[3][1]`, "test")
+	}
+
+	// Function expressions
+	{
+		// Dict literalals
+		checkExpression(t, "fn () nil", "<fn anonymous>")
+		checkExpression(t, "(fn () nil)()", "<nil>")
 	}
 }
 
@@ -289,17 +299,68 @@ func TestStatements(t *testing.T) {
 		let i = check(10)
 		`, "i", "10")
 
-		// TODO: fix returns / probably is because of return malfunction
-		/*
-			checkStatements(t, `
-			fn fib(i) begin
-				if i < 2 begin
-					return i
-				end
+		checkStatements(t, `
+		fn fib(i) begin
+			if i == 0 begin
+				return 0
+			elif i == 1
+				return 1
+			else
 				return fib(i-1)+fib(i-2)
 			end
-			let f = fib(10)
-			`, "i", "1")
-		*/
+		end
+		let f = fib(10)
+		`, "f", "55")
+
+		checkStatements(t, `
+		fn count(i) begin
+			while true begin
+				i = i - 1
+				if i < 0 begin
+					return i
+				end
+			end
+			return i
+		end
+		let f = count(10)
+		`, "f", "-1")
+
+		checkStatements(t, `
+		fn count(i) begin
+			while true begin
+				return i
+			end
+			return i
+		end
+		let f = count(10)
+		`, "f", "10")
+
+		checkStatements(t, `
+		fn count(i) begin
+			for let n = 0; n < 1; n = n + 1 begin
+				return n
+			end
+			return i
+		end
+		let f = count(10)
+		`, "f", "0")
+
+		checkStatements(t, `
+		fn firstEl(arr) begin
+			for e in arr begin
+				return e
+			end
+		end
+		let f = firstEl([3,4,5])
+		`, "f", "3")
+
+		checkStatements(t, `
+		fn firstKey(dict) begin
+			for key in dict begin
+				return key
+			end
+		end
+		let f = firstKey({1:2, 3:4})
+		`, "f", "1")
 	}
 }

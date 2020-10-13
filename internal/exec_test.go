@@ -167,6 +167,13 @@ func TestExpressions(t *testing.T) {
 		checkExpression(t, "[1,2,3,4,5,6][1:5]", "[2 3 4 5]")
 		checkExpression(t, "[1,2,3,4,5,6][1::2]", "[2 4 6]")
 		checkExpression(t, "[1,2,3,4,5,6][:5:2]", "[1 3 5]")
+
+		// List operations
+		checkExpression(t, "[1,2,3] + [4,5,6]", "[1 2 3 4 5 6]")
+		checkExpression(t, "-[1,1,1,1,1,1]", "[1]")
+		checkExpression(t, "[1] == [1]", "false")
+		checkExpression(t, "[1] != [1]", "true")
+		checkExpression(t, "[1,2,3] - [2,3]", "[1]")
 	}
 
 	// Dicts
@@ -180,6 +187,11 @@ func TestExpressions(t *testing.T) {
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[1]["a"]`, "3")
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[3][0]`, "7")
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[3][1]`, "test")
+
+		// Dict operations
+		checkExpression(t, `{1: 2} + {1: 4}`, "map[1:4]")
+		checkExpression(t, `{1: 2} == {1: 2}`, "false")
+		checkExpression(t, `{1: 2} != {1: 2}`, "true")
 	}
 
 	// Function expressions

@@ -232,6 +232,17 @@ func TestStatements(t *testing.T) {
 		end
 		`, "x", "40275")
 
+		// TODO: fix for init withouth LET token / problem caused by enhanced for
+		/*
+			checkStatements(t, `
+			let x = 40320
+			let u = 0
+			for u=2*3; u < 10; u = u + 1 begin
+				x = x - u
+			end
+			`, "x", "40275")
+		*/
+
 		checkStatements(t, `
 		let x = 40275
 		let arr = [1, 2, 3, 4]
@@ -276,7 +287,7 @@ func TestStatements(t *testing.T) {
 			return i
 		end
 		let i = check(10)
-		`, "i", "1")
+		`, "i", "10")
 
 		// TODO: fix returns / probably is because of return malfunction
 		/*

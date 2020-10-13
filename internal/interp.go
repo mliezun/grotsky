@@ -31,6 +31,9 @@ func RunSourceWithPrinter(source string, p Printer) {
 	}
 	parser := &parser{}
 
+	// TODO: ensure fresh start for each invocation, right now in test
+	// global variables are still declared when a new test is run
+
 	defineGlobals(exec.globals, p)
 
 	lexer.scan()

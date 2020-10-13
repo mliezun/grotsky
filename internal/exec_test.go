@@ -369,7 +369,7 @@ func TestStatements(t *testing.T) {
 				return key
 			end
 		end
-		let f = firstKey({1:2, 3:4})
+		let f = firstKey({1:2})
 		`, "f", "1")
 	}
 }

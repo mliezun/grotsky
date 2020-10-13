@@ -44,8 +44,10 @@ func RunSourceWithPrinter(source string, p Printer) {
 	}
 	parser := &parser{}
 
-	// TODO: ensure fresh start for each invocation, right now in test
-	// global variables are still declared when a new test is run
+	exec = execute{
+		env: newEnv(nil),
+	}
+	exec.globals = exec.env
 
 	defineGlobals(exec.globals, p)
 

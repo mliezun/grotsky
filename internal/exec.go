@@ -7,11 +7,6 @@ type execute struct {
 
 var exec = execute{}
 
-func init() {
-	exec.env = newEnv(nil)
-	exec.globals = exec.env
-}
-
 func (e execute) interpret() {
 	defer func() {
 		if state.runtimeError != nil {

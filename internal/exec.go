@@ -312,7 +312,7 @@ func (e execute) exprToInt(expr expr, token *token) *int64 {
 	if expr == nil {
 		return nil
 	}
-	valueF, ok := expr.accept(e).(float64)
+	valueF, ok := expr.accept(e).(grotskyNumber)
 	if !ok {
 		state.runtimeErr(errOnlyNumbers, token)
 	}

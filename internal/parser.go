@@ -572,10 +572,10 @@ func (p *parser) primary() expr {
 		return &literalExpr{value: p.previous().literal}
 	}
 	if p.match(FALSE) {
-		return &literalExpr{value: false}
+		return &literalExpr{value: grotskyBool(false)}
 	}
 	if p.match(TRUE) {
-		return &literalExpr{value: true}
+		return &literalExpr{value: grotskyBool(true)}
 	}
 	if p.match(NIL) {
 		return &literalExpr{value: nil}

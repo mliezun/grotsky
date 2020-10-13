@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -49,16 +48,15 @@ func (n *nativeObj) getOperator(op operator) (operatorApply, error) {
 	return n.getOperatorFn(op)
 }
 
-func defineGlobals(e *env) {
-	defineIo(e)
+func defineGlobals(e *env, p Printer) {
+	defineIo(e, p)
 	defineHTTP(e)
 }
 
-func defineIo(e *env) {
+func defineIo(e *env, p Printer) {
 	var println nativeFn
 	println.callFn = func(arguments []interface{}) (interface{}, error) {
-		fmt.Println(arguments...)
-		return nil, nil
+		return p.Println(arguments...)
 	}
 
 	e.define("io", &nativeObj{

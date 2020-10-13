@@ -1,7 +1,25 @@
 package internal
 
+import "fmt"
+
+// Printer ...
+type Printer interface {
+	Println(a ...interface{}) (n int, err error)
+}
+
+type stdPrinter struct{}
+
+func (s stdPrinter) Println(a ...interface{}) (n int, err error) {
+	return fmt.Println(a...)
+}
+
 // RunSource runs source code on a fresh interpreter instance
 func RunSource(source string) {
+	RunSourceWithPrinter(source, stdPrinter{})
+}
+
+// RunSourceWithPrinter runs source code on a fresh interpreter instance
+func RunSourceWithPrinter(source string, p Printer) {
 	previousState := state
 	defer func() {
 		state = previousState
@@ -13,7 +31,7 @@ func RunSource(source string) {
 	}
 	parser := &parser{}
 
-	defineGlobals(exec.globals)
+	defineGlobals(exec.globals, p)
 
 	lexer.scan()
 

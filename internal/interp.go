@@ -1,16 +1,29 @@
 package internal
 
-import "fmt"
+import (
+	"fmt"
+	"io"
+)
 
 // Printer ...
 type Printer interface {
 	Println(a ...interface{}) (n int, err error)
+	Fprintf(w io.Writer, format string, a ...interface{}) (n int, err error)
+	Fprintln(w io.Writer, a ...interface{}) (n int, err error)
 }
 
 type stdPrinter struct{}
 
 func (s stdPrinter) Println(a ...interface{}) (n int, err error) {
 	return fmt.Println(a...)
+}
+
+func (s stdPrinter) Fprintf(w io.Writer, format string, a ...interface{}) (n int, err error) {
+	return fmt.Fprintf(w, format, a...)
+}
+
+func (s stdPrinter) Fprintln(w io.Writer, a ...interface{}) (n int, err error) {
+	return fmt.Fprintln(w, a...)
 }
 
 // RunSource runs source code on a fresh interpreter instance

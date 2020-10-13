@@ -29,6 +29,7 @@ type interpreterState struct {
 	tokens       []token
 	stmts        []stmt
 	runtimeError *runtimeError
+	logger       Printer
 }
 
 var state = interpreterState{}
@@ -56,7 +57,7 @@ func (interpreterState) runtimeErr(err error, token *token, msgs ...string) {
 		token: token,
 		msgs:  msgs,
 	}
-	fmt.Fprintf(
+	state.logger.Fprintf(
 		os.Stderr,
 		"Runtime Error on line %d\n\t%s: %s\n",
 		state.runtimeError.token.line,
@@ -74,8 +75,8 @@ func (interpreterState) Valid() bool {
 // PrintErrors prints all errors, returns true if any error printed
 func (interpreterState) PrintErrors() bool {
 	for _, e := range state.errors {
-		fmt.Fprintf(os.Stderr, "Error on line %d\n\t", e.line)
-		fmt.Fprintln(os.Stderr, e.err)
+		state.logger.Fprintf(os.Stderr, "Error on line %d\n\t", e.line)
+		state.logger.Fprintln(os.Stderr, e.err)
 	}
 	return len(state.errors) != 0
 }

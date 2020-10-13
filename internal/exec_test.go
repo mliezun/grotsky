@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"io"
 	"testing"
 )
 
@@ -18,6 +19,14 @@ func (t *testPrinter) Println(a ...interface{}) (n int, err error) {
 	}
 	t.printed += "\n"
 	return 0, nil
+}
+
+func (t *testPrinter) Fprintf(w io.Writer, format string, a ...interface{}) (n int, err error) {
+	return t.Println(fmt.Sprintf(format, a...))
+}
+
+func (t *testPrinter) Fprintln(w io.Writer, a ...interface{}) (n int, err error) {
+	return t.Println(a...)
 }
 
 func (t *testPrinter) Equals(p string) bool {

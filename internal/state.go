@@ -18,7 +18,9 @@ type runtimeError struct {
 	msgs  []string
 }
 
-type returnValue interface{}
+type returnValue struct {
+	value interface{}
+}
 
 // state stores the state of a interpreter
 type interpreterState struct {

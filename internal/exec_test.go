@@ -41,6 +41,15 @@ func checkExpression(t *testing.T, exp string, result string) {
 	}
 }
 
+func checkStatements(t *testing.T, code string, resultVar string, result string) {
+	source := code + "\nio.println(" + resultVar + ")"
+	tp := &testPrinter{}
+	RunSourceWithPrinter(source, tp)
+	if !tp.Equals(result) {
+		t.Errorf(`Should be equal to %s instead of %s`, result, tp.printed)
+	}
+}
+
 func TestExpressions(t *testing.T) {
 
 	// Arithmethic
@@ -137,6 +146,7 @@ func TestExpressions(t *testing.T) {
 		checkExpression(t, "[]", "[]")
 		checkExpression(t, "[1, 2, 3]", "[1 2 3]")
 		checkExpression(t, `[["test", 2^4], not true, 1 < 2]`, "[[test 16] false true]")
+		checkExpression(t, "[[1, 2], [3, 4]]", "[[1 2] [3 4]]")
 
 		// List slicing
 		checkExpression(t, "[1,2,3,4,5,6][1:][::2][0]", "2")
@@ -158,5 +168,127 @@ func TestExpressions(t *testing.T) {
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[1]["a"]`, "3")
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[3][0]`, "7")
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[3][1]`, "test")
+	}
+}
+
+func TestStatements(t *testing.T) {
+	// If-elif-else
+	{
+		checkStatements(t, `
+		let i = 0
+		if i == 100 begin
+			i = 10
+		elif i < 10
+			i = 20
+		else
+			i = 100
+		end
+		`, "i", "20")
+
+		checkStatements(t, `
+		let i = 20
+		if i == 100 begin
+			i = 10
+		elif i < 10
+			i = 20
+		else
+			i = 100
+		end`, "i", "100")
+
+		checkStatements(t, `
+		let i = 100
+		if i == 100 begin
+			i = 10
+		elif i < 10
+			i = 20
+		else
+			i = 100
+		end`, "i", "10")
+	}
+
+	// While loop
+	{
+		checkStatements(t, `
+		let i = 0
+		while i*2 < 10 begin
+			i = i + 1
+		end
+		`, "i", "5")
+	}
+
+	// For loop
+	{
+		checkStatements(t, `
+		let x = 1
+		for let i = 1; i <= 8; i = i+1 begin
+			x = x * i
+		end`, "x", "40320")
+
+		checkStatements(t, `
+		let x = 40320
+		let u = 0
+		for ; u < 10; u = u + 1 begin
+			x = x - u
+		end
+		`, "x", "40275")
+
+		checkStatements(t, `
+		let x = 40275
+		let arr = [1, 2, 3, 4]
+		for el in arr begin
+			x = x + el
+		end`, "x", "40285")
+
+		checkStatements(t, `
+		let x = 40285
+		let mat = [[1, 2], [3, 4]]
+		for n, m in mat begin
+			x = x + n + m
+		end`, "x", "40295")
+
+		checkStatements(t, `
+		let x = 40295
+		let dict = {1: 2, 3: 4}
+		for key, val in dict begin
+			x = x + key + val
+		end`, "x", "40305")
+
+		checkStatements(t, `
+		let x = 40305
+		let dict = {1: 2, 3: 4}
+		for key in dict begin
+			x = x + key
+		end
+		`, "x", "40309")
+	}
+
+	// Functions
+	{
+		checkStatements(t, `
+		fn check() begin
+			return 1
+		end
+		let i = check()
+		`, "i", "1")
+
+		checkStatements(t, `
+		fn check(i) begin
+			return i
+		end
+		let i = check(10)
+		`, "i", "1")
+
+		// TODO: fix returns / probably is because of return malfunction
+		/*
+			checkStatements(t, `
+			fn fib(i) begin
+				if i < 2 begin
+					return i
+				end
+				return fib(i-1)+fib(i-2)
+			end
+			let f = fib(10)
+			`, "i", "1")
+		*/
 	}
 }

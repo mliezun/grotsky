@@ -28,9 +28,12 @@ func (e execute) visitExprStmt(stmt *exprStmt) R {
 }
 
 func (e execute) visitClassicForStmt(stmt *classicForStmt) R {
-	for stmt.initializer.accept(e); e.truthy(stmt.condition.accept(e)); stmt.increment.accept(e) {
-		if returnVal, isReturn := stmt.body.accept(e).(returnValue); isReturn {
-			return returnVal
+	if stmt.initializer != nil {
+		stmt.initializer.accept(e)
+	}
+	for ; e.truthy(stmt.condition.accept(e)); stmt.increment.accept(e) {
+		if returnVal, isReturn := stmt.body.accept(e).(*returnValue); isReturn {
+			return returnVal.value
 		}
 	}
 	return nil
@@ -56,8 +59,8 @@ func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 			} else {
 				state.runtimeErr(errCannotUnpack, stmt.keyword)
 			}
-			if returnVal, isReturn := e.executeOne(stmt.body, environment).(returnValue); isReturn {
-				return returnVal
+			if returnVal, isReturn := e.executeOne(stmt.body, environment).(*returnValue); isReturn {
+				return returnVal.value
 			}
 		}
 	} else if dict, ok := collection.(grotskyDict); ok {
@@ -71,8 +74,8 @@ func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 				environment.define(stmt.identifiers[0].lexeme, key)
 				environment.define(stmt.identifiers[1].lexeme, value)
 			}
-			if returnVal, isReturn := e.executeOne(stmt.body, environment).(returnValue); isReturn {
-				return returnVal
+			if returnVal, isReturn := e.executeOne(stmt.body, environment).(*returnValue); isReturn {
+				return returnVal.value
 			}
 		}
 	} else {
@@ -111,8 +114,8 @@ func (e execute) executeBlock(stmts []stmt, env *env) R {
 	}()
 	e.env = env
 	for _, s := range stmts {
-		if returnVal, isReturn := s.accept(e).(returnValue); isReturn {
-			return returnVal
+		if returnVal, isReturn := s.accept(e).(*returnValue); isReturn {
+			return returnVal.value
 		}
 	}
 	return nil
@@ -120,8 +123,9 @@ func (e execute) executeBlock(stmts []stmt, env *env) R {
 
 func (e execute) visitWhileStmt(stmt *whileStmt) R {
 	for e.truthy(stmt.condition.accept(e)) {
-		if returnVal, isReturn := stmt.body.accept(e).(returnValue); isReturn {
-			return returnVal
+		val := stmt.body.accept(e)
+		if returnVal, isReturn := val.(*returnValue); isReturn {
+			return returnVal.value
 		}
 	}
 	return nil
@@ -129,7 +133,8 @@ func (e execute) visitWhileStmt(stmt *whileStmt) R {
 
 func (e execute) visitReturnStmt(stmt *returnStmt) R {
 	if stmt.value != nil {
-		return returnValue(stmt.value.accept(e))
+		result := &returnValue{value: stmt.value.accept(e)}
+		return result
 	}
 	return nil
 }
@@ -137,8 +142,8 @@ func (e execute) visitReturnStmt(stmt *returnStmt) R {
 func (e execute) visitIfStmt(stmt *ifStmt) R {
 	if e.truthy(stmt.condition.accept(e)) {
 		for _, st := range stmt.thenBranch {
-			if returnVal, isReturn := st.accept(e).(returnValue); isReturn {
-				return returnVal
+			if returnVal, isReturn := st.accept(e).(*returnValue); isReturn {
+				return returnVal.value
 			}
 		}
 		return nil
@@ -146,8 +151,8 @@ func (e execute) visitIfStmt(stmt *ifStmt) R {
 	for _, elif := range stmt.elifs {
 		if e.truthy(elif.condition.accept(e)) {
 			for _, st := range elif.thenBranch {
-				if returnVal, isReturn := st.accept(e).(returnValue); isReturn {
-					return returnVal
+				if returnVal, isReturn := st.accept(e).(*returnValue); isReturn {
+					return returnVal.value
 				}
 			}
 			return nil
@@ -155,8 +160,8 @@ func (e execute) visitIfStmt(stmt *ifStmt) R {
 	}
 	if stmt.elseBranch != nil {
 		for _, st := range stmt.elseBranch {
-			if returnVal, isReturn := st.accept(e).(returnValue); isReturn {
-				return returnVal
+			if returnVal, isReturn := st.accept(e).(*returnValue); isReturn {
+				return returnVal.value
 			}
 		}
 	}

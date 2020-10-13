@@ -372,4 +372,31 @@ func TestStatements(t *testing.T) {
 		let f = firstKey({1:2})
 		`, "f", "1")
 	}
+
+	// Classes
+	{
+		checkStatements(t, `
+		class Pan begin
+			init () begin
+				this.pan = 1
+			end
+		end`, "Pan().pan", "1")
+
+		checkStatements(t, `
+		class Food begin
+			init () begin
+				this.msg = "good"
+			end
+		end
+		class Pan < Food begin
+			init () begin
+				this.pan = 1
+				super.init()
+			end
+
+			class cc(n) begin
+				return n*n
+			end
+		end`, "Pan().msg", "good")
+	}
 }

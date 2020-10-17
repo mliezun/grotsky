@@ -46,7 +46,12 @@ func checkExpression(t *testing.T, exp string, result string) {
 	tp := &testPrinter{}
 	RunSourceWithPrinter(source, tp)
 	if !tp.Equals(result) {
-		t.Errorf(`Should be equal to %s instead of %s`, result, tp.printed)
+		t.Errorf(
+			"Error on: \n%s\n\tResult should be equal to %s instead of %s",
+			exp,
+			result,
+			tp.printed,
+		)
 	}
 }
 
@@ -55,7 +60,13 @@ func checkStatements(t *testing.T, code string, resultVar string, result string)
 	tp := &testPrinter{}
 	RunSourceWithPrinter(source, tp)
 	if !tp.Equals(result) {
-		t.Errorf(`Should be equal to %s instead of %s`, result, tp.printed)
+		t.Errorf(
+			"Error on: \n%s\n\t%s should be equal to %s instead of %s",
+			code,
+			resultVar,
+			result,
+			tp.printed,
+		)
 	}
 }
 
@@ -130,6 +141,20 @@ func TestExpressions(t *testing.T) {
 		checkExpression(t, `"test" == "test"`, "true")
 		checkExpression(t, `"test" != "test"`, "false")
 
+		// String gt
+		checkExpression(t, `"a" > "b"`, "false")
+
+		// String lt
+		checkExpression(t, `"a" < "b"`, "true")
+
+		// String gte
+		checkExpression(t, `"a" >= "a"`, "true")
+		checkExpression(t, `"a" >= "b"`, "false")
+
+		// String lte
+		checkExpression(t, `"a" <= "a"`, "true")
+		checkExpression(t, `"b" <= "a"`, "false")
+
 		// Number Equality
 		checkExpression(t, `2*2 == 2^3-4`, "true")
 		checkExpression(t, `2*2 != 2^3-4`, "false")
@@ -156,7 +181,7 @@ func TestExpressions(t *testing.T) {
 	{
 		// List literalals
 		checkExpression(t, "[]", "[]")
-		checkExpression(t, "[1, 2, 3]", "[1 2 3]")
+		checkExpression(t, "[1.0, 2.0, 3.0]", "[1 2 3]")
 		checkExpression(t, `[["test", 2^4], not true, 1 < 2]`, "[[test 16] false true]")
 		checkExpression(t, "[[1, 2], [3, 4]]", "[[1 2] [3 4]]")
 
@@ -203,6 +228,14 @@ func TestExpressions(t *testing.T) {
 }
 
 func TestStatements(t *testing.T) {
+	// Comment
+	{
+		checkStatements(t, `
+		# This is a "comment"
+		let i = 0
+		`, "i", "0")
+	}
+
 	// If-elif-else
 	{
 		checkStatements(t, `
@@ -262,17 +295,6 @@ func TestStatements(t *testing.T) {
 			x = x - u
 		end
 		`, "x", "40275")
-
-		// TODO: fix for init withouth LET token / problem caused by enhanced for
-		/*
-			checkStatements(t, `
-			let x = 40320
-			let u = 0
-			for u=2*3; u < 10; u = u + 1 begin
-				x = x - u
-			end
-			`, "x", "40275")
-		*/
 
 		checkStatements(t, `
 		let x = 40275
@@ -387,6 +409,7 @@ func TestStatements(t *testing.T) {
 
 	// Classes
 	{
+		// Check simple object
 		checkStatements(t, `
 		class Pan begin
 			init () begin
@@ -394,6 +417,7 @@ func TestStatements(t *testing.T) {
 			end
 		end`, "Pan().pan", "1")
 
+		// Check parent constructor
 		checkStatements(t, `
 		class Food begin
 			init () begin
@@ -402,13 +426,46 @@ func TestStatements(t *testing.T) {
 		end
 		class Pan < Food begin
 			init () begin
-				this.pan = 1
 				super.init()
 			end
-
-			class cc(n) begin
-				return n*n
-			end
 		end`, "Pan().msg", "good")
+
+		// Check method inheritance
+		checkStatements(t, `
+		class Food begin
+			eat () begin
+				this.msg = "eating"
+			end
+		end
+		class Pan < Food begin
+		end
+		let bread = Pan()
+		bread.eat()
+		`, "bread.msg", "eating")
+
+		// Class methods
+		checkStatements(t, `
+		class Container begin
+			class get(a) begin
+				return a
+			end
+		end
+		`, "Container.get(1)", "1")
+
+		// Operator overload
+		checkStatements(t, `
+		class Operate begin
+			init (val) begin
+				this.val = val
+			end
+
+			add (o) begin
+				return Operate(o.val + this.val)
+			end
+		end
+		let a = Operate(1)
+		let b = Operate(2)
+		let c = a + b
+		`, "c.val", "3")
 	}
 }

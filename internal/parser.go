@@ -190,8 +190,7 @@ func (p *parser) forLoop() stmt {
 		init = p.let()
 		p.consume(SEMICOLON, errExpectedSemicolon)
 	} else {
-		init = p.expressionStmt()
-		p.consume(SEMICOLON, errExpectedSemicolon)
+		state.setError(errExpectedInit, p.peek().line, 0)
 	}
 
 	cond := p.expression()

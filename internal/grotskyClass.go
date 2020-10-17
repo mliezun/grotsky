@@ -42,3 +42,7 @@ func (c *grotskyClass) get(tk *token) interface{} {
 func (c *grotskyClass) set(name *token, value interface{}) {
 	state.runtimeErr(errReadOnly, name)
 }
+
+func (c *grotskyClass) getOperator(op operator) (operatorApply, error) {
+	return nil, errUndefinedOp
+}

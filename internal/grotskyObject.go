@@ -28,9 +28,9 @@ func (o *grotskyObject) set(name *token, value interface{}) {
 
 func (o *grotskyObject) getOperator(op operator) (operatorApply, error) {
 	if method := o.class.findMethod(string(op)); method != nil {
-		method.bind(o)
+		boundMethod := method.bind(o)
 		return func(arguments ...interface{}) (interface{}, error) {
-			return method.call(arguments)
+			return boundMethod.call(arguments)
 		}, nil
 	}
 	return nil, errUndefinedOperator

@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"math"
 )
 
@@ -72,4 +73,8 @@ func (n grotskyNumber) getOperator(op operator) (operatorApply, error) {
 		}, nil
 	}
 	return nil, errUndefinedOp
+}
+
+func (n grotskyNumber) String() string {
+	return fmt.Sprintf("%v", float64(n))
 }

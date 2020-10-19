@@ -6,6 +6,7 @@ import (
 
 type grotskyCallable interface {
 	call(arguments []interface{}) (interface{}, error)
+	String() string
 }
 
 type grotskyFunction struct {

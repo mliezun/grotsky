@@ -1,6 +1,9 @@
 package internal
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+)
 
 type grotskyDict map[interface{}]interface{}
 
@@ -48,4 +51,17 @@ func (d grotskyDict) getOperator(op operator) (operatorApply, error) {
 		}, nil
 	}
 	return nil, errUndefinedOp
+}
+
+func (d grotskyDict) String() string {
+	out := "{"
+	i := 0
+	for key, val := range d {
+		out += fmt.Sprintf("%s: %s", printObj(key), printObj(val))
+		if len(d) > 1 && i != len(d)-1 {
+			out += ", "
+		}
+		i++
+	}
+	return out + "}"
 }

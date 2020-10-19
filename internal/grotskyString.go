@@ -52,3 +52,7 @@ func (s grotskyString) getOperator(op operator) (operatorApply, error) {
 	}
 	return nil, errUndefinedOp
 }
+
+func (s grotskyString) String() string {
+	return "\"" + string(s) + "\""
+}

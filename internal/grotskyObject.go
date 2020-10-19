@@ -1,5 +1,7 @@
 package internal
 
+import "fmt"
+
 type grotskyObject struct {
 	class  *grotskyClass
 	fields map[string]interface{}
@@ -9,6 +11,7 @@ type grotskyInstance interface {
 	get(tk *token) interface{}
 	set(name *token, value interface{})
 	getOperator(op operator) (operatorApply, error)
+	String() string
 }
 
 func (o *grotskyObject) get(tk *token) interface{} {
@@ -34,4 +37,8 @@ func (o *grotskyObject) getOperator(op operator) (operatorApply, error) {
 		}, nil
 	}
 	return nil, errUndefinedOperator
+}
+
+func (o *grotskyObject) String() string {
+	return fmt.Sprintf("<instance %s>", o.class.String())
 }

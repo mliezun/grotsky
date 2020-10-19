@@ -1,6 +1,9 @@
 package internal
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+)
 
 type grotskyList []interface{}
 
@@ -73,4 +76,17 @@ func (l grotskyList) getOperator(op operator) (operatorApply, error) {
 		}, nil
 	}
 	return nil, errUndefinedOp
+}
+
+func (l grotskyList) String() string {
+	out := "["
+	i := 0
+	for _, val := range l {
+		out += fmt.Sprintf("%s", printObj(val))
+		if len(l) > 1 && i != len(l)-1 {
+			out += ", "
+		}
+		i++
+	}
+	return out + "]"
 }

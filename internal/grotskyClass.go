@@ -1,5 +1,7 @@
 package internal
 
+import "fmt"
+
 type grotskyClass struct {
 	name          string
 	superclass    *grotskyClass
@@ -45,4 +47,12 @@ func (c *grotskyClass) set(name *token, value interface{}) {
 
 func (c *grotskyClass) getOperator(op operator) (operatorApply, error) {
 	return nil, errUndefinedOp
+}
+
+func (c *grotskyClass) String() string {
+	extends := ""
+	if c.superclass != nil {
+		extends = " extends " + c.superclass.name
+	}
+	return fmt.Sprintf("<class %s%s>", c.name, extends)
 }

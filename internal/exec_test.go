@@ -144,10 +144,10 @@ func TestExpressions(t *testing.T) {
 	// Strings
 	{
 		// String literal
-		checkExpression(t, `"test"`, "test")
+		checkExpression(t, `"test"`, `"test"`)
 
 		// String concat
-		checkExpression(t, `"te" + "st"`, "test")
+		checkExpression(t, `"te" + "st"`, `"test"`)
 	}
 
 	// Comparisons
@@ -196,20 +196,20 @@ func TestExpressions(t *testing.T) {
 	{
 		// List literalals
 		checkExpression(t, "[]", "[]")
-		checkExpression(t, "[1.0, 2.0, 3.0]", "[1 2 3]")
-		checkExpression(t, `[["test", 2^4], not true, 1 < 2]`, "[[test 16] false true]")
-		checkExpression(t, "[[1, 2], [3, 4]]", "[[1 2] [3 4]]")
+		checkExpression(t, "[1.0, 2.0, 3.0]", "[1, 2, 3]")
+		checkExpression(t, `[["test", 2^4], not true, 1 < 2]`, `[["test", 16], false, true]`)
+		checkExpression(t, "[[1, 2], [3, 4]]", "[[1, 2], [3, 4]]")
 
 		// List slicing
 		checkExpression(t, "[1,2,3,4,5,6][1:][::2][0]", "2")
 		checkExpression(t, "[1,2,3,4,5,6][:4][::3][1]", "4")
-		checkExpression(t, "[1,2,3,4,5,6][1:5:2]", "[2 4]")
-		checkExpression(t, "[1,2,3,4,5,6][1:5]", "[2 3 4 5]")
-		checkExpression(t, "[1,2,3,4,5,6][1::2]", "[2 4 6]")
-		checkExpression(t, "[1,2,3,4,5,6][:5:2]", "[1 3 5]")
+		checkExpression(t, "[1,2,3,4,5,6][1:5:2]", "[2, 4]")
+		checkExpression(t, "[1,2,3,4,5,6][1:5]", "[2, 3, 4, 5]")
+		checkExpression(t, "[1,2,3,4,5,6][1::2]", "[2, 4, 6]")
+		checkExpression(t, "[1,2,3,4,5,6][:5:2]", "[1, 3, 5]")
 
 		// List operations
-		checkExpression(t, "[1,2,3] + [4,5,6]", "[1 2 3 4 5 6]")
+		checkExpression(t, "[1,2,3] + [4,5,6]", "[1, 2, 3, 4, 5, 6]")
 		checkExpression(t, "-[1,1,1,1,1,1]", "[1]")
 		checkExpression(t, "[1] == [1]", "false")
 		checkExpression(t, "[1] != [1]", "true")
@@ -223,24 +223,24 @@ func TestExpressions(t *testing.T) {
 	// Dicts
 	{
 		// Dict literalals
-		checkExpression(t, "{}", "map[]")
-		checkExpression(t, `{1:2, "a":"b", 3: [1+2*3, "te" + "st"]}`, "map[1:2 3:[7 test] a:b]")
+		checkExpression(t, "{}", "{}")
+		checkExpression(t, `{0: 0, 1: 1}`, `{0: 0, 1: 1}`)
 
 		// Dict Access
-		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[1]`, "map[a:3]")
+		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[1]`, `{"a": 3}`)
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[1]["a"]`, "3")
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[3][0]`, "7")
-		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[3][1]`, "test")
+		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[3][1]`, `"test"`)
 
 		// Dict operations
-		checkExpression(t, `{1: 2} + {1: 4}`, "map[1:4]")
+		checkExpression(t, `{1: 2} + {1: 4}`, "{1: 4}")
 		checkExpression(t, `{1: 2} == {1: 2}`, "false")
 		checkExpression(t, `{1: 2} != {1: 2}`, "true")
 	}
 
 	// Function expressions
 	{
-		// Dict literalals
+		// Func literalals
 		checkExpression(t, "fn () nil", "<fn anonymous>")
 		checkExpression(t, "(fn () nil)()", "<nil>")
 	}
@@ -339,6 +339,18 @@ func TestRuntimeErrors(t *testing.T) {
 		end
 		A().get(1)
 		`, fmt.Sprintf("%s: get", errMethodNotFound.Error()), 6)
+	}
+}
+
+func TestGlobals(t *testing.T) {
+	// Print globals
+	{
+		checkExpression(t, `io`, "<instance native>")
+		checkExpression(t, `io.println`, "<fn native>")
+
+		checkExpression(t, `http`, "<instance native>")
+		checkExpression(t, `http.handler`, "<fn native>")
+		checkExpression(t, `http.listen`, "<fn native>")
 	}
 }
 
@@ -527,6 +539,12 @@ func TestStatements(t *testing.T) {
 		end
 		let f = firstKey({1:2})
 		`, "f", "1")
+
+		// Print function
+		checkStatements(t, `
+		fn ff() begin
+		end
+		`, "ff", "<fn ff>")
 	}
 
 	// Classes
@@ -550,7 +568,7 @@ func TestStatements(t *testing.T) {
 			init () begin
 				super.init()
 			end
-		end`, "Pan().msg", "good")
+		end`, "Pan().msg", `"good"`)
 
 		// Check method inheritance
 		checkStatements(t, `
@@ -563,7 +581,7 @@ func TestStatements(t *testing.T) {
 		end
 		let bread = Pan()
 		bread.eat()
-		`, "bread.msg", "eating")
+		`, "bread.msg", `"eating"`)
 
 		// Class methods
 		checkStatements(t, `
@@ -589,5 +607,27 @@ func TestStatements(t *testing.T) {
 		let b = Operate(2)
 		let c = a + b
 		`, "c.val", "3")
+
+		// Print object
+		checkStatements(t, `
+		class Operate begin
+			init (val) begin
+				this.val = val
+			end
+
+			add (o) begin
+				return Operate(o.val + this.val)
+			end
+		end
+		let a = Operate(1)
+		`, "a", "<instance <class Operate>>")
+
+		// Print class
+		checkStatements(t, `
+		class B begin
+		end
+		class A < B begin
+		end
+		`, "A", "<class A extends B>")
 	}
 }

@@ -16,6 +16,10 @@ func (n *nativeFn) call(arguments []interface{}) (interface{}, error) {
 	return n.callFn(arguments)
 }
 
+func (n *nativeFn) String() string {
+	return "<fn native>"
+}
+
 type nativeObj struct {
 	properties    map[string]interface{}
 	methods       map[string]*nativeFn
@@ -46,6 +50,10 @@ func (n *nativeObj) getOperator(op operator) (operatorApply, error) {
 		return nil, errUndefinedOp
 	}
 	return n.getOperatorFn(op)
+}
+
+func (n *nativeObj) String() string {
+	return "<instance native>"
 }
 
 func defineGlobals(e *env, p IPrinter) {

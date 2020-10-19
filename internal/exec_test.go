@@ -279,6 +279,31 @@ func TestRuntimeErrors(t *testing.T) {
 
 	// Statement errors
 	{
+		// Undefined variable
+		checkErrorMsg(t, `let a = b`, fmt.Sprintf("%s: b", errUndefinedVar.Error()), 1)
+
+		// Undefined variable assignment
+		checkErrorMsg(t, `a = 1`, fmt.Sprintf("%s: a", errUndefinedVar.Error()), 1)
+
+		// Access on booleans
+		checkErrorMsg(t, `
+		let a = true
+		a.isbool
+		`, fmt.Sprintf("%s: isbool", errUndefinedProp.Error()), 3)
+
+		// Set on booleans
+		checkErrorMsg(t, `
+		let a = true
+		a.isbool = false
+		`, fmt.Sprintf("%s: isbool", errReadOnly.Error()), 3)
+
+		// Operate on booleans
+		checkErrorMsg(t, `
+		let a = true
+		let b = false
+		a + b
+		`, fmt.Sprintf("%s: +", errUndefinedOp.Error()), 4)
+
 		// Wrong array destructuring
 		checkErrorMsg(t, `
 			for a, b, c in [[1,2]] begin

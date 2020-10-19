@@ -41,11 +41,18 @@ func (t *testPrinter) Reset() {
 	t.printed = ""
 }
 
-func checkExpression(t *testing.T, exp string, result string) {
+func checkExpression(t *testing.T, exp string, result ...string) {
 	source := "io.println(" + exp + ")"
 	tp := &testPrinter{}
 	RunSourceWithPrinter(source, tp)
-	if !tp.Equals(result) {
+	any := false
+	for _, r := range result {
+		if tp.Equals(r) {
+			any = true
+			break
+		}
+	}
+	if !any {
 		t.Errorf(
 			"Error on: \n%s\n\tResult should be equal to %s instead of %s",
 			exp,
@@ -224,7 +231,7 @@ func TestExpressions(t *testing.T) {
 	{
 		// Dict literalals
 		checkExpression(t, "{}", "{}")
-		checkExpression(t, `{0: 0, 1: 1}`, `{0: 0, 1: 1}`)
+		checkExpression(t, `{0: 0, 1: 1}`, `{0: 0, 1: 1}`, `{1: 1, 0: 0}`)
 
 		// Dict Access
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[1]`, `{"a": 3}`)

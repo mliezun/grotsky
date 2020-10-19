@@ -247,7 +247,7 @@ func (e execute) visitAccessExpr(expr *accessExpr) R {
 	}
 	dict, isDict := object.(grotskyDict)
 	if isDict {
-		if expr.first == nil {
+		if expr.first == nil || expr.second != nil || expr.third != nil {
 			state.runtimeErr(errExpectedKey, expr.brace)
 		}
 		return dict[expr.first.accept(e)]
@@ -264,22 +264,24 @@ func (e execute) sliceList(list grotskyList, accessExpr *accessExpr) interface{}
 	if first != nil {
 		if accessExpr.firstColon != nil {
 			if second != nil {
+				sec := *second
+				if maxLen := int64(len(list)); sec > maxLen {
+					sec = maxLen
+				}
+
 				// [a:b:c]
 				if accessExpr.secondColon != nil {
 					if third == nil {
 						state.runtimeErr(errExpectedStep, accessExpr.secondColon)
 					}
-					return e.stepList(list[*first:*second], *third)
+					return e.stepList(list[*first:sec], *third)
 				}
 				// [a:b]
-				return list[*first:*second]
+				return list[*first:sec]
 			}
 
 			// [a::c]
-			if accessExpr.secondColon != nil {
-				if third == nil {
-					state.runtimeErr(errExpectedStep, accessExpr.secondColon)
-				}
+			if accessExpr.secondColon != nil && third != nil {
 				return e.stepList(list[*first:], *third)
 			}
 
@@ -291,20 +293,20 @@ func (e execute) sliceList(list grotskyList, accessExpr *accessExpr) interface{}
 	}
 
 	if second != nil {
+		sec := *second
+		if maxLen := int64(len(list)); sec > maxLen {
+			sec = maxLen
+		}
 		// [:b:c]
-		if accessExpr.secondColon != nil {
-			if third == nil {
-				state.runtimeErr(errExpectedStep, accessExpr.secondColon)
-			}
-			return e.stepList(list[:*second], *third)
+		if accessExpr.secondColon != nil && third != nil {
+			return e.stepList(list[:sec], *third)
 		}
 		// [:b]
-		return list[:*second]
+		return list[:sec]
 	}
 
-	if third == nil {
-		state.runtimeErr(errExpectedStep, accessExpr.secondColon)
-	}
+	// assert third != nil
+	// state.runtimeErr(errExpectedStep, accessExpr.secondColon)
 	// [::c]
 	return e.stepList(list, *third)
 }
@@ -365,8 +367,6 @@ func (e execute) visitBinaryExpr(expr *binaryExpr) R {
 		value, err = e.operateBinary(opMul, left, right)
 	case POWER:
 		value, err = e.operateBinary(opPow, left, right)
-	default:
-		state.runtimeErr(errUndefinedOp, expr.operator)
 	}
 	if err != nil {
 		state.runtimeErr(err, expr.operator)
@@ -431,19 +431,15 @@ func (e execute) visitSetExpr(expr *setExpr) R {
 }
 
 func (e execute) visitSuperExpr(expr *superExpr) R {
-	superclass, ok := e.env.get(expr.keyword).(*grotskyClass)
-	if !ok {
-		state.runtimeErr(errExpectedSuperclass, expr.keyword)
-	}
+	superclass := e.env.get(expr.keyword).(*grotskyClass)
+	// assert typeof(e.env.get(expr.keyword)) == (*grotskyClass)
 	this := &token{
 		token:  THIS,
 		lexeme: "this",
 		line:   expr.keyword.line,
 	}
-	object, ok := e.env.get(this).(*grotskyObject)
-	if !ok {
-		state.runtimeErr(errExpectedObject, expr.keyword)
-	}
+	object := e.env.get(this).(*grotskyObject)
+	// assert typeof(e.env.get(this)) == (*grotskyObject)
 	method := superclass.findMethod(expr.method.lexeme)
 	if method == nil {
 		state.runtimeErr(errMethodNotFound, expr.method)
@@ -470,17 +466,12 @@ func (e execute) visitLogicalExpr(expr *logicalExpr) R {
 		return grotskyBool(left || right)
 	}
 
-	if expr.operator.token == AND {
-		if !left {
-			return grotskyBool(false)
-		}
-		right := e.truthy(expr.right.accept(e))
-		return grotskyBool(left && right)
+	// expr.operator.token = AND
+	if !left {
+		return grotskyBool(false)
 	}
-
-	state.runtimeErr(errUndefinedOp, expr.operator)
-
-	return nil
+	right := e.truthy(expr.right.accept(e))
+	return grotskyBool(left && right)
 }
 
 func (e execute) visitThisExpr(expr *thisExpr) R {
@@ -495,8 +486,6 @@ func (e execute) visitUnaryExpr(expr *unaryExpr) R {
 		return grotskyBool(!e.truthy(value))
 	case MINUS:
 		value, err = e.operateUnary(opNeg, value)
-	default:
-		state.runtimeErr(errUndefinedOp, expr.operator)
 	}
 	if err != nil {
 		state.runtimeErr(err, expr.operator)

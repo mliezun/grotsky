@@ -55,6 +55,21 @@ func checkExpression(t *testing.T, exp string, result string) {
 	}
 }
 
+func checkErrorMsg(t *testing.T, source string, errorMsg string, line int) {
+	result := fmt.Sprintf("Runtime Error on line %d\n\t%s\n", line, errorMsg)
+
+	tp := &testPrinter{}
+	RunSourceWithPrinter(source, tp)
+	if !tp.Equals(result) {
+		t.Errorf(
+			"\nSource:\n----\n%s\n----\nExpected:\n----\n%s----\nFound:\n----\n%s----",
+			source,
+			result,
+			tp.printed,
+		)
+	}
+}
+
 func checkStatements(t *testing.T, code string, resultVar string, result string) {
 	source := code + "\nio.println(" + resultVar + ")"
 	tp := &testPrinter{}
@@ -199,6 +214,10 @@ func TestExpressions(t *testing.T) {
 		checkExpression(t, "[1] == [1]", "false")
 		checkExpression(t, "[1] != [1]", "true")
 		checkExpression(t, "[1,2,3] - [2,3]", "[1]")
+
+		// List access
+		checkExpression(t, `[1,2,3,4,5,6,7,8,9,10,11,12,13,14][:20:0][0:10:100]`, "[]")
+		checkExpression(t, `[1,2][1:20]`, "[2]")
 	}
 
 	// Dicts
@@ -224,6 +243,102 @@ func TestExpressions(t *testing.T) {
 		// Dict literalals
 		checkExpression(t, "fn () nil", "<fn anonymous>")
 		checkExpression(t, "(fn () nil)()", "<nil>")
+	}
+}
+
+func TestRuntimeErrors(t *testing.T) {
+	// Expression errors
+	{
+		// Binary expression undefined
+		checkErrorMsg(t, `"A" - "B"`, fmt.Sprintf("%s: -", errUndefinedOp.Error()), 1)
+
+		// Unary expression undefined
+		checkErrorMsg(t, `-"B"`, fmt.Sprintf("%s: -", errUndefinedOp.Error()), 1)
+
+		// Call not callable
+		checkErrorMsg(t, `"B"()`, fmt.Sprintf("%s: )", errOnlyFunction.Error()), 1)
+
+		// Wrong number of arguments
+		checkErrorMsg(t, `(fn (a, b) a+b)()`, fmt.Sprintf("%s: )", errInvalidNumberArguments.Error()), 1)
+
+		// Get expr on non-object
+		checkErrorMsg(t, `(fn (a, b) a+b).length`, fmt.Sprintf("%s: length", errExpectedObject.Error()), 1)
+
+		// Set expr on non-object
+		checkErrorMsg(t, `(fn (a, b) a+b).length = 1`, fmt.Sprintf("%s: length", errExpectedObject.Error()), 1)
+
+		// Can only access collections
+		checkErrorMsg(t, `"abc"[0]`, fmt.Sprintf("%s: [", errInvalidAccess.Error()), 1)
+
+		// Wrong slicing
+		checkErrorMsg(t, `[1,2,3,4,5,6][0:3:]`, fmt.Sprintf("%s: :", errExpectedStep.Error()), 1)
+
+		// Wrong slicing type
+		checkErrorMsg(t, `[1,2,3,4,5,6]["0":]`, fmt.Sprintf("%s: [", errOnlyNumbers.Error()), 1)
+	}
+
+	// Statement errors
+	{
+		// Wrong array destructuring
+		checkErrorMsg(t, `
+			for a, b, c in [[1,2]] begin
+				io.println(a+b+c)
+			end
+			`, fmt.Sprintf("%s: for", errWrongNumberOfValues.Error()), 2)
+
+		// Cannot unpack
+		checkErrorMsg(t, `
+			for a, b, c in ["abc"] begin
+				io.println(a+b+c)
+			end
+			`, fmt.Sprintf("%s: for", errCannotUnpack.Error()), 2)
+
+		// Cannot unpack dict with more than 2 identifiers
+		checkErrorMsg(t, `
+			for a, b, c in {"a": ["abc"]} begin
+				io.println(a+b+c)
+			end
+			`, fmt.Sprintf("%s: for", errExpectedIdentifiersDict.Error()), 2)
+
+		// Only collections are iterable
+		checkErrorMsg(t, `
+			for a, b, c in "abc" begin
+				io.println(a+b+c)
+			end
+			`, fmt.Sprintf("%s: for", errExpectedCollection.Error()), 2)
+
+		// Error on dict access
+		checkErrorMsg(t, `
+			let abc = {"a": 1, "b": 2, "c": 3}
+			abc[1:2:3]
+			`, fmt.Sprintf("%s: [", errExpectedKey.Error()), 3)
+		checkErrorMsg(t, `
+			let abc = {"a": 1, "b": 2, "c": 3}
+			abc[:2]
+			`, fmt.Sprintf("%s: [", errExpectedKey.Error()), 3)
+		checkErrorMsg(t, `
+			let abc = {"a": 1, "b": 2, "c": 3}
+			abc[::2]
+			`, fmt.Sprintf("%s: [", errExpectedKey.Error()), 3)
+
+		// Inheritance from non-class
+		checkErrorMsg(t, `
+		let C = "C"
+		class A < C begin
+		end
+		`, fmt.Sprintf("%s: A", errExpectedClass.Error()), 3)
+
+		// Inheritance from non-class
+		checkErrorMsg(t, `
+		class C begin
+		end
+		class A < C begin
+			get(a) begin
+				return super.get(a)
+			end
+		end
+		A().get(1)
+		`, fmt.Sprintf("%s: get", errMethodNotFound.Error()), 6)
 	}
 }
 
@@ -328,6 +443,13 @@ func TestStatements(t *testing.T) {
 
 	// Functions
 	{
+		checkStatements(t, `
+		fn nilCheck() begin
+			return
+		end
+		let i = nilCheck()
+		`, "i", "<nil>")
+
 		checkStatements(t, `
 		fn check() begin
 			return 1

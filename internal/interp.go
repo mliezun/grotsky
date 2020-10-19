@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"io"
+	"os"
 )
 
 // Printer ...
@@ -38,7 +39,11 @@ func RunSourceWithPrinter(source string, p Printer) {
 		state = previousState
 	}()
 
-	state = interpreterState{source: source, errors: make([]parseError, 0)}
+	state = interpreterState{
+		source: source,
+		errors: make([]parseError, 0),
+		logger: p,
+	}
 	lexer := &lexer{
 		line: 1,
 	}
@@ -54,13 +59,13 @@ func RunSourceWithPrinter(source string, p Printer) {
 	lexer.scan()
 
 	if state.PrintErrors() {
-		return
+		os.Exit(1)
 	}
 
 	parser.parse()
 
 	if state.PrintErrors() {
-		return
+		os.Exit(1)
 	}
 
 	exec.interpret()

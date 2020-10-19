@@ -1,39 +1,18 @@
 package internal
 
 import (
-	"fmt"
 	"io"
-	"os"
 )
 
-// Printer ...
-type Printer interface {
+// IPrinter printer interface
+type IPrinter interface {
 	Println(a ...interface{}) (n int, err error)
 	Fprintf(w io.Writer, format string, a ...interface{}) (n int, err error)
 	Fprintln(w io.Writer, a ...interface{}) (n int, err error)
 }
 
-type stdPrinter struct{}
-
-func (s stdPrinter) Println(a ...interface{}) (n int, err error) {
-	return fmt.Println(a...)
-}
-
-func (s stdPrinter) Fprintf(w io.Writer, format string, a ...interface{}) (n int, err error) {
-	return fmt.Fprintf(w, format, a...)
-}
-
-func (s stdPrinter) Fprintln(w io.Writer, a ...interface{}) (n int, err error) {
-	return fmt.Fprintln(w, a...)
-}
-
-// RunSource runs source code on a fresh interpreter instance
-func RunSource(source string) {
-	RunSourceWithPrinter(source, stdPrinter{})
-}
-
 // RunSourceWithPrinter runs source code on a fresh interpreter instance
-func RunSourceWithPrinter(source string, p Printer) {
+func RunSourceWithPrinter(source string, p IPrinter) bool {
 	previousState := state
 	defer func() {
 		state = previousState
@@ -59,14 +38,14 @@ func RunSourceWithPrinter(source string, p Printer) {
 	lexer.scan()
 
 	if state.PrintErrors() {
-		os.Exit(1)
+		return false
 	}
 
 	parser.parse()
 
 	if state.PrintErrors() {
-		os.Exit(1)
+		return false
 	}
 
-	exec.interpret()
+	return exec.interpret()
 }

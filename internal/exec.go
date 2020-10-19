@@ -7,15 +7,17 @@ type execute struct {
 
 var exec = execute{}
 
-func (e execute) interpret() {
+func (e execute) interpret() (res bool) {
 	defer func() {
 		if state.runtimeError != nil {
 			recover()
 		}
+		res = false
 	}()
 	for _, s := range state.stmts {
 		s.accept(e)
 	}
+	return true
 }
 
 func (e execute) visitExprStmt(stmt *exprStmt) R {

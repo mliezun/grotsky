@@ -29,7 +29,7 @@ type interpreterState struct {
 	tokens       []token
 	stmts        []stmt
 	runtimeError *runtimeError
-	logger       Printer
+	logger       IPrinter
 }
 
 var state = interpreterState{}
@@ -65,11 +65,6 @@ func (interpreterState) runtimeErr(err error, token *token, msgs ...string) {
 		state.runtimeError.token.lexeme,
 	)
 	panic(err)
-}
-
-// Valid returns true if the interpreter is in a valid states else false
-func (interpreterState) Valid() bool {
-	return len(state.errors) == 0
 }
 
 // PrintErrors prints all errors, returns true if any error printed

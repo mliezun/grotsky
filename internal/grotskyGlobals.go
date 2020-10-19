@@ -48,12 +48,12 @@ func (n *nativeObj) getOperator(op operator) (operatorApply, error) {
 	return n.getOperatorFn(op)
 }
 
-func defineGlobals(e *env, p Printer) {
+func defineGlobals(e *env, p IPrinter) {
 	defineIo(e, p)
 	defineHTTP(e)
 }
 
-func defineIo(e *env, p Printer) {
+func defineIo(e *env, p IPrinter) {
 	var println nativeFn
 	println.callFn = func(arguments []interface{}) (interface{}, error) {
 		return p.Println(arguments...)

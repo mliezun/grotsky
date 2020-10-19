@@ -155,6 +155,9 @@ func TestExpressions(t *testing.T) {
 
 		// String concat
 		checkExpression(t, `"te" + "st"`, `"test"`)
+
+		// String length
+		checkExpression(t, `"test".length`, `4`)
 	}
 
 	// Comparisons
@@ -268,6 +271,15 @@ func TestRuntimeErrors(t *testing.T) {
 
 		// Call not callable
 		checkErrorMsg(t, `"B"()`, fmt.Sprintf("%s: )", errOnlyFunction.Error()), 1)
+
+		// Access on string
+		checkErrorMsg(t, `"B".prop`, fmt.Sprintf("%s: prop", errUndefinedProp.Error()), 1)
+
+		// Set on string
+		checkErrorMsg(t, `"B".prop = 1`, fmt.Sprintf("%s: prop", errReadOnly.Error()), 1)
+
+		// Operate on string + non-string
+		checkErrorMsg(t, `"B" + 1`, fmt.Sprintf("%s: +", errExpectedString.Error()), 1)
 
 		// Wrong number of arguments
 		checkErrorMsg(t, `(fn (a, b) a+b)()`, fmt.Sprintf("%s: )", errInvalidNumberArguments.Error()), 1)

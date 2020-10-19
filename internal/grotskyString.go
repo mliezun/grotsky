@@ -36,6 +36,10 @@ var stringBinaryOperations = map[operator]func(x, y string) interface{}{
 }
 
 func (s grotskyString) get(tk *token) interface{} {
+	if tk.lexeme == "length" {
+		return grotskyNumber(len(s))
+	}
+
 	state.runtimeErr(errUndefinedProp, tk)
 	return nil
 }

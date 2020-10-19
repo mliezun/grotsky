@@ -47,6 +47,9 @@ var listBinaryOperations = map[operator]func(x, y []interface{}) interface{}{
 }
 
 func (l grotskyList) get(tk *token) interface{} {
+	if tk.lexeme == "length" {
+		return grotskyNumber(len(l))
+	}
 	state.runtimeErr(errUndefinedProp, tk)
 	return nil
 }

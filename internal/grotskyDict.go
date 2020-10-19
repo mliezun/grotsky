@@ -36,6 +36,9 @@ var dictBinaryOperations = map[operator]func(x, y map[interface{}]interface{}) i
 }
 
 func (d grotskyDict) get(tk *token) interface{} {
+	if tk.lexeme == "length" {
+		return grotskyNumber(len(d))
+	}
 	state.runtimeErr(errUndefinedProp, tk)
 	return nil
 }

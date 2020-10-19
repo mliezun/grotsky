@@ -203,7 +203,9 @@ func TestExpressions(t *testing.T) {
 	{
 		// List literalals
 		checkExpression(t, "[]", "[]")
+		checkExpression(t, "[].length", "0")
 		checkExpression(t, "[1.0, 2.0, 3.0]", "[1, 2, 3]")
+		checkExpression(t, "[1.0, 2.0, 3.0].length", "3")
 		checkExpression(t, `[["test", 2^4], not true, 1 < 2]`, `[["test", 16], false, true]`)
 		checkExpression(t, "[[1, 2], [3, 4]]", "[[1, 2], [3, 4]]")
 
@@ -231,7 +233,9 @@ func TestExpressions(t *testing.T) {
 	{
 		// Dict literalals
 		checkExpression(t, "{}", "{}")
+		checkExpression(t, "{}.length", "0")
 		checkExpression(t, `{0: 0, 1: 1}`, `{0: 0, 1: 1}`, `{1: 1, 0: 0}`)
+		checkExpression(t, `{0: 0, 1: 1}.length`, `2`)
 
 		// Dict Access
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[1]`, `{"a": 3}`)
@@ -282,6 +286,30 @@ func TestRuntimeErrors(t *testing.T) {
 
 		// Wrong slicing type
 		checkErrorMsg(t, `[1,2,3,4,5,6]["0":]`, fmt.Sprintf("%s: [", errOnlyNumbers.Error()), 1)
+
+		// Get prop from list
+		checkErrorMsg(t, `[].prop`, fmt.Sprintf("%s: prop", errUndefinedProp.Error()), 1)
+
+		// Set prop list
+		checkErrorMsg(t, `[].prop = 1`, fmt.Sprintf("%s: prop", errReadOnly.Error()), 1)
+
+		// Operate on list + non-list
+		checkErrorMsg(t, `[] + ""`, fmt.Sprintf("%s: +", errExpectedList.Error()), 1)
+
+		// Undefined op list
+		checkErrorMsg(t, `[] * []`, fmt.Sprintf("%s: *", errUndefinedOp.Error()), 1)
+
+		// Get prop from dict
+		checkErrorMsg(t, `{}.prop`, fmt.Sprintf("%s: prop", errUndefinedProp.Error()), 1)
+
+		// Set prop dict
+		checkErrorMsg(t, `{}.prop = 1`, fmt.Sprintf("%s: prop", errReadOnly.Error()), 1)
+
+		// Operate on dict + non-dict
+		checkErrorMsg(t, `{} + ""`, fmt.Sprintf("%s: +", errExpectedDict.Error()), 1)
+
+		// Undefined dict operation
+		checkErrorMsg(t, `{} * {}`, fmt.Sprintf("%s: *", errUndefinedOp.Error()), 1)
 	}
 
 	// Statement errors
@@ -371,6 +399,36 @@ func TestRuntimeErrors(t *testing.T) {
 		end
 		A().get(1)
 		`, fmt.Sprintf("%s: get", errMethodNotFound.Error()), 6)
+
+		// Get prop from class
+		checkErrorMsg(t, `
+		class A begin
+		end
+		A.prop
+		`, fmt.Sprintf("%s: prop", errUndefinedProp.Error()), 4)
+
+		// Set prop from class
+		checkErrorMsg(t, `
+		class A begin
+		end
+		A.prop = 1
+		`, fmt.Sprintf("%s: prop", errReadOnly.Error()), 4)
+
+		// Operate on class
+		checkErrorMsg(t, `
+		class A begin
+		end
+		A + A
+		`, fmt.Sprintf("%s: +", errUndefinedOp.Error()), 4)
+
+		// Error on constructor
+		checkErrorMsg(t, `
+		class A begin
+			init() begin
+			end
+		end
+		A(1)
+		`, fmt.Sprintf("%s: )", errInvalidNumberArguments.Error()), 6)
 	}
 }
 

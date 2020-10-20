@@ -11,26 +11,26 @@ type lexer struct {
 }
 
 var keywords = map[string]tokenType{
-	"and":    AND,
-	"class":  CLASS,
-	"else":   ELSE,
-	"false":  FALSE,
-	"fn":     FN,
-	"for":    FOR,
-	"if":     IF,
-	"elif":   ELIF,
-	"nil":    NIL,
-	"or":     OR,
-	"return": RETURN,
-	"super":  SUPER,
-	"this":   THIS,
-	"true":   TRUE,
-	"let":    LET,
-	"while":  WHILE,
-	"not":    NOT,
-	"in":     IN,
-	"begin":  BEGIN,
-	"end":    END,
+	"and":    tkAnd,
+	"class":  tkClass,
+	"else":   tkElse,
+	"false":  tkFalse,
+	"fn":     tkFn,
+	"for":    tkFor,
+	"if":     tkIf,
+	"elif":   tkElif,
+	"nil":    tkNil,
+	"or":     tkOr,
+	"return": tkReturn,
+	"super":  tkSuper,
+	"this":   tkThis,
+	"true":   tkTrue,
+	"let":    tkLet,
+	"while":  tkWhile,
+	"not":    tkNot,
+	"in":     tkIn,
+	"begin":  tkBegin,
+	"end":    tkEnd,
 }
 
 func (l *lexer) scan() {
@@ -39,17 +39,17 @@ func (l *lexer) scan() {
 		l.scanToken()
 	}
 	countTokens := len(state.tokens)
-	if countTokens > 0 && state.tokens[countTokens-1].token != NEWLINE {
+	if countTokens > 0 && state.tokens[countTokens-1].token != tkNewline {
 		// Add newline if not present to terminate last statement
 		state.tokens = append(state.tokens, token{
-			token:   NEWLINE,
+			token:   tkNewline,
 			lexeme:  "",
 			literal: nil,
 			line:    l.line,
 		})
 	}
 	state.tokens = append(state.tokens, token{
-		token:   EOF,
+		token:   tkEOF,
 		lexeme:  "",
 		literal: nil,
 		line:    l.line,
@@ -60,35 +60,35 @@ func (l *lexer) scanToken() {
 	c := l.advance()
 	switch c {
 	case '[':
-		l.emit(LEFT_BRACE, nil)
+		l.emit(tkLeftBrace, nil)
 	case ']':
-		l.emit(RIGHT_BRACE, nil)
+		l.emit(tkRightBrace, nil)
 	case '{':
-		l.emit(LEFT_CURLY_BRACE, nil)
+		l.emit(tkLeftCurlyBrace, nil)
 	case '}':
-		l.emit(RIGHT_CURLY_BRACE, nil)
+		l.emit(tkRightCurlyBrace, nil)
 	case '(':
-		l.emit(LEFT_PAREN, nil)
+		l.emit(tkLeftParen, nil)
 	case ')':
-		l.emit(RIGHT_PAREN, nil)
+		l.emit(tkRightParen, nil)
 	case ',':
-		l.emit(COMMA, nil)
+		l.emit(tkComma, nil)
 	case '.':
-		l.emit(DOT, nil)
+		l.emit(tkDot, nil)
 	case '-':
-		l.emit(MINUS, nil)
+		l.emit(tkMinus, nil)
 	case '+':
-		l.emit(PLUS, nil)
+		l.emit(tkPlus, nil)
 	case '/':
-		l.emit(SLASH, nil)
+		l.emit(tkSlash, nil)
 	case '*':
-		l.emit(STAR, nil)
+		l.emit(tkStar, nil)
 	case '^':
-		l.emit(POWER, nil)
+		l.emit(tkPower, nil)
 	case ':':
-		l.emit(COLON, nil)
+		l.emit(tkColon, nil)
 	case ';':
-		l.emit(SEMICOLON, nil)
+		l.emit(tkSemicolon, nil)
 	case '#':
 		for !l.match('\n') && !l.isAtEnd() {
 			l.advance()
@@ -96,30 +96,30 @@ func (l *lexer) scanToken() {
 	case '!':
 		if l.match('=') {
 			l.advance()
-			l.emit(BANG_EQUAL, nil)
+			l.emit(tkBangEqual, nil)
 		} else {
 			state.setError(errWrongBang, l.line, l.start)
 		}
 	case '=':
 		if l.match('=') {
 			l.advance()
-			l.emit(EQUAL_EQUAL, nil)
+			l.emit(tkEqualEqual, nil)
 		} else {
-			l.emit(EQUAL, nil)
+			l.emit(tkEqual, nil)
 		}
 	case '<':
 		if l.match('=') {
 			l.advance()
-			l.emit(LESS_EQUAL, nil)
+			l.emit(tkLessEqual, nil)
 		} else {
-			l.emit(LESS, nil)
+			l.emit(tkLess, nil)
 		}
 	case '>':
 		if l.match('=') {
 			l.advance()
-			l.emit(GREATER_EQUAL, nil)
+			l.emit(tkGreaterEqual, nil)
 		} else {
-			l.emit(GREATER, nil)
+			l.emit(tkGreater, nil)
 		}
 
 	// Ignore whitespace
@@ -129,7 +129,7 @@ func (l *lexer) scanToken() {
 
 	case '\n':
 		l.line++
-		l.emit(NEWLINE, nil)
+		l.emit(tkNewline, nil)
 
 	case '"':
 		l.string()
@@ -162,7 +162,7 @@ func (l *lexer) string() {
 	// Consume ending "
 	l.advance()
 
-	l.emit(STRING, literal)
+	l.emit(tkString, literal)
 }
 
 func (l *lexer) number() {
@@ -179,7 +179,7 @@ func (l *lexer) number() {
 
 	literal, _ := strconv.ParseFloat(state.source[l.start:l.current], 64)
 
-	l.emit(NUMBER, grotskyNumber(literal))
+	l.emit(tkNumber, grotskyNumber(literal))
 }
 
 func (l *lexer) identifier() {
@@ -191,7 +191,7 @@ func (l *lexer) identifier() {
 
 	tokenType, ok := keywords[identifier]
 	if !ok {
-		tokenType = IDENTIFIER
+		tokenType = tkIdentifier
 	}
 
 	l.emit(tokenType, nil)

@@ -3,66 +3,66 @@ package internal
 type tokenType int
 
 const (
-	EOF tokenType = iota - 1
-	NEWLINE
+	tkEOF tokenType = iota - 1
+	tkNewline
 
 	// Single-character tokens.
 	// (, ), [, ], {, } ',', ., -, +, ;, /, *, ^, :, ;
-	LEFT_PAREN
-	RIGHT_PAREN
-	LEFT_BRACE
-	RIGHT_BRACE
-	RIGHT_CURLY_BRACE
-	LEFT_CURLY_BRACE
-	COMMA
-	DOT
-	MINUS
-	PLUS
-	SLASH
-	STAR
-	POWER
-	COLON
-	SEMICOLON
+	tkLeftParen
+	tkRightParen
+	tkLeftBrace
+	tkRightBrace
+	tkRightCurlyBrace
+	tkLeftCurlyBrace
+	tkComma
+	tkDot
+	tkMinus
+	tkPlus
+	tkSlash
+	tkStar
+	tkPower
+	tkColon
+	tkSemicolon
 
 	// One or two character tokens.
 	// !=, =, ==, >, >=, <, <=
-	BANG_EQUAL
-	EQUAL
-	EQUAL_EQUAL
-	GREATER
-	GREATER_EQUAL
-	LESS
-	LESS_EQUAL
+	tkBangEqual
+	tkEqual
+	tkEqualEqual
+	tkGreater
+	tkGreaterEqual
+	tkLess
+	tkLessEqual
 
 	// Literals.
 	// *variable*, string, int
-	IDENTIFIER
-	STRING
-	NUMBER
+	tkIdentifier
+	tkString
+	tkNumber
 
 	// Keywords.
 	// and, class, else, false, fn, for, if, elif, nil, or,
 	// return, super, this, true, let, while, not, in, begin, end
-	AND
-	CLASS
-	ELSE
-	FALSE
-	FN
-	FOR
-	IF
-	ELIF
-	NIL
-	OR
-	RETURN
-	SUPER
-	THIS
-	TRUE
-	LET
-	WHILE
-	NOT
-	IN
-	BEGIN
-	END
+	tkAnd
+	tkClass
+	tkElse
+	tkFalse
+	tkFn
+	tkFor
+	tkIf
+	tkElif
+	tkNil
+	tkOr
+	tkReturn
+	tkSuper
+	tkThis
+	tkTrue
+	tkLet
+	tkWhile
+	tkNot
+	tkIn
+	tkBegin
+	tkEnd
 )
 
 type token struct {

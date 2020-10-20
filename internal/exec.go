@@ -347,27 +347,27 @@ func (e execute) visitBinaryExpr(expr *binaryExpr) R {
 	left := expr.left.accept(e)
 	right := expr.right.accept(e)
 	switch expr.operator.token {
-	case EQUAL_EQUAL:
+	case tkEqualEqual:
 		value, err = e.operateBinary(opEq, left, right)
-	case BANG_EQUAL:
+	case tkBangEqual:
 		value, err = e.operateBinary(opNeq, left, right)
-	case GREATER:
+	case tkGreater:
 		value, err = e.operateBinary(opGt, left, right)
-	case GREATER_EQUAL:
+	case tkGreaterEqual:
 		value, err = e.operateBinary(opGte, left, right)
-	case LESS:
+	case tkLess:
 		value, err = e.operateBinary(opLt, left, right)
-	case LESS_EQUAL:
+	case tkLessEqual:
 		value, err = e.operateBinary(opLte, left, right)
-	case PLUS:
+	case tkPlus:
 		value, err = e.operateBinary(opAdd, left, right)
-	case MINUS:
+	case tkMinus:
 		value, err = e.operateBinary(opSub, left, right)
-	case SLASH:
+	case tkSlash:
 		value, err = e.operateBinary(opDiv, left, right)
-	case STAR:
+	case tkStar:
 		value, err = e.operateBinary(opMul, left, right)
-	case POWER:
+	case tkPower:
 		value, err = e.operateBinary(opPow, left, right)
 	}
 	if err != nil {
@@ -436,7 +436,7 @@ func (e execute) visitSuperExpr(expr *superExpr) R {
 	superclass := e.env.get(expr.keyword).(*grotskyClass)
 	// assert typeof(e.env.get(expr.keyword)) == (*grotskyClass)
 	this := &token{
-		token:  THIS,
+		token:  tkThis,
 		lexeme: "this",
 		line:   expr.keyword.line,
 	}
@@ -460,7 +460,7 @@ func (e execute) visitLiteralExpr(expr *literalExpr) R {
 func (e execute) visitLogicalExpr(expr *logicalExpr) R {
 	left := e.truthy(expr.left.accept(e))
 
-	if expr.operator.token == OR {
+	if expr.operator.token == tkOr {
 		if left {
 			return grotskyBool(true)
 		}
@@ -484,9 +484,9 @@ func (e execute) visitUnaryExpr(expr *unaryExpr) R {
 	var err error
 	value := expr.right.accept(e)
 	switch expr.operator.token {
-	case NOT:
+	case tkNot:
 		return grotskyBool(!e.truthy(value))
-	case MINUS:
+	case tkMinus:
 		value, err = e.operateUnary(opNeg, value)
 	}
 	if err != nil {

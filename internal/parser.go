@@ -33,43 +33,43 @@ func (p *parser) parseStmt() stmt {
 }
 
 func (p *parser) declaration() stmt {
-	defer p.consume(NEWLINE, errExpectedNewline)
-	if p.match(CLASS) {
+	defer p.consume(tkNewline, errExpectedNewline)
+	if p.match(tkClass) {
 		return p.class()
 	}
-	if p.match(FN) {
+	if p.match(tkFn) {
 		return p.fn()
 	}
-	if p.match(LET) {
+	if p.match(tkLet) {
 		return p.let()
 	}
 	return p.statement()
 }
 
 func (p *parser) class() stmt {
-	name := p.consume(IDENTIFIER, errExpectedIdentifier)
+	name := p.consume(tkIdentifier, errExpectedIdentifier)
 
 	var superclass *variableExpr
-	if p.match(LESS) {
-		class := p.consume(IDENTIFIER, errExpectedIdentifier)
+	if p.match(tkLess) {
+		class := p.consume(tkIdentifier, errExpectedIdentifier)
 		superclass = &variableExpr{
 			name: class,
 		}
 	}
 
-	p.consume(BEGIN, errExpectedBegin)
+	p.consume(tkBegin, errExpectedBegin)
 
 	var methods []*fnStmt
 	var staticMethods []*fnStmt
-	for !p.check(END) && !p.isAtEnd() {
-		if p.match(CLASS) {
+	for !p.check(tkEnd) && !p.isAtEnd() {
+		if p.match(tkClass) {
 			staticMethods = append(staticMethods, p.fn())
 		} else {
 			methods = append(methods, p.fn())
 		}
 	}
 
-	p.consume(END, errExpectedEnd)
+	p.consume(tkEnd, errExpectedEnd)
 
 	return &classStmt{
 		name:          name,
@@ -80,25 +80,25 @@ func (p *parser) class() stmt {
 }
 
 func (p *parser) fn() *fnStmt {
-	name := p.consume(IDENTIFIER, errExpectedFunctionName)
-	p.consume(LEFT_PAREN, errExpectedParen)
+	name := p.consume(tkIdentifier, errExpectedFunctionName)
+	p.consume(tkLeftParen, errExpectedParen)
 
 	var params []*token
-	if !p.check(RIGHT_PAREN) {
+	if !p.check(tkRightParen) {
 		for {
 			if len(params) > maxFunctionParams {
 				state.fatalError(errMaxParameters, p.peek().line, 0)
 			}
-			params = append(params, p.consume(IDENTIFIER, errExpectedFunctionParam))
-			if !p.match(COMMA) {
+			params = append(params, p.consume(tkIdentifier, errExpectedFunctionParam))
+			if !p.match(tkComma) {
 				break
 			}
 		}
 	}
-	p.consume(RIGHT_PAREN, errUnclosedParen)
+	p.consume(tkRightParen, errUnclosedParen)
 
 	body := make([]stmt, 0)
-	if p.match(BEGIN) {
+	if p.match(tkBegin) {
 		body = p.block()
 	} else {
 		body = append(body, p.expressionStmt())
@@ -112,25 +112,25 @@ func (p *parser) fn() *fnStmt {
 }
 
 func (p *parser) fnExpr() *functionExpr {
-	p.consume(LEFT_PAREN, errExpectedParen)
+	p.consume(tkLeftParen, errExpectedParen)
 
 	var params []*token
-	if !p.check(RIGHT_PAREN) {
+	if !p.check(tkRightParen) {
 		for {
 			if len(params) > maxFunctionParams {
 				state.fatalError(errMaxParameters, p.peek().line, 0)
 			}
-			params = append(params, p.consume(IDENTIFIER, errExpectedFunctionParam))
-			if !p.match(COMMA) {
+			params = append(params, p.consume(tkIdentifier, errExpectedFunctionParam))
+			if !p.match(tkComma) {
 				break
 			}
 		}
 	}
-	p.consume(RIGHT_PAREN, errUnclosedParen)
+	p.consume(tkRightParen, errUnclosedParen)
 
 	body := make([]stmt, 0)
-	if p.check(BEGIN) {
-		p.consume(BEGIN, errExpectedBegin)
+	if p.check(tkBegin) {
+		p.consume(tkBegin, errExpectedBegin)
 		body = p.block()
 	} else {
 		body = append(body, p.expressionStmt())
@@ -143,10 +143,10 @@ func (p *parser) fnExpr() *functionExpr {
 }
 
 func (p *parser) let() stmt {
-	name := p.consume(IDENTIFIER, errExpectedIdentifier)
+	name := p.consume(tkIdentifier, errExpectedIdentifier)
 
 	var init expr
-	if p.match(EQUAL) {
+	if p.match(tkEqual) {
 		init = p.expression()
 	}
 
@@ -157,19 +157,19 @@ func (p *parser) let() stmt {
 }
 
 func (p *parser) statement() stmt {
-	if p.match(FOR) {
+	if p.match(tkFor) {
 		return p.forLoop()
 	}
-	if p.match(IF) {
+	if p.match(tkIf) {
 		return p.ifStmt()
 	}
-	if p.match(RETURN) {
+	if p.match(tkReturn) {
 		return p.ret()
 	}
-	if p.match(WHILE) {
+	if p.match(tkWhile) {
 		return p.while()
 	}
-	if p.match(BEGIN) {
+	if p.match(tkBegin) {
 		return &blockStmt{stmts: p.block()}
 	}
 	return p.expressionStmt()
@@ -178,23 +178,23 @@ func (p *parser) statement() stmt {
 func (p *parser) forLoop() stmt {
 	keyword := p.previous()
 
-	if p.check(IDENTIFIER) {
+	if p.check(tkIdentifier) {
 		// Enhanced for
 		return p.enhancedFor(keyword)
 	}
 	// Classic for
 	var init stmt
-	if p.match(SEMICOLON) {
+	if p.match(tkSemicolon) {
 		init = nil
-	} else if p.match(LET) {
+	} else if p.match(tkLet) {
 		init = p.let()
-		p.consume(SEMICOLON, errExpectedSemicolon)
+		p.consume(tkSemicolon, errExpectedSemicolon)
 	} else {
 		state.setError(errExpectedInit, p.peek().line, 0)
 	}
 
 	cond := p.expression()
-	p.consume(SEMICOLON, errExpectedSemicolon)
+	p.consume(tkSemicolon, errExpectedSemicolon)
 
 	inc := p.expression()
 
@@ -211,11 +211,11 @@ func (p *parser) forLoop() stmt {
 
 func (p *parser) enhancedFor(keyword *token) stmt {
 	var ids []*token
-	for p.match(IDENTIFIER) {
+	for p.match(tkIdentifier) {
 		ids = append(ids, p.previous())
-		p.match(COMMA)
+		p.match(tkComma)
 	}
-	p.consume(IN, errExpectedIn)
+	p.consume(tkIn, errExpectedIn)
 	collection := p.expression()
 	body := p.statement()
 	return &enhancedForStmt{
@@ -233,32 +233,32 @@ func (p *parser) ifStmt() stmt {
 
 	st.condition = p.expression()
 
-	p.consume(BEGIN, errExpectedBegin)
+	p.consume(tkBegin, errExpectedBegin)
 
-	for !p.check(ELIF) && !p.check(ELSE) && !p.check(END) {
+	for !p.check(tkElif) && !p.check(tkElse) && !p.check(tkEnd) {
 		st.thenBranch = append(st.thenBranch, p.statement())
 	}
 
-	for p.match(ELIF) {
+	for p.match(tkElif) {
 		elif := &struct {
 			condition  expr
 			thenBranch []stmt
 		}{
 			condition: p.expression(),
 		}
-		for !p.check(ELIF) && !p.check(ELSE) && !p.check(END) {
+		for !p.check(tkElif) && !p.check(tkElse) && !p.check(tkEnd) {
 			elif.thenBranch = append(elif.thenBranch, p.statement())
 		}
 		st.elifs = append(st.elifs, elif)
 	}
 
-	if p.match(ELSE) {
-		for !p.check(END) {
+	if p.match(tkElse) {
+		for !p.check(tkEnd) {
 			st.elseBranch = append(st.elseBranch, p.statement())
 		}
 	}
 
-	p.consume(END, errExpectedEnd)
+	p.consume(tkEnd, errExpectedEnd)
 
 	return st
 }
@@ -266,7 +266,7 @@ func (p *parser) ifStmt() stmt {
 func (p *parser) ret() stmt {
 	var value expr
 	keyword := p.previous()
-	if !p.check(NEWLINE) {
+	if !p.check(tkNewline) {
 		value = p.expression()
 	}
 	return &returnStmt{
@@ -288,8 +288,8 @@ func (p *parser) while() stmt {
 
 func (p *parser) block() []stmt {
 	var stmts []stmt
-	p.consume(NEWLINE, errExpectedNewline)
-	for !p.match(END) {
+	p.consume(tkNewline, errExpectedNewline)
+	for !p.match(tkEnd) {
 		stmts = append(stmts, p.declaration())
 	}
 	return stmts
@@ -308,8 +308,8 @@ func (p *parser) expression() expr {
 }
 
 func (p *parser) list() expr {
-	elements := p.arguments(RIGHT_BRACE)
-	brace := p.consume(RIGHT_BRACE, errUnclosedBracket)
+	elements := p.arguments(tkRightBrace)
+	brace := p.consume(tkRightBrace, errUnclosedBracket)
 	return &listExpr{
 		elements: elements,
 		brace:    brace,
@@ -318,7 +318,7 @@ func (p *parser) list() expr {
 
 func (p *parser) dictionary() expr {
 	elements := p.dictElements()
-	curlyBrace := p.consume(RIGHT_CURLY_BRACE, errUnclosedCurlyBrace)
+	curlyBrace := p.consume(tkRightCurlyBrace, errUnclosedCurlyBrace)
 	return &dictionaryExpr{
 		elements:   elements,
 		curlyBrace: curlyBrace,
@@ -329,12 +329,12 @@ func (p *parser) dictionary() expr {
 // are stored in even positions and values in odd positions
 func (p *parser) dictElements() []expr {
 	elements := make([]expr, 0)
-	for !p.check(RIGHT_CURLY_BRACE) {
+	for !p.check(tkRightCurlyBrace) {
 		key := p.expression()
-		p.consume(COLON, errExpectedColon)
+		p.consume(tkColon, errExpectedColon)
 		value := p.expression()
 		elements = append(elements, key, value)
-		if !p.match(COMMA) {
+		if !p.match(tkComma) {
 			break
 		}
 	}
@@ -343,7 +343,7 @@ func (p *parser) dictElements() []expr {
 
 func (p *parser) assignment() expr {
 	expr := p.access()
-	if p.match(EQUAL) {
+	if p.match(tkEqual) {
 		equal := p.previous()
 		value := p.assignment()
 
@@ -367,43 +367,43 @@ func (p *parser) assignment() expr {
 
 func (p *parser) access() expr {
 	expr := p.or()
-	for p.matchSameLine(LEFT_BRACE) {
+	for p.matchSameLine(tkLeftBrace) {
 		slice := &accessExpr{
 			object: expr,
 			brace:  p.previous(),
 		}
 		p.slice(slice)
 		expr = slice
-		p.consume(RIGHT_BRACE, errors.New("Expected ']' at the end of slice"))
+		p.consume(tkRightBrace, errors.New("Expected ']' at the end of slice"))
 	}
 	return expr
 }
 
 func (p *parser) slice(slice *accessExpr) {
-	if p.match(COLON) {
+	if p.match(tkColon) {
 		slice.firstColon = p.previous()
-		if p.match(COLON) {
+		if p.match(tkColon) {
 			slice.secondColon = p.previous()
 			slice.third = p.expression()
 		} else {
 			slice.second = p.expression()
-			if p.match(COLON) {
+			if p.match(tkColon) {
 				slice.secondColon = p.previous()
 				slice.third = p.expression()
 			}
 		}
 	} else {
 		slice.first = p.expression()
-		if p.match(COLON) {
+		if p.match(tkColon) {
 			slice.firstColon = p.previous()
-			if p.match(COLON) {
+			if p.match(tkColon) {
 				slice.secondColon = p.previous()
 				slice.third = p.expression()
-			} else if !p.check(RIGHT_BRACE) && !p.isAtEnd() {
+			} else if !p.check(tkRightBrace) && !p.isAtEnd() {
 				slice.second = p.expression()
-				if p.match(COLON) {
+				if p.match(tkColon) {
 					slice.secondColon = p.previous()
-					if !p.check(RIGHT_BRACE) && !p.isAtEnd() {
+					if !p.check(tkRightBrace) && !p.isAtEnd() {
 						slice.third = p.expression()
 					}
 				}
@@ -414,7 +414,7 @@ func (p *parser) slice(slice *accessExpr) {
 
 func (p *parser) or() expr {
 	expr := p.and()
-	for p.match(OR) {
+	for p.match(tkOr) {
 		operator := p.previous()
 		right := p.and()
 		expr = &logicalExpr{
@@ -428,7 +428,7 @@ func (p *parser) or() expr {
 
 func (p *parser) and() expr {
 	expr := p.equality()
-	for p.match(AND) {
+	for p.match(tkAnd) {
 		operator := p.previous()
 		right := p.equality()
 		expr = &logicalExpr{
@@ -442,7 +442,7 @@ func (p *parser) and() expr {
 
 func (p *parser) equality() expr {
 	expr := p.comparison()
-	for p.match(EQUAL_EQUAL, BANG_EQUAL) {
+	for p.match(tkEqualEqual, tkBangEqual) {
 		operator := p.previous()
 		right := p.comparison()
 		expr = &binaryExpr{
@@ -456,7 +456,7 @@ func (p *parser) equality() expr {
 
 func (p *parser) comparison() expr {
 	expr := p.addition()
-	for p.match(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL) {
+	for p.match(tkGreater, tkGreaterEqual, tkLess, tkLessEqual) {
 		operator := p.previous()
 		right := p.addition()
 		expr = &binaryExpr{
@@ -470,7 +470,7 @@ func (p *parser) comparison() expr {
 
 func (p *parser) addition() expr {
 	expr := p.multiplication()
-	for p.match(PLUS, MINUS) {
+	for p.match(tkPlus, tkMinus) {
 		operator := p.previous()
 		right := p.multiplication()
 		expr = &binaryExpr{
@@ -484,7 +484,7 @@ func (p *parser) addition() expr {
 
 func (p *parser) multiplication() expr {
 	expr := p.power()
-	for p.match(SLASH, STAR) {
+	for p.match(tkSlash, tkStar) {
 		operator := p.previous()
 		right := p.power()
 		expr = &binaryExpr{
@@ -498,7 +498,7 @@ func (p *parser) multiplication() expr {
 
 func (p *parser) power() expr {
 	expr := p.unary()
-	for p.match(POWER) {
+	for p.match(tkPower) {
 		operator := p.previous()
 		right := p.unary()
 		expr = &binaryExpr{
@@ -511,7 +511,7 @@ func (p *parser) power() expr {
 }
 
 func (p *parser) unary() expr {
-	if p.match(NOT, MINUS) {
+	if p.match(tkNot, tkMinus) {
 		operator := p.previous()
 		right := p.unary()
 		return &unaryExpr{
@@ -525,10 +525,10 @@ func (p *parser) unary() expr {
 func (p *parser) call() expr {
 	expr := p.primary()
 	for {
-		if p.match(LEFT_PAREN) {
+		if p.match(tkLeftParen) {
 			expr = p.finishCall(expr)
-		} else if p.match(DOT) {
-			name := p.consume(IDENTIFIER, errExpectedProp)
+		} else if p.match(tkDot) {
+			name := p.consume(tkIdentifier, errExpectedProp)
 			expr = &getExpr{
 				object: expr,
 				name:   name,
@@ -541,8 +541,8 @@ func (p *parser) call() expr {
 }
 
 func (p *parser) finishCall(callee expr) expr {
-	arguments := p.arguments(RIGHT_PAREN)
-	paren := p.consume(RIGHT_PAREN, errors.New("Expect ')' after arguments"))
+	arguments := p.arguments(tkRightParen)
+	paren := p.consume(tkRightParen, errors.New("Expect ')' after arguments"))
 	return &callExpr{
 		callee:    callee,
 		arguments: arguments,
@@ -554,11 +554,11 @@ func (p *parser) arguments(tk tokenType) []expr {
 	arguments := make([]expr, 0)
 	if !p.check(tk) {
 		for {
-			if tk == RIGHT_PAREN && len(arguments) >= maxFunctionParams {
+			if tk == tkRightParen && len(arguments) >= maxFunctionParams {
 				state.fatalError(errMaxArguments, p.peek().line, 0)
 			}
 			arguments = append(arguments, p.expression())
-			if !p.match(COMMA) {
+			if !p.match(tkComma) {
 				break
 			}
 		}
@@ -567,39 +567,39 @@ func (p *parser) arguments(tk tokenType) []expr {
 }
 
 func (p *parser) primary() expr {
-	if p.match(NUMBER, STRING) {
+	if p.match(tkNumber, tkString) {
 		return &literalExpr{value: p.previous().literal}
 	}
-	if p.match(FALSE) {
+	if p.match(tkFalse) {
 		return &literalExpr{value: grotskyBool(false)}
 	}
-	if p.match(TRUE) {
+	if p.match(tkTrue) {
 		return &literalExpr{value: grotskyBool(true)}
 	}
-	if p.match(NIL) {
+	if p.match(tkNil) {
 		return &literalExpr{value: nil}
 	}
-	if p.match(IDENTIFIER) {
+	if p.match(tkIdentifier) {
 		return &variableExpr{name: p.previous()}
 	}
-	if p.match(LEFT_PAREN) {
+	if p.match(tkLeftParen) {
 		expr := p.expression()
-		p.consume(RIGHT_PAREN, errUnclosedParen)
+		p.consume(tkRightParen, errUnclosedParen)
 		return &groupingExpr{expression: expr}
 	}
-	if p.match(LEFT_BRACE) {
+	if p.match(tkLeftBrace) {
 		return p.list()
 	}
-	if p.match(LEFT_CURLY_BRACE) {
+	if p.match(tkLeftCurlyBrace) {
 		return p.dictionary()
 	}
-	if p.match(FN) {
+	if p.match(tkFn) {
 		return p.fnExpr()
 	}
-	if p.match(THIS) {
+	if p.match(tkThis) {
 		return &thisExpr{keyword: p.previous()}
 	}
-	if p.match(SUPER) {
+	if p.match(tkSuper) {
 		return p.superExpr()
 	}
 
@@ -611,12 +611,12 @@ func (p *parser) superExpr() expr {
 	super := &superExpr{
 		keyword: p.previous(),
 	}
-	if !p.check(LEFT_PAREN) {
-		p.consume(DOT, errExpectedDot)
-		super.method = p.consume(IDENTIFIER, errExpectedIdentifier)
+	if !p.check(tkLeftParen) {
+		p.consume(tkDot, errExpectedDot)
+		super.method = p.consume(tkIdentifier, errExpectedIdentifier)
 	} else {
 		super.method = &token{
-			token:  IDENTIFIER,
+			token:  tkIdentifier,
 			lexeme: "init",
 			line:   super.keyword.line,
 		}
@@ -665,7 +665,7 @@ func (p *parser) check(token tokenType) bool {
 		return false
 	}
 	oldCurrent := p.current
-	for token != NEWLINE && !p.isAtEnd() && p.peek().token == NEWLINE {
+	for token != tkNewline && !p.isAtEnd() && p.peek().token == tkNewline {
 		p.current++
 	}
 	matchs := p.peek().token == token
@@ -681,7 +681,7 @@ func (p *parser) peek() token {
 
 func (p *parser) previous() *token {
 	for i := 1; i <= p.current; i-- {
-		if state.tokens[p.current-i].token != NEWLINE {
+		if state.tokens[p.current-i].token != tkNewline {
 			return &state.tokens[p.current-i]
 		}
 	}
@@ -689,28 +689,28 @@ func (p *parser) previous() *token {
 }
 
 func (p *parser) isAtEnd() bool {
-	return p.peek().token == EOF
+	return p.peek().token == tkEOF
 }
 
 func (p *parser) synchronize() {
 	p.advance()
 	for !p.isAtEnd() {
 		switch p.peek().token {
-		case BEGIN:
+		case tkBegin:
 			return
-		case CLASS:
+		case tkClass:
 			return
-		case FN:
+		case tkFn:
 			return
-		case LET:
+		case tkLet:
 			return
-		case FOR:
+		case tkFor:
 			return
-		case IF:
+		case tkIf:
 			return
-		case WHILE:
+		case tkWhile:
 			return
-		case RETURN:
+		case tkReturn:
 			return
 		default:
 		}

@@ -158,6 +158,12 @@ func TestExpressions(t *testing.T) {
 
 		// String length
 		checkExpression(t, `"test".length`, `4`)
+
+		// String accessing
+		checkExpression(t, `"test"[0]`, `"t"`)
+		checkExpression(t, `"test"[0:2]`, `"te"`)
+		checkExpression(t, `"longtest"[1:6:2]`, `"oge"`)
+		checkExpression(t, `""[1:6:2]`, `""`)
 	}
 
 	// Comparisons
@@ -213,6 +219,7 @@ func TestExpressions(t *testing.T) {
 		checkExpression(t, "[[1, 2], [3, 4]]", "[[1, 2], [3, 4]]")
 
 		// List slicing
+		checkExpression(t, "[][1:][::2][0]", "[]")
 		checkExpression(t, "[1,2,3,4,5,6][1:][::2][0]", "2")
 		checkExpression(t, "[1,2,3,4,5,6][:4][::3][1]", "4")
 		checkExpression(t, "[1,2,3,4,5,6][1:5:2]", "[2, 4]")
@@ -245,6 +252,7 @@ func TestExpressions(t *testing.T) {
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[1]["a"]`, "3")
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[3][0]`, "7")
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[3][1]`, `"test"`)
+		checkExpression(t, "{}[0]", "{}")
 
 		// Dict operations
 		checkExpression(t, `{1: 2} + {1: 4}`, "{1: 4}")
@@ -289,9 +297,6 @@ func TestRuntimeErrors(t *testing.T) {
 
 		// Set expr on non-object
 		checkErrorMsg(t, `(fn (a, b) a+b).length = 1`, fmt.Sprintf("%s: length", errExpectedObject.Error()), 1)
-
-		// Can only access collections
-		checkErrorMsg(t, `"abc"[0]`, fmt.Sprintf("%s: [", errInvalidAccess.Error()), 1)
 
 		// Wrong slicing
 		checkErrorMsg(t, `[1,2,3,4,5,6][0:3:]`, fmt.Sprintf("%s: :", errExpectedStep.Error()), 1)

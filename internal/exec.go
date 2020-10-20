@@ -243,14 +243,39 @@ func (e execute) visitAssignExpr(expr *assignExpr) R {
 
 func (e execute) visitAccessExpr(expr *accessExpr) R {
 	object := expr.object.accept(e)
+	str, isStr := object.(grotskyString)
+	if isStr {
+		if len(str) == 0 {
+			return str
+		}
+		list := make(grotskyList, len(str))
+		for i, r := range str {
+			list[i] = r
+		}
+		result := e.sliceList(list, expr)
+		if runes, ok := result.(grotskyList); ok {
+			newStr := ""
+			for _, r := range runes {
+				newStr += string(r.(rune))
+			}
+			return grotskyString(newStr)
+		}
+		return grotskyString(result.(rune))
+	}
 	list, isList := object.(grotskyList)
 	if isList {
+		if len(list) == 0 {
+			return list
+		}
 		return e.sliceList(list, expr)
 	}
 	dict, isDict := object.(grotskyDict)
 	if isDict {
 		if expr.first == nil || expr.second != nil || expr.third != nil {
 			state.runtimeErr(errExpectedKey, expr.brace)
+		}
+		if len(dict) == 0 {
+			return dict
 		}
 		return dict[expr.first.accept(e)]
 	}

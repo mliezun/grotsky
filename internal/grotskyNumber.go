@@ -67,12 +67,10 @@ func (n grotskyNumber) getOperator(op operator) (operatorApply, error) {
 			return applyOpToNums(apply, append([]interface{}{n}, arguments...)...)
 		}, nil
 	}
-	if op == opNeg {
-		return func(arguments ...interface{}) (interface{}, error) {
-			return grotskyNumber(-n), nil
-		}, nil
-	}
-	return nil, errUndefinedOp
+	// op == opNeg
+	return func(arguments ...interface{}) (interface{}, error) {
+		return grotskyNumber(-n), nil
+	}, nil
 }
 
 func (n grotskyNumber) String() string {

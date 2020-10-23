@@ -15,7 +15,6 @@ const (
 	opLte          = "lte"
 	opGt           = "gt"
 	opGte          = "gte"
-	opAcc          = "acc"
 )
 
 type operatorApply func(arguments ...interface{}) (interface{}, error)

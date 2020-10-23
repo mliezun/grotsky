@@ -271,6 +271,9 @@ func TestExpressions(t *testing.T) {
 func TestRuntimeErrors(t *testing.T) {
 	// Expression errors
 	{
+		// Subtract number with non-number
+		checkErrorMsg(t, `1 - "B"`, fmt.Sprintf("%s: -", errExpectedNumber.Error()), 1)
+
 		// Binary expression undefined
 		checkErrorMsg(t, `"A" - "B"`, fmt.Sprintf("%s: -", errUndefinedOp.Error()), 1)
 
@@ -334,6 +337,18 @@ func TestRuntimeErrors(t *testing.T) {
 
 	// Statement errors
 	{
+		// Undefined property on number
+		checkErrorMsg(t, `
+		let a = 1
+		a.isnumber
+		`, fmt.Sprintf("%s: isnumber", errUndefinedProp.Error()), 3)
+
+		// Number object is read only
+		checkErrorMsg(t, `
+		let a = 1
+		a.isnumber = false
+		`, fmt.Sprintf("%s: isnumber", errReadOnly.Error()), 3)
+
 		// Undefined variable
 		checkErrorMsg(t, `let a = b`, fmt.Sprintf("%s: b", errUndefinedVar.Error()), 1)
 

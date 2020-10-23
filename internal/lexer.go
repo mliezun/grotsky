@@ -155,6 +155,7 @@ func (l *lexer) string() {
 
 	if l.isAtEnd() {
 		state.setError(errUnclosedString, l.line, l.start)
+		return
 	}
 
 	literal := grotskyString(state.source[l.start+1 : l.current])

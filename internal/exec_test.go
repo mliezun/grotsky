@@ -92,6 +92,28 @@ func checkStatements(t *testing.T, code string, resultVar string, result string)
 	}
 }
 
+func checkLexer(t *testing.T, source string, line int, result string) {
+	tp := &testPrinter{}
+	RunSourceWithPrinter(source, tp)
+	compare := fmt.Sprintf("Error on line %d\n\t", line) + result + "\n"
+	if tp.Equals(compare) {
+		t.Errorf(
+			"Error on: \n%s\n\tResult should be equal to %s instead of %s",
+			compare,
+			result,
+			tp.printed,
+		)
+	}
+}
+
+func TestLexer(t *testing.T) {
+	checkLexer(t, "1 !! 2", 1, errWrongBang.Error())
+
+	checkLexer(t, "@", 1, errIllegalChar.Error())
+
+	checkLexer(t, `"`, 1, errUnclosedString.Error())
+}
+
 func TestExpressions(t *testing.T) {
 
 	// Arithmethic
@@ -152,6 +174,14 @@ func TestExpressions(t *testing.T) {
 	{
 		// String literal
 		checkExpression(t, `"test"`, `test`)
+		checkExpression(t, `"
+		Title
+		body
+		"`, `
+		Title
+		body
+		`)
+		checkExpression(t, "\r", ``)
 
 		// String concat
 		checkExpression(t, `"te" + "st"`, `test`)

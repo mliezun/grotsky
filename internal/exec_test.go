@@ -464,6 +464,20 @@ func TestRuntimeErrors(t *testing.T) {
 		end
 		A(1)
 		`, fmt.Sprintf("%s: )", errInvalidNumberArguments.Error()), 6)
+
+		// Undefined object property
+		checkErrorMsg(t, `
+		class A begin
+		end
+		A().get
+		`, fmt.Sprintf("%s: get", errUndefinedProp.Error()), 4)
+
+		// Undefined object operator
+		checkErrorMsg(t, `
+		class A begin
+		end
+		A() + A()
+		`, fmt.Sprintf("%s: +", errUndefinedOperator.Error()), 4)
 	}
 }
 

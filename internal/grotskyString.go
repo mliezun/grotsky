@@ -2,6 +2,11 @@ package internal
 
 type grotskyString string
 
+// Representable object that can be represented as a string
+type Representable interface {
+	Repr() string
+}
+
 func applyOpToStrings(op func(x, y string) interface{}, arguments ...interface{}) (interface{}, error) {
 	x := arguments[0].(grotskyString)
 	y, ok := arguments[1].(grotskyString)
@@ -58,5 +63,9 @@ func (s grotskyString) getOperator(op operator) (operatorApply, error) {
 }
 
 func (s grotskyString) String() string {
+	return string(s)
+}
+
+func (s grotskyString) Repr() string {
 	return "\"" + string(s) + "\""
 }

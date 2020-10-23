@@ -151,19 +151,19 @@ func TestExpressions(t *testing.T) {
 	// Strings
 	{
 		// String literal
-		checkExpression(t, `"test"`, `"test"`)
+		checkExpression(t, `"test"`, `test`)
 
 		// String concat
-		checkExpression(t, `"te" + "st"`, `"test"`)
+		checkExpression(t, `"te" + "st"`, `test`)
 
 		// String length
 		checkExpression(t, `"test".length`, `4`)
 
 		// String accessing
-		checkExpression(t, `"test"[0]`, `"t"`)
-		checkExpression(t, `"test"[0:2]`, `"te"`)
-		checkExpression(t, `"longtest"[1:6:2]`, `"oge"`)
-		checkExpression(t, `""[1:6:2]`, `""`)
+		checkExpression(t, `"test"[0]`, `t`)
+		checkExpression(t, `"test"[0:2]`, `te`)
+		checkExpression(t, `"longtest"[1:6:2]`, `oge`)
+		checkExpression(t, `""[1:6:2]`, ``)
 	}
 
 	// Comparisons
@@ -251,7 +251,7 @@ func TestExpressions(t *testing.T) {
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[1]`, `{"a": 3}`)
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[1]["a"]`, "3")
 		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[3][0]`, "7")
-		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[3][1]`, `"test"`)
+		checkExpression(t, `{1: {"a": 3}, 3: [1+2*3, "te" + "st"]}[3][1]`, `test`)
 		checkExpression(t, "{}[0]", "{}")
 
 		// Dict operations
@@ -303,6 +303,9 @@ func TestRuntimeErrors(t *testing.T) {
 
 		// Wrong slicing type
 		checkErrorMsg(t, `[1,2,3,4,5,6]["0":]`, fmt.Sprintf("%s: [", errOnlyNumbers.Error()), 1)
+
+		// Cannot slice a number
+		checkErrorMsg(t, `2[0]`, fmt.Sprintf("%s: [", errInvalidAccess.Error()), 1)
 
 		// Get prop from list
 		checkErrorMsg(t, `[].prop`, fmt.Sprintf("%s: prop", errUndefinedProp.Error()), 1)
@@ -675,7 +678,7 @@ func TestStatements(t *testing.T) {
 			init () begin
 				super.init()
 			end
-		end`, "Pan().msg", `"good"`)
+		end`, "Pan().msg", `good`)
 
 		// Check method inheritance
 		checkStatements(t, `
@@ -688,7 +691,7 @@ func TestStatements(t *testing.T) {
 		end
 		let bread = Pan()
 		bread.eat()
-		`, "bread.msg", `"eating"`)
+		`, "bread.msg", `eating`)
 
 		// Class methods
 		checkStatements(t, `

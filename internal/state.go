@@ -99,8 +99,8 @@ var errExpectedFunctionName = errors.New("Expected function name")
 var errExpectedParen = errors.New("Expect '(' after function name")
 var errExpectedFunctionParam = errors.New("Expect function parameter")
 var errMaxParameters = fmt.Errorf("Max number of parameters is %d", maxFunctionParams)
-var errExpectedBegin = errors.New("Expected 'begin' at this position")
-var errExpectedEnd = errors.New("Expected 'end' at this position")
+var errExpectedOpeningCurlyBrace = errors.New("Expected '{' at this position")
+var errExpectedClosingCurlyBrace = errors.New("Expected '}' at this position")
 
 // Runtime errors
 var errUndefinedVar = errors.New("Undefined variable")

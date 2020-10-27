@@ -37,7 +37,7 @@ fnAnon          → "fn" "(" parameters? ")" block;
 
 program        → declaration* EOF;
 declaration    → (classDecl | funDecl | varDecl | statement) NEWLINE;
-classDecl      → "class" IDENTIFIER ( "<" IDENTIFIER )? "begin" methodDecl* "end";
+classDecl      → "class" IDENTIFIER ( "<" IDENTIFIER )? "{" methodDecl* "}";
 methodDecl     → "class"? function;
 funDecl        → "fn" function ;
 function       → IDENTIFIER "(" parameters? ")" (block | exprStmt) ;
@@ -53,7 +53,7 @@ exprStmt       → expression;
 forStmt        → "for"  (classicFor | newFor) statement;
 classicFor     → (varDecl | exprStmt | ",") expression? "," expression?;
 newFor         → IDENTIFIER ("," IDENTIFIER)? "in" expression;
-ifStmt         → "if" expression "begin" ("elif" expression statement)* ("else" statement)? "end";
+ifStmt         → "if" expression block ("elif" expression block)* ("else" block)?;
 returnStmt     → "return" expression?;
 whileStmt      → "while" expression statement;
-block          → "begin" NEWLINE declaration* "end";
+block          → "{" declaration* "}";

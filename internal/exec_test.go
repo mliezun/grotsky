@@ -353,16 +353,17 @@ func TestRuntimeErrors(t *testing.T) {
 		checkErrorMsg(t, `[] * []`, fmt.Sprintf("%s: *", errUndefinedOp.Error()), 1)
 
 		// Get prop from dict
-		checkErrorMsg(t, `{}.prop`, fmt.Sprintf("%s: prop", errUndefinedProp.Error()), 1)
+		checkErrorMsg(t, `let a = {}.prop`, fmt.Sprintf("%s: prop", errUndefinedProp.Error()), 1)
 
 		// Set prop dict
-		checkErrorMsg(t, `{}.prop = 1`, fmt.Sprintf("%s: prop", errReadOnly.Error()), 1)
+		checkErrorMsg(t, `let a = {}
+		a.prop = 1`, fmt.Sprintf("%s: prop", errReadOnly.Error()), 2)
 
 		// Operate on dict + non-dict
-		checkErrorMsg(t, `{} + ""`, fmt.Sprintf("%s: +", errExpectedDict.Error()), 1)
+		checkErrorMsg(t, `let a = {} + ""`, fmt.Sprintf("%s: +", errExpectedDict.Error()), 1)
 
 		// Undefined dict operation
-		checkErrorMsg(t, `{} * {}`, fmt.Sprintf("%s: *", errUndefinedOp.Error()), 1)
+		checkErrorMsg(t, `let a = {} * {}`, fmt.Sprintf("%s: *", errUndefinedOp.Error()), 1)
 	}
 
 	// Statement errors
@@ -406,30 +407,30 @@ func TestRuntimeErrors(t *testing.T) {
 
 		// Wrong array destructuring
 		checkErrorMsg(t, `
-			for a, b, c in [[1,2]] begin
+			for a, b, c in [[1,2]] {
 				io.println(a+b+c)
-			end
+			}
 			`, fmt.Sprintf("%s: for", errWrongNumberOfValues.Error()), 2)
 
 		// Cannot unpack
 		checkErrorMsg(t, `
-			for a, b, c in ["abc"] begin
+			for a, b, c in ["abc"] {
 				io.println(a+b+c)
-			end
+			}
 			`, fmt.Sprintf("%s: for", errCannotUnpack.Error()), 2)
 
 		// Cannot unpack dict with more than 2 identifiers
 		checkErrorMsg(t, `
-			for a, b, c in {"a": ["abc"]} begin
+			for a, b, c in {"a": ["abc"]} {
 				io.println(a+b+c)
-			end
+			}
 			`, fmt.Sprintf("%s: for", errExpectedIdentifiersDict.Error()), 2)
 
 		// Only collections are iterable
 		checkErrorMsg(t, `
-			for a, b, c in "abc" begin
+			for a, b, c in "abc" {
 				io.println(a+b+c)
-			end
+			}
 			`, fmt.Sprintf("%s: for", errExpectedCollection.Error()), 2)
 
 		// Error on dict access
@@ -449,63 +450,63 @@ func TestRuntimeErrors(t *testing.T) {
 		// Inheritance from non-class
 		checkErrorMsg(t, `
 		let C = "C"
-		class A < C begin
-		end
+		class A < C {
+		}
 		`, fmt.Sprintf("%s: A", errExpectedClass.Error()), 3)
 
 		// Inheritance from non-class
 		checkErrorMsg(t, `
-		class C begin
-		end
-		class A < C begin
-			get(a) begin
+		class C {
+		}
+		class A < C {
+			get(a) {
 				return super.get(a)
-			end
-		end
+			}
+		}
 		A().get(1)
 		`, fmt.Sprintf("%s: get", errMethodNotFound.Error()), 6)
 
 		// Get prop from class
 		checkErrorMsg(t, `
-		class A begin
-		end
+		class A {
+		}
 		A.prop
 		`, fmt.Sprintf("%s: prop", errUndefinedProp.Error()), 4)
 
 		// Set prop from class
 		checkErrorMsg(t, `
-		class A begin
-		end
+		class A {
+		}
 		A.prop = 1
 		`, fmt.Sprintf("%s: prop", errReadOnly.Error()), 4)
 
 		// Operate on class
 		checkErrorMsg(t, `
-		class A begin
-		end
+		class A {
+		}
 		A + A
 		`, fmt.Sprintf("%s: +", errUndefinedOp.Error()), 4)
 
 		// Error on constructor
 		checkErrorMsg(t, `
-		class A begin
-			init() begin
-			end
-		end
+		class A {
+			init() {
+			}
+		}
 		A(1)
 		`, fmt.Sprintf("%s: )", errInvalidNumberArguments.Error()), 6)
 
 		// Undefined object property
 		checkErrorMsg(t, `
-		class A begin
-		end
+		class A {
+		}
 		A().get
 		`, fmt.Sprintf("%s: get", errUndefinedProp.Error()), 4)
 
 		// Undefined object operator
 		checkErrorMsg(t, `
-		class A begin
-		end
+		class A {
+		}
 		A() + A()
 		`, fmt.Sprintf("%s: +", errUndefinedOperator.Error()), 4)
 	}
@@ -536,43 +537,43 @@ func TestStatements(t *testing.T) {
 	{
 		checkStatements(t, `
 		let i = 0
-		if i == 100 begin
+		if i == 100 {
 			i = 10
-		elif i < 10
+		} elif i < 10 {
 			i = 20
-		else
+		} else {
 			i = 100
-		end
+		}
 		`, "i", "20")
 
 		checkStatements(t, `
 		let i = 20
-		if i == 100 begin
+		if i == 100 {
 			i = 10
-		elif i < 10
+		} elif i < 10 {
 			i = 20
-		else
+		} else {
 			i = 100
-		end`, "i", "100")
+		}`, "i", "100")
 
 		checkStatements(t, `
 		let i = 100
-		if i == 100 begin
+		if i == 100 {
 			i = 10
-		elif i < 10
+		} elif i < 10 {
 			i = 20
-		else
+		} else {
 			i = 100
-		end`, "i", "10")
+		}`, "i", "10")
 	}
 
 	// While loop
 	{
 		checkStatements(t, `
 		let i = 0
-		while i*2 < 10 begin
+		while i*2 < 10 {
 			i = i + 1
-		end
+		}
 		`, "i", "5")
 	}
 
@@ -580,139 +581,139 @@ func TestStatements(t *testing.T) {
 	{
 		checkStatements(t, `
 		let x = 1
-		for let i = 1; i <= 8; i = i+1 begin
+		for let i = 1; i <= 8; i = i+1 {
 			x = x * i
-		end`, "x", "40320")
+		}`, "x", "40320")
 
 		checkStatements(t, `
 		let x = 40320
 		let u = 0
-		for ; u < 10; u = u + 1 begin
+		for ; u < 10; u = u + 1 {
 			x = x - u
-		end
+		}
 		`, "x", "40275")
 
 		checkStatements(t, `
 		let x = 40275
 		let arr = [1, 2, 3, 4]
-		for el in arr begin
+		for el in arr {
 			x = x + el
-		end`, "x", "40285")
+		}`, "x", "40285")
 
 		checkStatements(t, `
 		let x = 40285
 		let mat = [[1, 2], [3, 4]]
-		for n, m in mat begin
+		for n, m in mat {
 			x = x + n + m
-		end`, "x", "40295")
+		}`, "x", "40295")
 
 		checkStatements(t, `
 		let x = 40295
 		let dict = {1: 2, 3: 4}
-		for key, val in dict begin
+		for key, val in dict {
 			x = x + key + val
-		end`, "x", "40305")
+		}`, "x", "40305")
 
 		checkStatements(t, `
 		let x = 40305
 		let dict = {1: 2, 3: 4}
-		for key in dict begin
+		for key in dict {
 			x = x + key
-		end
+		}
 		`, "x", "40309")
 	}
 
 	// Functions
 	{
 		checkStatements(t, `
-		fn nilCheck() begin
+		fn nilCheck() {
 			return
-		end
+		}
 		let i = nilCheck()
 		`, "i", "<nil>")
 
 		checkStatements(t, `
-		fn check() begin
+		fn check() {
 			return 1
-		end
+		}
 		let i = check()
 		`, "i", "1")
 
 		checkStatements(t, `
-		fn check(i) begin
+		fn check(i) {
 			return i
-		end
+		}
 		let i = check(10)
 		`, "i", "10")
 
 		checkStatements(t, `
-		fn fib(i) begin
-			if i == 0 begin
+		fn fib(i) {
+			if i == 0 {
 				return 0
-			elif i == 1
+			} elif i == 1 {
 				return 1
-			else
+			} else {
 				return fib(i-1)+fib(i-2)
-			end
-		end
+			}
+		}
 		let f = fib(10)
 		`, "f", "55")
 
 		checkStatements(t, `
-		fn count(i) begin
-			while true begin
+		fn count(i) {
+			while true {
 				i = i - 1
-				if i < 0 begin
+				if i < 0 {
 					return i
-				end
-			end
+				}
+			}
 			return i
-		end
+		}
 		let f = count(10)
 		`, "f", "-1")
 
 		checkStatements(t, `
-		fn count(i) begin
-			while true begin
+		fn count(i) {
+			while true {
 				return i
-			end
+			}
 			return i
-		end
+		}
 		let f = count(10)
 		`, "f", "10")
 
 		checkStatements(t, `
-		fn count(i) begin
-			for let n = 0; n < 1; n = n + 1 begin
+		fn count(i) {
+			for let n = 0; n < 1; n = n + 1 {
 				return n
-			end
+			}
 			return i
-		end
+		}
 		let f = count(10)
 		`, "f", "0")
 
 		checkStatements(t, `
-		fn firstEl(arr) begin
-			for e in arr begin
+		fn firstEl(arr) {
+			for e in arr {
 				return e
-			end
-		end
+			}
+		}
 		let f = firstEl([3,4,5])
 		`, "f", "3")
 
 		checkStatements(t, `
-		fn firstKey(dict) begin
-			for key in dict begin
+		fn firstKey(dict) {
+			for key in dict {
 				return key
-			end
-		end
+			}
+		}
 		let f = firstKey({1:2})
 		`, "f", "1")
 
 		// Print function
 		checkStatements(t, `
-		fn ff() begin
-		end
+		fn ff() {
+		}
 		`, "ff", "<fn ff>")
 	}
 
@@ -720,58 +721,58 @@ func TestStatements(t *testing.T) {
 	{
 		// Check simple object
 		checkStatements(t, `
-		class Pan begin
-			init () begin
+		class Pan {
+			init () {
 				this.pan = 1
-			end
-		end`, "Pan().pan", "1")
+			}
+		}`, "Pan().pan", "1")
 
 		// Check parent constructor
 		checkStatements(t, `
-		class Food begin
-			init () begin
+		class Food {
+			init () {
 				this.msg = "good"
-			end
-		end
-		class Pan < Food begin
-			init () begin
+			}
+		}
+		class Pan < Food {
+			init () {
 				super.init()
-			end
-		end`, "Pan().msg", `good`)
+			}
+		}`, "Pan().msg", `good`)
 
 		// Check method inheritance
 		checkStatements(t, `
-		class Food begin
-			eat () begin
+		class Food {
+			eat () {
 				this.msg = "eating"
-			end
-		end
-		class Pan < Food begin
-		end
+			}
+		}
+		class Pan < Food {
+		}
 		let bread = Pan()
 		bread.eat()
 		`, "bread.msg", `eating`)
 
 		// Class methods
 		checkStatements(t, `
-		class Container begin
-			class get(a) begin
+		class Container {
+			class get(a) {
 				return a
-			end
-		end
+			}
+		}
 		`, "Container.get(1)", "1")
 
 		// Operator overload
 		checkStatements(t, `
-		class Operate begin
-			init (val) begin
+		class Operate {
+			init (val) {
 				this.val = val
-			end
+			}
 
-			add (o) begin
+			add (o) {
 				return Operate(o.val + this.val)
-			end
-		end
+			}
+		}
 		let a = Operate(1)
 		let b = Operate(2)
 		let c = a + b
@@ -779,24 +780,24 @@ func TestStatements(t *testing.T) {
 
 		// Print object
 		checkStatements(t, `
-		class Operate begin
-			init (val) begin
+		class Operate {
+			init (val) {
 				this.val = val
-			end
+			}
 
-			add (o) begin
+			add (o) {
 				return Operate(o.val + this.val)
-			end
-		end
+			}
+		}
 		let a = Operate(1)
 		`, "a", "<instance <class Operate>>")
 
 		// Print class
 		checkStatements(t, `
-		class B begin
-		end
-		class A < B begin
-		end
+		class B {
+		}
+		class A < B {
+		}
 		`, "A", "<class A extends B>")
 	}
 }

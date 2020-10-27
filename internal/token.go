@@ -61,8 +61,6 @@ const (
 	tkWhile
 	tkNot
 	tkIn
-	tkBegin
-	tkEnd
 )
 
 type token struct {

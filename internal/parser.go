@@ -57,11 +57,11 @@ func (p *parser) class() stmt {
 		}
 	}
 
-	p.consume(tkBegin, errExpectedBegin)
+	p.consume(tkLeftCurlyBrace, errExpectedOpeningCurlyBrace)
 
 	var methods []*fnStmt
 	var staticMethods []*fnStmt
-	for !p.check(tkEnd) && !p.isAtEnd() {
+	for !p.check(tkRightCurlyBrace) && !p.isAtEnd() {
 		if p.match(tkClass) {
 			staticMethods = append(staticMethods, p.fn())
 		} else {
@@ -69,7 +69,7 @@ func (p *parser) class() stmt {
 		}
 	}
 
-	p.consume(tkEnd, errExpectedEnd)
+	p.consume(tkRightCurlyBrace, errExpectedClosingCurlyBrace)
 
 	return &classStmt{
 		name:          name,
@@ -98,7 +98,7 @@ func (p *parser) fn() *fnStmt {
 	p.consume(tkRightParen, errUnclosedParen)
 
 	body := make([]stmt, 0)
-	if p.match(tkBegin) {
+	if p.match(tkLeftCurlyBrace) {
 		body = p.block()
 	} else {
 		body = append(body, p.expressionStmt())
@@ -129,8 +129,8 @@ func (p *parser) fnExpr() *functionExpr {
 	p.consume(tkRightParen, errUnclosedParen)
 
 	body := make([]stmt, 0)
-	if p.check(tkBegin) {
-		p.consume(tkBegin, errExpectedBegin)
+	if p.check(tkLeftCurlyBrace) {
+		p.consume(tkRightCurlyBrace, errExpectedOpeningCurlyBrace)
 		body = p.block()
 	} else {
 		body = append(body, p.expressionStmt())
@@ -169,7 +169,7 @@ func (p *parser) statement() stmt {
 	if p.match(tkWhile) {
 		return p.while()
 	}
-	if p.match(tkBegin) {
+	if p.match(tkLeftCurlyBrace) {
 		return &blockStmt{stmts: p.block()}
 	}
 	return p.expressionStmt()
@@ -233,9 +233,9 @@ func (p *parser) ifStmt() stmt {
 
 	st.condition = p.expression()
 
-	p.consume(tkBegin, errExpectedBegin)
+	p.consume(tkLeftCurlyBrace, errExpectedOpeningCurlyBrace)
 
-	for !p.check(tkElif) && !p.check(tkElse) && !p.check(tkEnd) {
+	for !p.match(tkRightCurlyBrace) {
 		st.thenBranch = append(st.thenBranch, p.statement())
 	}
 
@@ -246,19 +246,20 @@ func (p *parser) ifStmt() stmt {
 		}{
 			condition: p.expression(),
 		}
-		for !p.check(tkElif) && !p.check(tkElse) && !p.check(tkEnd) {
+		p.consume(tkLeftCurlyBrace, errExpectedOpeningCurlyBrace)
+		for !p.match(tkRightCurlyBrace) {
 			elif.thenBranch = append(elif.thenBranch, p.statement())
 		}
 		st.elifs = append(st.elifs, elif)
 	}
 
 	if p.match(tkElse) {
-		for !p.check(tkEnd) {
+		p.consume(tkLeftCurlyBrace, errExpectedOpeningCurlyBrace)
+		for !p.check(tkRightCurlyBrace) {
 			st.elseBranch = append(st.elseBranch, p.statement())
 		}
+		p.consume(tkRightCurlyBrace, errExpectedClosingCurlyBrace)
 	}
-
-	p.consume(tkEnd, errExpectedEnd)
 
 	return st
 }
@@ -288,8 +289,7 @@ func (p *parser) while() stmt {
 
 func (p *parser) block() []stmt {
 	var stmts []stmt
-	p.consume(tkNewline, errExpectedNewline)
-	for !p.match(tkEnd) {
+	for !p.match(tkRightCurlyBrace) {
 		stmts = append(stmts, p.declaration())
 	}
 	return stmts
@@ -696,8 +696,6 @@ func (p *parser) synchronize() {
 	p.advance()
 	for !p.isAtEnd() {
 		switch p.peek().token {
-		case tkBegin:
-			return
 		case tkClass:
 			return
 		case tkFn:

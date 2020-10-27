@@ -29,8 +29,6 @@ var keywords = map[string]tokenType{
 	"while":  tkWhile,
 	"not":    tkNot,
 	"in":     tkIn,
-	"begin":  tkBegin,
-	"end":    tkEnd,
 }
 
 func (l *lexer) scan() {

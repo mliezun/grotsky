@@ -28,10 +28,10 @@ var dictBinaryOperations = map[operator]func(x, y map[interface{}]interface{}) i
 		return grotskyDict(out)
 	},
 	opEq: func(x, y map[interface{}]interface{}) interface{} {
-		return reflect.ValueOf(x).Pointer() == reflect.ValueOf(y).Pointer()
+		return grotskyBool(reflect.ValueOf(x).Pointer() == reflect.ValueOf(y).Pointer())
 	},
 	opNeq: func(x, y map[interface{}]interface{}) interface{} {
-		return reflect.ValueOf(x).Pointer() != reflect.ValueOf(y).Pointer()
+		return grotskyBool(reflect.ValueOf(x).Pointer() != reflect.ValueOf(y).Pointer())
 	},
 }
 

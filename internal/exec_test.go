@@ -800,4 +800,20 @@ func TestStatements(t *testing.T) {
 		}
 		`, "A", "<class A extends B>")
 	}
+
+	// Types
+	{
+		checkStatements(t, `
+		io.println(type(""))
+		io.println(type(1))
+		io.println(type([]))
+		io.println(type({}))
+		class A {
+			get() {}
+		}
+		io.println(type(A))
+		io.println(type(A()))
+		io.println(type(A().get))
+		`, "type(true)", "string\nnumber\nlist\ndict\nclass\nobject\nfunction\nbool")
+	}
 }

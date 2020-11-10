@@ -21,22 +21,22 @@ var stringBinaryOperations = map[operator]func(x, y string) interface{}{
 		return grotskyString(x + y)
 	},
 	opEq: func(x, y string) interface{} {
-		return x == y
+		return grotskyBool(x == y)
 	},
 	opNeq: func(x, y string) interface{} {
-		return x != y
+		return grotskyBool(x != y)
 	},
 	opGt: func(x, y string) interface{} {
-		return x > y
+		return grotskyBool(x > y)
 	},
 	opGte: func(x, y string) interface{} {
-		return x >= y
+		return grotskyBool(x >= y)
 	},
 	opLt: func(x, y string) interface{} {
-		return x < y
+		return grotskyBool(x < y)
 	},
 	opLte: func(x, y string) interface{} {
-		return x <= y
+		return grotskyBool(x <= y)
 	},
 }
 

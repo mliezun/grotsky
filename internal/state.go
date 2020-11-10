@@ -129,3 +129,4 @@ var errExpectedDot = errors.New("Keyword 'super' is only valid for property acce
 var errExpectedDict = errors.New("A dictionary was expected at this position")
 var errExpectedList = errors.New("A list was expected at this position")
 var errExpectedInit = errors.New("Empty expression or let was expected at this position")
+var errUndefinedType = errors.New("Undefined type")

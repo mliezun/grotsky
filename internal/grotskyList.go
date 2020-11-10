@@ -39,10 +39,10 @@ var listBinaryOperations = map[operator]func(x, y []interface{}) interface{}{
 		return grotskyList(out)
 	},
 	opEq: func(x, y []interface{}) interface{} {
-		return reflect.ValueOf(x).Pointer() == reflect.ValueOf(y).Pointer()
+		return grotskyBool(reflect.ValueOf(x).Pointer() == reflect.ValueOf(y).Pointer())
 	},
 	opNeq: func(x, y []interface{}) interface{} {
-		return reflect.ValueOf(x).Pointer() != reflect.ValueOf(y).Pointer()
+		return grotskyBool(reflect.ValueOf(x).Pointer() != reflect.ValueOf(y).Pointer())
 	},
 }
 

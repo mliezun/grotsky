@@ -59,6 +59,37 @@ func (n *nativeObj) String() string {
 func defineGlobals(e *env, p IPrinter) {
 	defineIo(e, p)
 	defineHTTP(e)
+	defineType(e)
+}
+
+func defineType(e *env) {
+	var typeFn nativeFn
+	typeFn.callFn = func(arguments []interface{}) (interface{}, error) {
+		if len(arguments) != 1 {
+			return nil, errInvalidNumberArguments
+		}
+		switch arguments[0].(type) {
+		case grotskyBool:
+			return grotskyString("bool"), nil
+		case *grotskyClass:
+			return grotskyString("class"), nil
+		case grotskyDict:
+			return grotskyString("dict"), nil
+		case *grotskyFunction:
+			return grotskyString("function"), nil
+		case grotskyList:
+			return grotskyString("list"), nil
+		case grotskyNumber:
+			return grotskyString("number"), nil
+		case *grotskyObject:
+			return grotskyString("object"), nil
+		case grotskyString:
+			return grotskyString("string"), nil
+		}
+		return nil, errUndefinedType
+	}
+
+	e.define("type", &typeFn)
 }
 
 func defineIo(e *env, p IPrinter) {
@@ -94,15 +125,15 @@ func defineHTTP(e *env) {
 					"write": {
 						callFn: func(arguments []interface{}) (interface{}, error) {
 							if len(arguments) != 2 {
-								// TODO: handle error
+								return nil, errInvalidNumberArguments
 							}
 							code, ok := arguments[0].(grotskyNumber)
 							if !ok {
-								// TODO: handle error
+								return nil, errExpectedNumber
 							}
 							w.WriteHeader(int(code))
 							if _, err := w.Write([]byte(arguments[1].(grotskyString))); err != nil {
-								// TODO: handle error
+								return nil, err
 							}
 							return nil, nil
 						},
@@ -120,11 +151,11 @@ func defineHTTP(e *env) {
 					"body": {
 						callFn: func(arguments []interface{}) (interface{}, error) {
 							if len(arguments) != 0 {
-								// TODO: handle error
+								return nil, errInvalidNumberArguments
 							}
 							rqBody, err := ioutil.ReadAll(req.Body)
 							if err != nil {
-								// TODO: handle error
+								return nil, err
 							}
 							return grotskyString(rqBody), nil
 						},
@@ -141,7 +172,8 @@ func defineHTTP(e *env) {
 			defer gil.Unlock()
 			_, err := handle.call(arguments)
 			if err != nil {
-				// TODO: handle error
+				w.WriteHeader(http.StatusInternalServerError)
+				state.logger.Println(err)
 			}
 		})
 		return nil, nil

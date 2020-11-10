@@ -29,21 +29,24 @@ func (p *parser) parseStmt() stmt {
 			p.synchronize()
 		}
 	}()
-	return p.declaration()
+	return p.declaration(true)
 }
 
-func (p *parser) declaration() stmt {
-	defer p.consume(tkNewline, errExpectedNewline)
+func (p *parser) declaration(expectNewLine bool) stmt {
+	var s stmt
 	if p.match(tkClass) {
-		return p.class()
+		s = p.class()
+	} else if p.match(tkFn) {
+		s = p.fn()
+	} else if p.match(tkLet) {
+		s = p.let()
+	} else {
+		s = p.statement()
 	}
-	if p.match(tkFn) {
-		return p.fn()
+	if expectNewLine {
+		p.consume(tkNewline, errExpectedNewline)
 	}
-	if p.match(tkLet) {
-		return p.let()
-	}
-	return p.statement()
+	return s
 }
 
 func (p *parser) class() stmt {
@@ -198,7 +201,7 @@ func (p *parser) forLoop() stmt {
 
 	inc := p.expression()
 
-	body := p.statement()
+	body := p.declaration(false)
 
 	return &classicForStmt{
 		keyword:     keyword,
@@ -217,7 +220,7 @@ func (p *parser) enhancedFor(keyword *token) stmt {
 	}
 	p.consume(tkIn, errExpectedIn)
 	collection := p.expression()
-	body := p.statement()
+	body := p.declaration(false)
 	return &enhancedForStmt{
 		keyword:     keyword,
 		identifiers: ids,
@@ -236,7 +239,7 @@ func (p *parser) ifStmt() stmt {
 	p.consume(tkLeftCurlyBrace, errExpectedOpeningCurlyBrace)
 
 	for !p.match(tkRightCurlyBrace) {
-		st.thenBranch = append(st.thenBranch, p.statement())
+		st.thenBranch = append(st.thenBranch, p.declaration(false))
 	}
 
 	for p.match(tkElif) {
@@ -248,7 +251,7 @@ func (p *parser) ifStmt() stmt {
 		}
 		p.consume(tkLeftCurlyBrace, errExpectedOpeningCurlyBrace)
 		for !p.match(tkRightCurlyBrace) {
-			elif.thenBranch = append(elif.thenBranch, p.statement())
+			elif.thenBranch = append(elif.thenBranch, p.declaration(false))
 		}
 		st.elifs = append(st.elifs, elif)
 	}
@@ -256,7 +259,7 @@ func (p *parser) ifStmt() stmt {
 	if p.match(tkElse) {
 		p.consume(tkLeftCurlyBrace, errExpectedOpeningCurlyBrace)
 		for !p.check(tkRightCurlyBrace) {
-			st.elseBranch = append(st.elseBranch, p.statement())
+			st.elseBranch = append(st.elseBranch, p.declaration(false))
 		}
 		p.consume(tkRightCurlyBrace, errExpectedClosingCurlyBrace)
 	}
@@ -279,7 +282,7 @@ func (p *parser) ret() stmt {
 func (p *parser) while() stmt {
 	keyword := p.previous()
 	cond := p.expression()
-	body := p.statement()
+	body := p.declaration(false)
 	return &whileStmt{
 		keyword:   keyword,
 		condition: cond,
@@ -290,7 +293,7 @@ func (p *parser) while() stmt {
 func (p *parser) block() []stmt {
 	var stmts []stmt
 	for !p.match(tkRightCurlyBrace) {
-		stmts = append(stmts, p.declaration())
+		stmts = append(stmts, p.declaration(false))
 	}
 	return stmts
 }

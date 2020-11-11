@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"io"
+	"strings"
 	"testing"
 )
 
@@ -112,6 +113,26 @@ func TestLexer(t *testing.T) {
 	checkLexer(t, "@", 1, errIllegalChar.Error())
 
 	checkLexer(t, `"`, 1, errUnclosedString.Error())
+}
+
+func TestParser(t *testing.T) {
+	params := ""
+	current := 'a'
+	wraps := 1
+	for i := 0; i <= maxFunctionParams+1; i++ {
+		if i != 0 {
+			params += ", "
+		}
+		params += strings.Repeat(string(current), wraps)
+		current++
+		if current == 'z'+1 {
+			current = 'a'
+			wraps++
+		}
+	}
+	checkLexer(t, "fn foo("+params+"){}", 1, errMaxParameters.Error())
+	checkLexer(t, "foo("+params+")", 1, errMaxArguments.Error())
+	checkLexer(t, "let foo = fn ("+params+")", 1, errMaxParameters.Error())
 }
 
 func TestExpressions(t *testing.T) {
@@ -632,6 +653,20 @@ func TestStatements(t *testing.T) {
 		let i = nilCheck()
 		`, "i", "<nil>")
 
+		// simplified function
+		checkStatements(t, `
+		fn one() 1
+		let i = one()
+		`, "i", "1")
+
+		// assign lambda function
+		checkStatements(t, `
+		let one = fn () {
+			return 1
+		}
+		let i = one()
+		`, "i", "1")
+
 		checkStatements(t, `
 		fn check() {
 			return 1
@@ -799,6 +834,21 @@ func TestStatements(t *testing.T) {
 		class A < B {
 		}
 		`, "A", "<class A extends B>")
+
+		// check super constructor
+		checkStatements(t, `
+		class B {
+			init() {
+				this.msg = "ok"
+			}
+		}
+		class A < B {
+			init() {
+				super()
+			}
+		}
+		let a = A()
+		`, "a.msg", "ok")
 	}
 
 	// Types

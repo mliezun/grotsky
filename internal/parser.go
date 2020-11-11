@@ -132,8 +132,7 @@ func (p *parser) fnExpr() *functionExpr {
 	p.consume(tkRightParen, errUnclosedParen)
 
 	body := make([]stmt, 0)
-	if p.check(tkLeftCurlyBrace) {
-		p.consume(tkRightCurlyBrace, errExpectedOpeningCurlyBrace)
+	if p.match(tkLeftCurlyBrace) {
 		body = p.block()
 	} else {
 		body = append(body, p.expressionStmt())

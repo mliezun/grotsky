@@ -663,9 +663,6 @@ func (p *parser) matchSameLine(tokens ...tokenType) bool {
 }
 
 func (p *parser) check(token tokenType) bool {
-	if p.isAtEnd() {
-		return false
-	}
 	oldCurrent := p.current
 	for token != tkNewline && !p.isAtEnd() && p.peek().token == tkNewline {
 		p.current++
@@ -684,7 +681,7 @@ func (p *parser) peek() token {
 func (p *parser) previous() *token {
 	for i := 1; i <= p.current; i-- {
 		if state.tokens[p.current-i].token != tkNewline {
-			return &state.tokens[p.current-i]
+			break
 		}
 	}
 	return &state.tokens[p.current-1]

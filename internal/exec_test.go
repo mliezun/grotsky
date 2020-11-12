@@ -93,29 +93,34 @@ func checkStatements(t *testing.T, code string, resultVar string, result string)
 	}
 }
 
-func checkLexer(t *testing.T, source string, line int, result string) {
+func checkLexer(t *testing.T, source string, line int, result ...string) {
 	tp := &testPrinter{}
 	RunSourceWithPrinter(source, tp)
-	compare := fmt.Sprintf("Error on line %d\n\t", line) + result + "\n"
-	if tp.Equals(compare) {
+	compare := ""
+	for i, r := range result {
+		if i != 0 {
+			compare += "\n"
+		}
+		compare += fmt.Sprintf("Error on line %d\n\t%s", line, r)
+	}
+	if !tp.Equals(compare) {
 		t.Errorf(
-			"Error on: \n%s\n\tResult should be equal to %s instead of %s",
+			"\nExpected:\n%s\nEncountered:\n%s\n",
 			compare,
-			result,
 			tp.printed,
 		)
 	}
 }
 
 func TestLexer(t *testing.T) {
-	checkLexer(t, "1 !! 2", 1, errWrongBang.Error())
+	checkLexer(t, "1 ! 2", 1, errWrongBang.Error())
 
 	checkLexer(t, "@", 1, errIllegalChar.Error())
 
 	checkLexer(t, `"`, 1, errUnclosedString.Error())
 }
 
-func TestParser(t *testing.T) {
+func generateMaxParams() string {
 	params := ""
 	current := 'a'
 	wraps := 1
@@ -130,9 +135,80 @@ func TestParser(t *testing.T) {
 			wraps++
 		}
 	}
-	checkLexer(t, "fn foo("+params+"){}", 1, errMaxParameters.Error())
-	checkLexer(t, "foo("+params+")", 1, errMaxArguments.Error())
-	checkLexer(t, "let foo = fn ("+params+")", 1, errMaxParameters.Error())
+	return params
+}
+
+func TestParser(t *testing.T) {
+	// Function errors
+	{
+		params := generateMaxParams()
+		checkLexer(t, "fn foo("+params+"){}", 1, errMaxParameters.Error())
+		checkLexer(t, "foo("+params+")", 1, errMaxArguments.Error())
+		checkLexer(t, "let foo = fn ("+params+")", 1, errMaxParameters.Error())
+	}
+
+	// For-loop error
+	{
+		checkLexer(t, `for 1; i < 2; i = i + 1 {}`, 1, errExpectedInit.Error(), errUndefinedExpr.Error())
+	}
+
+	// Assignment error
+	{
+		checkLexer(t, `"asd" = 3`, 1, errUndefinedStmt.Error())
+	}
+
+	// Consume error
+	{
+		checkLexer(t, "class A{} let i = 2", 1, errExpectedNewline.Error())
+	}
+
+	// Synchronization
+	{
+		checkLexer(t, `
+		"a" = 2
+		class A {
+
+		}
+		`, 2, errUndefinedStmt.Error())
+
+		checkLexer(t, `
+		"a" = 2
+		for let i = 0; i < 0; i = i + 1 {
+
+		}
+		`, 2, errUndefinedStmt.Error())
+
+		checkLexer(t, `
+		"a" = 2
+		fn A () {
+
+		}
+		`, 2, errUndefinedStmt.Error())
+
+		checkLexer(t, `
+		"a" = 2
+		if 2 < 1 {
+
+		}
+		`, 2, errUndefinedStmt.Error())
+
+		checkLexer(t, `
+		"a" = 2
+		let a = 1
+		`, 2, errUndefinedStmt.Error())
+
+		checkLexer(t, `
+		"a" = 2
+		while 2 < 1 {
+
+		}
+		`, 2, errUndefinedStmt.Error())
+
+		checkLexer(t, `
+		"a" = 2
+		return 2
+		`, 2, errUndefinedStmt.Error())
+	}
 }
 
 func TestExpressions(t *testing.T) {

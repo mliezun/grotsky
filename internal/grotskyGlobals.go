@@ -86,7 +86,8 @@ func defineType(e *env) {
 		case grotskyString:
 			return grotskyString("string"), nil
 		}
-		return nil, errUndefinedType
+		// nil type
+		return grotskyString("nil"), nil
 	}
 
 	e.define("type", &typeFn)

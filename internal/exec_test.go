@@ -950,6 +950,7 @@ func TestStatements(t *testing.T) {
 		io.println(type(A))
 		io.println(type(A()))
 		io.println(type(A().get))
-		`, "type(true)", "string\nnumber\nlist\ndict\nclass\nobject\nfunction\nbool")
+		io.println(type(nil))
+		`, "type(true)", "string\nnumber\nlist\ndict\nclass\nobject\nfunction\nnil\nbool")
 	}
 }

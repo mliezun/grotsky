@@ -25,6 +25,7 @@ type returnValue struct {
 // state stores the state of a interpreter
 type interpreterState struct {
 	errors       []parseError
+	absPath      string
 	source       string
 	tokens       []token
 	stmts        []stmt

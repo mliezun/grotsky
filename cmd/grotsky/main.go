@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 )
 
 type stdPrinter struct{}
@@ -31,7 +32,12 @@ func main() {
 		return
 	}
 
-	file, err := os.Open(argsWithoutProg[0])
+	absPath, err := filepath.Abs(argsWithoutProg[0])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	file, err := os.Open(absPath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -44,5 +50,5 @@ func main() {
 
 	source := string(b)
 
-	internal.RunSourceWithPrinter(source, stdPrinter{})
+	internal.RunSourceWithPrinter(absPath, source, stdPrinter{})
 }

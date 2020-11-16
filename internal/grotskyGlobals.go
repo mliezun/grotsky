@@ -1,8 +1,11 @@
 package internal
 
 import (
+	"errors"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -60,6 +63,7 @@ func defineGlobals(e *env, p IPrinter) {
 	defineIo(e, p)
 	defineHTTP(e)
 	defineType(e)
+	defineImport(e)
 }
 
 func defineType(e *env) {
@@ -91,6 +95,46 @@ func defineType(e *env) {
 	}
 
 	e.define("type", &typeFn)
+}
+
+func defineImport(e *env) {
+	var importFn nativeFn
+	importFn.callFn = func(arguments []interface{}) (interface{}, error) {
+		if len(arguments) != 1 {
+			return nil, errInvalidNumberArguments
+		}
+		pathGr, ok := arguments[0].(grotskyString)
+		if !ok {
+			return nil, errExpectedString
+		}
+		modulePath := string(pathGr)
+
+		if !filepath.IsAbs(modulePath) {
+			basePath := filepath.Dir(state.absPath)
+			modulePath = filepath.Join(basePath, modulePath)
+		}
+
+		file, err := os.Open(modulePath)
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+
+		b, err := ioutil.ReadAll(file)
+		if err != nil {
+			return nil, err
+		}
+
+		moduleEnv, ok := importModule(string(b))
+		if !ok || moduleEnv == nil {
+			return nil, errors.New("import module error")
+		}
+
+		// moduleEnv has no enclosing
+		return &nativeObj{properties: moduleEnv.values}, nil
+	}
+
+	e.define("import", &importFn)
 }
 
 func defineIo(e *env, p IPrinter) {

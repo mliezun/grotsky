@@ -45,7 +45,7 @@ func (t *testPrinter) Reset() {
 func checkExpression(t *testing.T, exp string, result ...string) {
 	source := "io.println(" + exp + ")"
 	tp := &testPrinter{}
-	RunSourceWithPrinter(source, tp)
+	RunSourceWithPrinter("", source, tp)
 	any := false
 	for _, r := range result {
 		if tp.Equals(r) {
@@ -67,7 +67,7 @@ func checkErrorMsg(t *testing.T, source string, errorMsg string, line int) {
 	result := fmt.Sprintf("Runtime Error on line %d\n\t%s\n", line, errorMsg)
 
 	tp := &testPrinter{}
-	RunSourceWithPrinter(source, tp)
+	RunSourceWithPrinter("", source, tp)
 	if !tp.Equals(result) {
 		t.Errorf(
 			"\nSource:\n----\n%s\n----\nExpected:\n----\n%s----\nFound:\n----\n%s----",
@@ -81,7 +81,7 @@ func checkErrorMsg(t *testing.T, source string, errorMsg string, line int) {
 func checkStatements(t *testing.T, code string, resultVar string, result string) {
 	source := code + "\nio.println(" + resultVar + ")"
 	tp := &testPrinter{}
-	RunSourceWithPrinter(source, tp)
+	RunSourceWithPrinter("", source, tp)
 	if !tp.Equals(result) {
 		t.Errorf(
 			"Error on: \n%s\n\t%s should be equal to %s instead of %s",
@@ -95,7 +95,7 @@ func checkStatements(t *testing.T, code string, resultVar string, result string)
 
 func checkLexer(t *testing.T, source string, line int, result ...string) {
 	tp := &testPrinter{}
-	RunSourceWithPrinter(source, tp)
+	RunSourceWithPrinter("", source, tp)
 	compare := ""
 	for i, r := range result {
 		if i != 0 {

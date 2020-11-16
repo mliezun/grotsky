@@ -11,8 +11,8 @@ func (e execute) interpret() (res bool) {
 	defer func() {
 		if state.runtimeError != nil {
 			recover()
+			res = false
 		}
-		res = false
 	}()
 	for _, s := range state.stmts {
 		s.accept(e)

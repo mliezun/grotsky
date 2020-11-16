@@ -614,10 +614,20 @@ func TestGlobals(t *testing.T) {
 	{
 		checkExpression(t, `io`, "<instance native>")
 		checkExpression(t, `io.println`, "<fn native>")
+	}
 
+	// HTTP Globals
+	{
 		checkExpression(t, `http`, "<instance native>")
 		checkExpression(t, `http.handler`, "<fn native>")
 		checkExpression(t, `http.listen`, "<fn native>")
+
+		checkExpression(t, `http.handler("/", fn () {})`, "<nil>")
+	}
+
+	// Get-Set globals
+	{
+		checkErrorMsg(t, `http.miguel = 2`, errReadOnly.Error()+": miguel", 1)
 	}
 }
 

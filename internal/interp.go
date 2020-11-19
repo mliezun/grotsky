@@ -2,6 +2,7 @@ package internal
 
 import (
 	"io"
+	"sync"
 )
 
 // IPrinter printer interface
@@ -13,28 +14,28 @@ type IPrinter interface {
 
 // RunSourceWithPrinter runs source code on a fresh interpreter instance
 func RunSourceWithPrinter(absPath, source string, p IPrinter) bool {
-	previousState := state
-	defer func() {
-		state = previousState
-	}()
-
-	state = interpreterState{
+	state := interpreterState{
 		absPath: absPath,
 		source:  source,
 		errors:  make([]parseError, 0),
 		logger:  p,
 	}
 	lexer := &lexer{
-		line: 1,
+		line:  1,
+		state: &state,
 	}
-	parser := &parser{}
+	parser := &parser{
+		state: &state,
+	}
 
 	exec = execute{
-		env: newEnv(nil),
+		env:   newEnv(nil),
+		mx:    &sync.Mutex{},
+		state: &state,
 	}
 	exec.globals = exec.env
 
-	defineGlobals(exec.globals, p)
+	defineGlobals(&state, exec.globals, p)
 
 	lexer.scan()
 
@@ -47,35 +48,38 @@ func RunSourceWithPrinter(absPath, source string, p IPrinter) bool {
 	if state.PrintErrors() {
 		return false
 	}
+
+	exec.mx.Lock()
 
 	return exec.interpret()
 }
 
-func importModule(moduleSource string) (*env, bool) {
-	previousState := state
-	defer func() {
-		state = previousState
-	}()
-
+func importModule(previousState *interpreterState, absPath, moduleSource string) (*env, bool) {
 	p := previousState.logger
 
-	state = interpreterState{
-		source: moduleSource,
-		errors: make([]parseError, 0),
-		logger: p,
+	state := interpreterState{
+		absPath: absPath,
+		source:  moduleSource,
+		errors:  make([]parseError, 0),
+		logger:  p,
 	}
 	lexer := &lexer{
-		line: 1,
+		line:  1,
+		state: &state,
 	}
-	parser := &parser{}
+	parser := &parser{
+		state: &state,
+	}
 
 	moduleEnv := newEnv(nil)
 	exec = execute{
-		env: moduleEnv,
+		env:   moduleEnv,
+		mx:    &sync.Mutex{},
+		state: &state,
 	}
 	exec.globals = exec.env
 
-	defineGlobals(exec.globals, p)
+	defineGlobals(&state, exec.globals, p)
 
 	lexer.scan()
 
@@ -88,6 +92,8 @@ func importModule(moduleSource string) (*env, bool) {
 	if state.PrintErrors() {
 		return nil, false
 	}
+
+	exec.mx.Lock()
 
 	if !exec.interpret() {
 		return nil, false

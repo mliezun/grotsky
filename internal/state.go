@@ -33,18 +33,16 @@ type interpreterState struct {
 	logger       IPrinter
 }
 
-var state = interpreterState{}
-
-func (interpreterState) setError(err error, line, pos int) {
-	state.errors = append(state.errors, parseError{
+func (s *interpreterState) setError(err error, line, pos int) {
+	s.errors = append(s.errors, parseError{
 		err:  err,
 		line: line,
 		pos:  pos,
 	})
 }
 
-func (interpreterState) fatalError(err error, line, pos int) {
-	state.errors = append(state.errors, parseError{
+func (s *interpreterState) fatalError(err error, line, pos int) {
+	s.errors = append(s.errors, parseError{
 		err:  err,
 		line: line,
 		pos:  pos,
@@ -52,28 +50,28 @@ func (interpreterState) fatalError(err error, line, pos int) {
 	panic(err)
 }
 
-func (interpreterState) runtimeErr(err error, token *token, msgs ...string) {
-	state.runtimeError = &runtimeError{
+func (s *interpreterState) runtimeErr(err error, token *token, msgs ...string) {
+	s.runtimeError = &runtimeError{
 		err:   err,
 		token: token,
 		msgs:  msgs,
 	}
-	state.logger.Fprintf(
+	s.logger.Fprintf(
 		os.Stderr,
 		"Runtime Error on line %d\n\t%s: %s\n",
-		state.runtimeError.token.line,
-		state.runtimeError.err.Error(),
-		state.runtimeError.token.lexeme,
+		s.runtimeError.token.line,
+		s.runtimeError.err.Error(),
+		s.runtimeError.token.lexeme,
 	)
 	panic(err)
 }
 
 // PrintErrors prints all errors, returns true if any error printed
-func (interpreterState) PrintErrors() bool {
-	for _, e := range state.errors {
-		state.logger.Fprintf(os.Stderr, "Error on line %d\n\t%s", e.line, e.err.Error())
+func (s *interpreterState) PrintErrors() bool {
+	for _, e := range s.errors {
+		s.logger.Fprintf(os.Stderr, "Error on line %d\n\t%s", e.line, e.err.Error())
 	}
-	return len(state.errors) != 0
+	return len(s.errors) != 0
 }
 
 // Lexer errors

@@ -7,6 +7,8 @@ import (
 // parser stores parser data
 type parser struct {
 	current int
+
+	state *interpreterState
 }
 
 const maxFunctionParams = 255
@@ -18,7 +20,7 @@ func (p *parser) parse() {
 		// the parser founds nil statements, we should avoid them to not
 		// break the execution stage
 		if st != nil {
-			state.stmts = append(state.stmts, st)
+			p.state.stmts = append(p.state.stmts, st)
 		}
 	}
 }
@@ -90,7 +92,7 @@ func (p *parser) fn() *fnStmt {
 	if !p.check(tkRightParen) {
 		for {
 			if len(params) > maxFunctionParams {
-				state.fatalError(errMaxParameters, p.peek().line, 0)
+				p.state.fatalError(errMaxParameters, p.peek().line, 0)
 			}
 			params = append(params, p.consume(tkIdentifier, errExpectedFunctionParam))
 			if !p.match(tkComma) {
@@ -121,7 +123,7 @@ func (p *parser) fnExpr() *functionExpr {
 	if !p.check(tkRightParen) {
 		for {
 			if len(params) > maxFunctionParams {
-				state.fatalError(errMaxParameters, p.peek().line, 0)
+				p.state.fatalError(errMaxParameters, p.peek().line, 0)
 			}
 			params = append(params, p.consume(tkIdentifier, errExpectedFunctionParam))
 			if !p.match(tkComma) {
@@ -192,7 +194,7 @@ func (p *parser) forLoop() stmt {
 		init = p.let()
 		p.consume(tkSemicolon, errExpectedSemicolon)
 	} else {
-		state.setError(errExpectedInit, p.peek().line, 0)
+		p.state.setError(errExpectedInit, p.peek().line, 0)
 	}
 
 	cond := p.expression()
@@ -362,7 +364,7 @@ func (p *parser) assignment() expr {
 			}
 		}
 
-		state.fatalError(errUndefinedStmt, equal.line, 0)
+		p.state.fatalError(errUndefinedStmt, equal.line, 0)
 	}
 	return expr
 }
@@ -557,7 +559,7 @@ func (p *parser) arguments(tk tokenType) []expr {
 	if !p.check(tk) {
 		for {
 			if tk == tkRightParen && len(arguments) >= maxFunctionParams {
-				state.fatalError(errMaxArguments, p.peek().line, 0)
+				p.state.fatalError(errMaxArguments, p.peek().line, 0)
 			}
 			arguments = append(arguments, p.expression())
 			if !p.match(tkComma) {
@@ -605,7 +607,7 @@ func (p *parser) primary() expr {
 		return p.superExpr()
 	}
 
-	state.fatalError(errUndefinedExpr, p.peek().line, 0)
+	p.state.fatalError(errUndefinedExpr, p.peek().line, 0)
 	return &literalExpr{}
 }
 
@@ -631,7 +633,7 @@ func (p *parser) consume(tk tokenType, err error) *token {
 		return p.advance()
 	}
 
-	state.setError(err, p.peek().line, 0)
+	p.state.setError(err, p.peek().line, 0)
 	return &token{}
 }
 
@@ -675,16 +677,16 @@ func (p *parser) check(token tokenType) bool {
 }
 
 func (p *parser) peek() token {
-	return state.tokens[p.current]
+	return p.state.tokens[p.current]
 }
 
 func (p *parser) previous() *token {
 	for i := 1; i <= p.current; i-- {
-		if state.tokens[p.current-i].token != tkNewline {
+		if p.state.tokens[p.current-i].token != tkNewline {
 			break
 		}
 	}
-	return &state.tokens[p.current-1]
+	return &p.state.tokens[p.current-1]
 }
 
 func (p *parser) isAtEnd() bool {

@@ -35,7 +35,7 @@ var dictBinaryOperations = map[operator]func(x, y map[interface{}]interface{}) i
 	},
 }
 
-func (d grotskyDict) get(tk *token) interface{} {
+func (d grotskyDict) get(state *interpreterState, tk *token) interface{} {
 	if tk.lexeme == "length" {
 		return grotskyNumber(len(d))
 	}
@@ -43,7 +43,7 @@ func (d grotskyDict) get(tk *token) interface{} {
 	return nil
 }
 
-func (d grotskyDict) set(name *token, value interface{}) {
+func (d grotskyDict) set(state *interpreterState, name *token, value interface{}) {
 	state.runtimeErr(errReadOnly, name)
 }
 

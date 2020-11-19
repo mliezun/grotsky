@@ -8,6 +8,8 @@ type lexer struct {
 	start   int
 	current int
 	line    int
+
+	state *interpreterState
 }
 
 var keywords = map[string]tokenType{
@@ -36,17 +38,17 @@ func (l *lexer) scan() {
 		l.start = l.current
 		l.scanToken()
 	}
-	countTokens := len(state.tokens)
-	if countTokens > 0 && state.tokens[countTokens-1].token != tkNewline {
+	countTokens := len(l.state.tokens)
+	if countTokens > 0 && l.state.tokens[countTokens-1].token != tkNewline {
 		// Add newline if not present to terminate last statement
-		state.tokens = append(state.tokens, token{
+		l.state.tokens = append(l.state.tokens, token{
 			token:   tkNewline,
 			lexeme:  "",
 			literal: nil,
 			line:    l.line,
 		})
 	}
-	state.tokens = append(state.tokens, token{
+	l.state.tokens = append(l.state.tokens, token{
 		token:   tkEOF,
 		lexeme:  "",
 		literal: nil,
@@ -96,7 +98,7 @@ func (l *lexer) scanToken() {
 			l.advance()
 			l.emit(tkBangEqual, nil)
 		} else {
-			state.setError(errWrongBang, l.line, l.start)
+			l.state.setError(errWrongBang, l.line, l.start)
 		}
 	case '=':
 		if l.match('=') {
@@ -138,7 +140,7 @@ func (l *lexer) scanToken() {
 		} else if l.isAlpha(c) {
 			l.identifier()
 		} else {
-			state.setError(errIllegalChar, l.line, l.start)
+			l.state.setError(errIllegalChar, l.line, l.start)
 		}
 	}
 }
@@ -152,11 +154,11 @@ func (l *lexer) string() {
 	}
 
 	if l.isAtEnd() {
-		state.setError(errUnclosedString, l.line, l.start)
+		l.state.setError(errUnclosedString, l.line, l.start)
 		return
 	}
 
-	literal := grotskyString(state.source[l.start+1 : l.current])
+	literal := grotskyString(l.state.source[l.start+1 : l.current])
 
 	// Consume ending "
 	l.advance()
@@ -176,7 +178,7 @@ func (l *lexer) number() {
 		}
 	}
 
-	literal, _ := strconv.ParseFloat(state.source[l.start:l.current], 64)
+	literal, _ := strconv.ParseFloat(l.state.source[l.start:l.current], 64)
 
 	l.emit(tkNumber, grotskyNumber(literal))
 }
@@ -186,7 +188,7 @@ func (l *lexer) identifier() {
 		l.advance()
 	}
 
-	identifier := state.source[l.start:l.current]
+	identifier := l.state.source[l.start:l.current]
 
 	tokenType, ok := keywords[identifier]
 	if !ok {
@@ -197,7 +199,7 @@ func (l *lexer) identifier() {
 }
 
 func (l *lexer) advance() rune {
-	current := state.source[l.current]
+	current := l.state.source[l.current]
 	l.current++
 	return rune(current)
 }
@@ -206,25 +208,25 @@ func (l *lexer) match(c rune) bool {
 	if l.isAtEnd() {
 		return false
 	}
-	current := state.source[l.current]
+	current := l.state.source[l.current]
 	return rune(current) == c
 }
 
 func (l *lexer) emit(tk tokenType, literal interface{}) {
-	state.tokens = append(state.tokens, token{
+	l.state.tokens = append(l.state.tokens, token{
 		token:   tk,
-		lexeme:  state.source[l.start:l.current],
+		lexeme:  l.state.source[l.start:l.current],
 		literal: literal,
 		line:    l.line,
 	})
 }
 
 func (l *lexer) isAtEnd() bool {
-	return l.current >= len(state.source)
+	return l.current >= len(l.state.source)
 }
 
 func (l *lexer) next() rune {
-	return rune(state.source[l.current])
+	return rune(l.state.source[l.current])
 }
 
 func (l *lexer) isDigit(c rune) bool {

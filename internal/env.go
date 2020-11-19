@@ -12,12 +12,12 @@ func newEnv(enclosing *env) *env {
 	}
 }
 
-func (e *env) get(name *token) interface{} {
+func (e *env) get(state *interpreterState, name *token) interface{} {
 	if value, ok := e.values[name.lexeme]; ok {
 		return value
 	}
 	if e.enclosing != nil {
-		return e.enclosing.get(name)
+		return e.enclosing.get(state, name)
 	}
 	state.runtimeErr(errUndefinedVar, name)
 	return nil
@@ -27,13 +27,13 @@ func (e *env) define(name string, value interface{}) {
 	e.values[name] = value
 }
 
-func (e *env) assign(name *token, value interface{}) {
+func (e *env) assign(state *interpreterState, name *token, value interface{}) {
 	if _, ok := e.values[name.lexeme]; ok {
 		e.values[name.lexeme] = value
 		return
 	}
 	if e.enclosing != nil {
-		e.enclosing.assign(name, value)
+		e.enclosing.assign(state, name, value)
 		return
 	}
 	state.runtimeErr(errUndefinedVar, name)

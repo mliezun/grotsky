@@ -6,10 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sync"
 )
-
-var gil sync.Mutex
 
 type nativeFn struct {
 	callFn func(arguments []interface{}) (interface{}, error)
@@ -30,7 +27,7 @@ type nativeObj struct {
 	getOperatorFn func(op operator) (operatorApply, error)
 }
 
-func (n *nativeObj) get(tk *token) interface{} {
+func (n *nativeObj) get(state *interpreterState, tk *token) interface{} {
 	if prop, ok := n.properties[tk.lexeme]; ok {
 		return prop
 	}
@@ -41,7 +38,7 @@ func (n *nativeObj) get(tk *token) interface{} {
 	return nil
 }
 
-func (n *nativeObj) set(name *token, value interface{}) {
+func (n *nativeObj) set(state *interpreterState, name *token, value interface{}) {
 	if n.setFn == nil {
 		state.runtimeErr(errReadOnly, name)
 	}
@@ -59,11 +56,11 @@ func (n *nativeObj) String() string {
 	return "<instance native>"
 }
 
-func defineGlobals(e *env, p IPrinter) {
+func defineGlobals(state *interpreterState, e *env, p IPrinter) {
 	defineIo(e, p)
-	defineHTTP(e)
+	defineHTTP(state, e)
 	defineType(e)
-	defineImport(e)
+	defineImport(state, e)
 }
 
 func defineType(e *env) {
@@ -97,7 +94,7 @@ func defineType(e *env) {
 	e.define("type", &typeFn)
 }
 
-func defineImport(e *env) {
+func defineImport(state *interpreterState, e *env) {
 	var importFn nativeFn
 	importFn.callFn = func(arguments []interface{}) (interface{}, error) {
 		if len(arguments) != 1 {
@@ -114,6 +111,9 @@ func defineImport(e *env) {
 			modulePath = filepath.Join(basePath, modulePath)
 		}
 
+		exec.mx.Unlock()
+		defer exec.mx.Lock()
+
 		file, err := os.Open(modulePath)
 		if err != nil {
 			return nil, err
@@ -125,7 +125,7 @@ func defineImport(e *env) {
 			return nil, err
 		}
 
-		moduleEnv, ok := importModule(string(b))
+		moduleEnv, ok := importModule(state, modulePath, string(b))
 		if !ok || moduleEnv == nil {
 			return nil, errors.New("import module error")
 		}
@@ -140,17 +140,45 @@ func defineImport(e *env) {
 func defineIo(e *env, p IPrinter) {
 	var println nativeFn
 	println.callFn = func(arguments []interface{}) (interface{}, error) {
+		exec.mx.Unlock()
+		defer exec.mx.Lock()
 		return p.Println(arguments...)
+	}
+
+	var readfile nativeFn
+	readfile.callFn = func(arguments []interface{}) (interface{}, error) {
+		if len(arguments) != 1 {
+			return nil, errInvalidNumberArguments
+		}
+		pathGr, ok := arguments[0].(grotskyString)
+		if !ok {
+			return nil, errExpectedString
+		}
+		exec.mx.Unlock()
+		defer exec.mx.Lock()
+		file, err := os.Open(string(pathGr))
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+
+		b, err := ioutil.ReadAll(file)
+		if err != nil {
+			return nil, err
+		}
+
+		return grotskyString(b), nil
 	}
 
 	e.define("io", &nativeObj{
 		methods: map[string]*nativeFn{
-			"println": &println,
+			"println":  &println,
+			"readfile": &readfile,
 		},
 	})
 }
 
-func defineHTTP(e *env) {
+func defineHTTP(state *interpreterState, e *env) {
 	var handler nativeFn
 	handler.callFn = func(arguments []interface{}) (interface{}, error) {
 		if len(arguments) != 2 {
@@ -176,8 +204,11 @@ func defineHTTP(e *env) {
 							if !ok {
 								return nil, errExpectedNumber
 							}
+							exec.mx.Unlock()
+							defer exec.mx.Lock()
 							w.WriteHeader(int(code))
-							if _, err := w.Write([]byte(arguments[1].(grotskyString))); err != nil {
+							body := arguments[1].(grotskyString)
+							if _, err := w.Write([]byte(body)); err != nil {
 								return nil, err
 							}
 							return nil, nil
@@ -198,6 +229,8 @@ func defineHTTP(e *env) {
 							if len(arguments) != 0 {
 								return nil, errInvalidNumberArguments
 							}
+							exec.mx.Unlock()
+							defer exec.mx.Lock()
 							rqBody, err := ioutil.ReadAll(req.Body)
 							if err != nil {
 								return nil, err
@@ -208,14 +241,12 @@ func defineHTTP(e *env) {
 				},
 			}
 
-			arguments = []interface{}{
+			exec.mx.Lock()
+			defer exec.mx.Unlock()
+			_, err := handle.call([]interface{}{
 				requestReader,
 				responseWriter,
-			}
-
-			gil.Lock()
-			defer gil.Unlock()
-			_, err := handle.call(arguments)
+			})
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				state.logger.Println(err)
@@ -230,8 +261,9 @@ func defineHTTP(e *env) {
 			return nil, errInvalidNumberArguments
 		}
 		if addr, ok := arguments[0].(grotskyString); ok {
-			http.ListenAndServe(string(addr), nil)
-			return nil, nil
+			exec.mx.Unlock()
+			defer exec.mx.Lock()
+			return nil, http.ListenAndServe(string(addr), nil)
 		}
 		return nil, errExpectedString
 	}

@@ -40,7 +40,7 @@ var stringBinaryOperations = map[operator]func(x, y string) interface{}{
 	},
 }
 
-func (s grotskyString) get(tk *token) interface{} {
+func (s grotskyString) get(state *interpreterState, tk *token) interface{} {
 	if tk.lexeme == "length" {
 		return grotskyNumber(len(s))
 	}
@@ -49,7 +49,7 @@ func (s grotskyString) get(tk *token) interface{} {
 	return nil
 }
 
-func (s grotskyString) set(name *token, value interface{}) {
+func (s grotskyString) set(state *interpreterState, name *token, value interface{}) {
 	state.runtimeErr(errReadOnly, name)
 }
 

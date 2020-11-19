@@ -4,12 +4,12 @@ import "fmt"
 
 type grotskyBool bool
 
-func (c grotskyBool) get(tk *token) interface{} {
+func (c grotskyBool) get(state *interpreterState, tk *token) interface{} {
 	state.runtimeErr(errUndefinedProp, tk)
 	return nil
 }
 
-func (c grotskyBool) set(name *token, value interface{}) {
+func (c grotskyBool) set(state *interpreterState, name *token, value interface{}) {
 	state.runtimeErr(errReadOnly, name)
 }
 

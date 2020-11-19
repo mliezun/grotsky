@@ -32,7 +32,7 @@ func (c *grotskyClass) call(arguments []interface{}) (interface{}, error) {
 	return obj, nil
 }
 
-func (c *grotskyClass) get(tk *token) interface{} {
+func (c *grotskyClass) get(state *interpreterState, tk *token) interface{} {
 	if method, ok := c.staticMethods[tk.lexeme]; ok {
 		return method
 	}
@@ -41,7 +41,7 @@ func (c *grotskyClass) get(tk *token) interface{} {
 	return nil
 }
 
-func (c *grotskyClass) set(name *token, value interface{}) {
+func (c *grotskyClass) set(state *interpreterState, name *token, value interface{}) {
 	state.runtimeErr(errReadOnly, name)
 }
 

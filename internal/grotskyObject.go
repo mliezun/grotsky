@@ -8,13 +8,13 @@ type grotskyObject struct {
 }
 
 type grotskyInstance interface {
-	get(tk *token) interface{}
-	set(name *token, value interface{})
+	get(state *interpreterState, tk *token) interface{}
+	set(state *interpreterState, name *token, value interface{})
 	getOperator(op operator) (operatorApply, error)
 	String() string
 }
 
-func (o *grotskyObject) get(tk *token) interface{} {
+func (o *grotskyObject) get(state *interpreterState, tk *token) interface{} {
 	if val, ok := o.fields[tk.lexeme]; ok {
 		return val
 	}
@@ -25,7 +25,7 @@ func (o *grotskyObject) get(tk *token) interface{} {
 	return nil
 }
 
-func (o *grotskyObject) set(name *token, value interface{}) {
+func (o *grotskyObject) set(state *interpreterState, name *token, value interface{}) {
 	o.fields[name.lexeme] = value
 }
 

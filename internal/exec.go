@@ -1,20 +1,26 @@
 package internal
 
+import "sync"
+
 type execute struct {
+	mx *sync.Mutex
+
 	globals *env
 	env     *env
+
+	state *interpreterState
 }
 
 var exec = execute{}
 
 func (e execute) interpret() (res bool) {
 	defer func() {
-		if state.runtimeError != nil {
+		if e.state.runtimeError != nil {
 			recover()
 			res = false
 		}
 	}()
-	for _, s := range state.stmts {
+	for _, s := range e.state.stmts {
 		s.accept(e)
 	}
 	return true
@@ -48,13 +54,13 @@ func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 				environment.define(stmt.identifiers[0].lexeme, el)
 			} else if array2, ok := el.(grotskyList); ok {
 				if len(array2) != identifiersCount {
-					state.runtimeErr(errWrongNumberOfValues, stmt.keyword)
+					e.state.runtimeErr(errWrongNumberOfValues, stmt.keyword)
 				}
 				for i, id := range stmt.identifiers {
 					environment.define(id.lexeme, array2[i])
 				}
 			} else {
-				state.runtimeErr(errCannotUnpack, stmt.keyword)
+				e.state.runtimeErr(errCannotUnpack, stmt.keyword)
 			}
 			if returnVal, isReturn := e.executeOne(stmt.body, environment).(*returnValue); isReturn {
 				return returnVal
@@ -62,7 +68,7 @@ func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 		}
 	} else if dict, ok := collection.(grotskyDict); ok {
 		if identifiersCount > 2 {
-			state.runtimeErr(errExpectedIdentifiersDict, stmt.keyword)
+			e.state.runtimeErr(errExpectedIdentifiersDict, stmt.keyword)
 		}
 		for key, value := range dict {
 			if identifiersCount == 1 {
@@ -76,7 +82,7 @@ func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 			}
 		}
 	} else {
-		state.runtimeErr(errExpectedCollection, stmt.keyword)
+		e.state.runtimeErr(errExpectedCollection, stmt.keyword)
 	}
 
 	return nil
@@ -183,7 +189,7 @@ func (e execute) visitClassStmt(stmt *classStmt) R {
 	if stmt.superclass != nil {
 		superclass, ok := stmt.superclass.accept(e).(*grotskyClass)
 		if !ok {
-			state.runtimeErr(errExpectedClass, stmt.name)
+			e.state.runtimeErr(errExpectedClass, stmt.name)
 		}
 		class.superclass = superclass
 	}
@@ -237,7 +243,7 @@ func (e execute) visitDictionaryExpr(expr *dictionaryExpr) R {
 
 func (e execute) visitAssignExpr(expr *assignExpr) R {
 	val := expr.value.accept(e)
-	e.env.assign(expr.name, val)
+	e.env.assign(e.state, expr.name, val)
 	return val
 }
 
@@ -272,14 +278,14 @@ func (e execute) visitAccessExpr(expr *accessExpr) R {
 	dict, isDict := object.(grotskyDict)
 	if isDict {
 		if expr.first == nil || expr.second != nil || expr.third != nil {
-			state.runtimeErr(errExpectedKey, expr.brace)
+			e.state.runtimeErr(errExpectedKey, expr.brace)
 		}
 		if len(dict) == 0 {
 			return dict
 		}
 		return dict[expr.first.accept(e)]
 	}
-	state.runtimeErr(errInvalidAccess, expr.brace)
+	e.state.runtimeErr(errInvalidAccess, expr.brace)
 	return nil
 }
 
@@ -299,7 +305,7 @@ func (e execute) sliceList(list grotskyList, accessExpr *accessExpr) interface{}
 				// [a:b:c]
 				if accessExpr.secondColon != nil {
 					if third == nil {
-						state.runtimeErr(errExpectedStep, accessExpr.secondColon)
+						e.state.runtimeErr(errExpectedStep, accessExpr.secondColon)
 					}
 					return e.stepList(list[*first:sec], *third)
 				}
@@ -333,7 +339,7 @@ func (e execute) sliceList(list grotskyList, accessExpr *accessExpr) interface{}
 	}
 
 	// assert third != nil
-	// state.runtimeErr(errExpectedStep, accessExpr.secondColon)
+	// e.state.runtimeErr(errExpectedStep, accessExpr.secondColon)
 	// [::c]
 	return e.stepList(list, *third)
 }
@@ -344,7 +350,7 @@ func (e execute) exprToInt(expr expr, token *token) *int64 {
 	}
 	valueF, ok := expr.accept(e).(grotskyNumber)
 	if !ok {
-		state.runtimeErr(errOnlyNumbers, token)
+		e.state.runtimeErr(errOnlyNumbers, token)
 	}
 	valueI := int64(valueF)
 	return &valueI
@@ -396,7 +402,7 @@ func (e execute) visitBinaryExpr(expr *binaryExpr) R {
 		value, err = e.operateBinary(opPow, left, right)
 	}
 	if err != nil {
-		state.runtimeErr(err, expr.operator)
+		e.state.runtimeErr(err, expr.operator)
 	}
 	return value
 }
@@ -428,12 +434,12 @@ func (e execute) visitCallExpr(expr *callExpr) R {
 
 	fn, isFn := callee.(grotskyCallable)
 	if !isFn {
-		state.runtimeErr(errOnlyFunction, expr.paren)
+		e.state.runtimeErr(errOnlyFunction, expr.paren)
 	}
 
 	result, err := fn.call(arguments)
 	if err != nil {
-		state.runtimeErr(err, expr.paren)
+		e.state.runtimeErr(err, expr.paren)
 	}
 
 	return result
@@ -442,34 +448,34 @@ func (e execute) visitCallExpr(expr *callExpr) R {
 func (e execute) visitGetExpr(expr *getExpr) R {
 	object := expr.object.accept(e)
 	if obj, ok := object.(grotskyInstance); ok {
-		return obj.get(expr.name)
+		return obj.get(e.state, expr.name)
 	}
-	state.runtimeErr(errExpectedObject, expr.name)
+	e.state.runtimeErr(errExpectedObject, expr.name)
 	return nil
 }
 
 func (e execute) visitSetExpr(expr *setExpr) R {
 	obj, ok := expr.object.accept(e).(grotskyInstance)
 	if !ok {
-		state.runtimeErr(errExpectedObject, expr.name)
+		e.state.runtimeErr(errExpectedObject, expr.name)
 	}
-	obj.set(expr.name, expr.value.accept(e))
+	obj.set(e.state, expr.name, expr.value.accept(e))
 	return nil
 }
 
 func (e execute) visitSuperExpr(expr *superExpr) R {
-	superclass := e.env.get(expr.keyword).(*grotskyClass)
+	superclass := e.env.get(e.state, expr.keyword).(*grotskyClass)
 	// assert typeof(e.env.get(expr.keyword)) == (*grotskyClass)
 	this := &token{
 		token:  tkThis,
 		lexeme: "this",
 		line:   expr.keyword.line,
 	}
-	object := e.env.get(this).(*grotskyObject)
+	object := e.env.get(e.state, this).(*grotskyObject)
 	// assert typeof(e.env.get(this)) == (*grotskyObject)
 	method := superclass.findMethod(expr.method.lexeme)
 	if method == nil {
-		state.runtimeErr(errMethodNotFound, expr.method)
+		e.state.runtimeErr(errMethodNotFound, expr.method)
 	}
 	return method.bind(object)
 }
@@ -502,7 +508,7 @@ func (e execute) visitLogicalExpr(expr *logicalExpr) R {
 }
 
 func (e execute) visitThisExpr(expr *thisExpr) R {
-	return e.env.get(expr.keyword)
+	return e.env.get(e.state, expr.keyword)
 }
 
 func (e execute) visitUnaryExpr(expr *unaryExpr) R {
@@ -515,7 +521,7 @@ func (e execute) visitUnaryExpr(expr *unaryExpr) R {
 		value, err = e.operateUnary(opNeg, value)
 	}
 	if err != nil {
-		state.runtimeErr(err, expr.operator)
+		e.state.runtimeErr(err, expr.operator)
 	}
 	return value
 }
@@ -540,7 +546,7 @@ func (e execute) truthy(value interface{}) bool {
 }
 
 func (e execute) visitVariableExpr(expr *variableExpr) R {
-	return e.env.get(expr.name)
+	return e.env.get(e.state, expr.name)
 }
 
 func (e execute) visitFunctionExpr(expr *functionExpr) R {

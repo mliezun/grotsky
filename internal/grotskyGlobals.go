@@ -61,6 +61,7 @@ func defineGlobals(state *interpreterState, e *env, p IPrinter) {
 	defineHTTP(state, e)
 	defineType(e)
 	defineImport(state, e)
+	defineEnv(e)
 }
 
 func defineType(e *env) {
@@ -135,6 +136,43 @@ func defineImport(state *interpreterState, e *env) {
 	}
 
 	e.define("import", &importFn)
+}
+
+func defineEnv(e *env) {
+	var getFn nativeFn
+	getFn.callFn = func(arguments []interface{}) (interface{}, error) {
+		if len(arguments) != 1 {
+			return nil, errInvalidNumberArguments
+		}
+		envVar, ok := arguments[0].(grotskyString)
+		if !ok {
+			return nil, errExpectedString
+		}
+		return grotskyString(os.Getenv(string(envVar))), nil
+	}
+
+	var setFn nativeFn
+	setFn.callFn = func(arguments []interface{}) (interface{}, error) {
+		if len(arguments) != 2 {
+			return nil, errInvalidNumberArguments
+		}
+		envVar, ok := arguments[0].(grotskyString)
+		if !ok {
+			return nil, errExpectedString
+		}
+		val, ok := arguments[1].(grotskyString)
+		if !ok {
+			return nil, errExpectedString
+		}
+		return nil, os.Setenv(string(envVar), string(val))
+	}
+
+	e.define("env", &nativeObj{
+		methods: map[string]*nativeFn{
+			"get": &getFn,
+			"set": &setFn,
+		},
+	})
 }
 
 func defineIo(e *env, p IPrinter) {

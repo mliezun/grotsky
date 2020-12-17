@@ -10,7 +10,7 @@ type grotskyList []interface{}
 func applyOpToList(op func(x, y []interface{}) interface{}, arguments ...interface{}) (interface{}, error) {
 	x := arguments[0].(grotskyList)
 	y, ok := arguments[1].(grotskyList)
-	if !ok && y != nil {
+	if !ok && arguments[1] != nil {
 		return nil, errExpectedList
 	}
 	return op([]interface{}(x), []interface{}(y)), nil

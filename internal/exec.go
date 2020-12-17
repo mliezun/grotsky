@@ -418,12 +418,29 @@ func (e execute) operateUnary(op operator, left interface{}) (interface{}, error
 }
 
 func (e execute) operateBinary(op operator, left, right interface{}) (interface{}, error) {
-	leftVal := left.(grotskyInstance)
-	apply, err := leftVal.getOperator(op)
-	if err != nil {
-		return nil, err
+	if left != nil {
+		leftVal := left.(grotskyInstance)
+		apply, err := leftVal.getOperator(op)
+		if err != nil {
+			return nil, err
+		}
+		return apply(right)
+	} else if right != nil {
+		rightVal := right.(grotskyInstance)
+		apply, err := rightVal.getOperator(op)
+		if err != nil {
+			return nil, err
+		}
+		return apply(left)
+	} else {
+		if op == opEq {
+			return grotskyBool(true), nil
+		}
+		if op == opNeq {
+			return grotskyBool(false), nil
+		}
+		return nil, nil
 	}
-	return apply(right)
 }
 
 func (e execute) visitCallExpr(expr *callExpr) R {

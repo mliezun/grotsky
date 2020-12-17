@@ -475,6 +475,11 @@ func TestRuntimeErrors(t *testing.T) {
 
 		// Undefined dict operation
 		checkErrorMsg(t, `let a = {} * {}`, fmt.Sprintf("%s: *", errUndefinedOp.Error()), 1)
+
+		// Undefined operation on nil
+		checkErrorMsg(t, `nil <= nil`, fmt.Sprintf("%s: <=", errUndefinedOp.Error()), 1)
+		checkErrorMsg(t, `nil + ""`, fmt.Sprintf("%s: +", errUndefinedOp.Error()), 1)
+		checkErrorMsg(t, `[] + nil`, fmt.Sprintf("%s: +", errUndefinedOp.Error()), 1)
 	}
 
 	// Statement errors

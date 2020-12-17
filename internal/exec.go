@@ -421,9 +421,6 @@ func (e execute) operateUnary(op operator, left interface{}) (interface{}, error
 func equalingNil(op operator, left, right interface{}) (shouldCompare bool, result bool) {
 	result = false
 	shouldCompare = false
-	if left != nil && right != nil {
-		return
-	}
 	if op == opEq {
 		shouldCompare = true
 		result = left == right
@@ -436,23 +433,16 @@ func equalingNil(op operator, left, right interface{}) (shouldCompare bool, resu
 }
 
 func (e execute) operateBinary(op operator, left, right interface{}) (interface{}, error) {
-	if shouldCompare, result := equalingNil(op, left, right); shouldCompare {
-		return grotskyBool(result), nil
-	}
-	if left != nil {
+	if left != nil && right != nil {
 		leftVal := left.(grotskyInstance)
 		apply, err := leftVal.getOperator(op)
 		if err != nil {
 			return nil, err
 		}
 		return apply(right)
-	} else if right != nil {
-		rightVal := right.(grotskyInstance)
-		apply, err := rightVal.getOperator(op)
-		if err != nil {
-			return nil, err
-		}
-		return apply(left)
+	}
+	if shouldCompare, result := equalingNil(op, left, right); shouldCompare {
+		return grotskyBool(result), nil
 	}
 	return nil, errUndefinedOp
 }

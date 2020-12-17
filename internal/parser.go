@@ -346,7 +346,7 @@ func (p *parser) dictElements() []expr {
 }
 
 func (p *parser) assignment() expr {
-	expr := p.access()
+	expr := p.or()
 	if p.match(tkEqual) {
 		equal := p.previous()
 		value := p.assignment()
@@ -369,18 +369,14 @@ func (p *parser) assignment() expr {
 	return expr
 }
 
-func (p *parser) access() expr {
-	expr := p.or()
-	for p.matchSameLine(tkLeftBrace) {
-		slice := &accessExpr{
-			object: expr,
-			brace:  p.previous(),
-		}
-		p.slice(slice)
-		expr = slice
-		p.consume(tkRightBrace, errors.New("Expected ']' at the end of slice"))
+func (p *parser) access(object expr) expr {
+	slice := &accessExpr{
+		object: object,
+		brace:  p.previous(),
 	}
-	return expr
+	p.slice(slice)
+	p.consume(tkRightBrace, errors.New("Expected ']' at the end of slice"))
+	return slice
 }
 
 func (p *parser) slice(slice *accessExpr) {
@@ -537,6 +533,8 @@ func (p *parser) call() expr {
 				object: expr,
 				name:   name,
 			}
+		} else if p.match(tkLeftBrace) {
+			expr = p.access(expr)
 		} else {
 			break
 		}

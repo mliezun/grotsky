@@ -3,8 +3,7 @@ list            → "[" arguments? "]";
 dictionary      → "{" dict_elements? "}";
 dict_elements   → keyval ("," keyval)*;
 keyval          → expression ":" expression;
-assignment      → (call ".")? IDENTIFIER "=" assignment | access;
-access          → logic_or ("[" slice "]")*;
+assignment      → (call ".")? IDENTIFIER "=" assignment | logic_or;
 logic_or        → logic_and ("or" logic_and)*;
 logic_and       → equality ("and" equality)*;
 equality        → comparison (("!=" | "==") comparison)*;
@@ -13,7 +12,7 @@ addition        → multiplication (("-" | "+") multiplication)*;
 multiplication  → power (("/" | "*") power)*;
 power           → unary ("^" unary)*;
 unary           → ("not" | "-") unary | call;
-call            → primary ("(" arguments? ")" | "." IDENTIFIER)*;
+call            → primary ("(" arguments? ")" | "." IDENTIFIER | ("[" slice "]"))*;
 arguments       → expression ("," expression)*;
 slice           → (":" expression)
                 | (":" expression ":" expression)

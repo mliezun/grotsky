@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"grotsky/internal"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/mliezun/grotsky/internal"
 )
 
 type stdPrinter struct{}

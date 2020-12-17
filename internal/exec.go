@@ -417,7 +417,28 @@ func (e execute) operateUnary(op operator, left interface{}) (interface{}, error
 	return apply()
 }
 
+// equalingNil if at least one of right or left is nil and operator is Eq or Neq returns result
+func equalingNil(op operator, left, right interface{}) (shouldCompare bool, result bool) {
+	result = false
+	shouldCompare = false
+	if left != nil && right != nil {
+		return
+	}
+	if op == opEq {
+		shouldCompare = true
+		result = left == right
+	}
+	if op == opNeq {
+		shouldCompare = true
+		result = left != right
+	}
+	return
+}
+
 func (e execute) operateBinary(op operator, left, right interface{}) (interface{}, error) {
+	if shouldCompare, result := equalingNil(op, left, right); shouldCompare {
+		return grotskyBool(result), nil
+	}
 	if left != nil {
 		leftVal := left.(grotskyInstance)
 		apply, err := leftVal.getOperator(op)
@@ -432,15 +453,8 @@ func (e execute) operateBinary(op operator, left, right interface{}) (interface{
 			return nil, err
 		}
 		return apply(left)
-	} else {
-		if op == opEq {
-			return grotskyBool(true), nil
-		}
-		if op == opNeq {
-			return grotskyBool(false), nil
-		}
-		return nil, nil
 	}
+	return nil, errUndefinedOp
 }
 
 func (e execute) visitCallExpr(expr *callExpr) R {

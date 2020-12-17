@@ -393,6 +393,20 @@ func TestExpressions(t *testing.T) {
 		checkExpression(t, "fn () nil", "<fn anonymous>")
 		checkExpression(t, "(fn () nil)()", "<nil>")
 	}
+
+	// Nil handling
+	{
+		// Eq-Neq operations with nil
+		checkExpression(t, "nil != 0", "true")
+		checkExpression(t, "nil != nil", "false")
+		checkExpression(t, "nil == nil", "true")
+		checkExpression(t, "nil == [nil]", "false")
+		checkExpression(t, "nil == [nil][0]", "true")
+		checkExpression(t, `"asd" != nil`, "true")
+		checkExpression(t, `"" == nil`, "false")
+		checkExpression(t, `{"asd": 1} != nil`, "true")
+		checkExpression(t, `{"asd": nil}["asd"] == nil`, "true")
+	}
 }
 
 func TestRuntimeErrors(t *testing.T) {

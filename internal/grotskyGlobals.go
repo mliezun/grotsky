@@ -272,7 +272,7 @@ func defineHTTP(state *interpreterState, e *env) {
 					"host":      grotskyString(req.Host),
 					"uri":       grotskyString(req.RequestURI),
 					"referer":   grotskyString(req.Referer()),
-					"header":    grotskyHeader,
+					"headers":   grotskyHeader,
 				},
 				methods: map[string]*nativeFn{
 					"body": {

@@ -283,7 +283,8 @@ func (e execute) visitAccessExpr(expr *accessExpr) R {
 		if len(dict) == 0 {
 			return dict
 		}
-		return dict[expr.first.accept(e)]
+		val, _ := dict[expr.first.accept(e)]
+		return val
 	}
 	e.state.runtimeErr(errInvalidAccess, expr.brace)
 	return nil

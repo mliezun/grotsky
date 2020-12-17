@@ -255,11 +255,24 @@ func defineHTTP(state *interpreterState, e *env) {
 				},
 			}
 
+			grotskyHeader := make(grotskyDict)
+			for header, vals := range req.Header {
+				grotskyVals := make([]grotskyString, len(vals))
+				for i := range vals {
+					grotskyVals[i] = grotskyString(vals[i])
+				}
+				grotskyHeader[grotskyString(header)] = grotskyVals
+			}
+
 			requestReader := &nativeObj{
 				properties: map[string]interface{}{
 					"method":    grotskyString(req.Method),
 					"address":   grotskyString(req.RemoteAddr),
 					"userAgent": grotskyString(req.UserAgent()),
+					"host":      grotskyString(req.Host),
+					"uri":       grotskyString(req.RequestURI),
+					"referer":   grotskyString(req.Referer()),
+					"header":    grotskyHeader,
 				},
 				methods: map[string]*nativeFn{
 					"body": {

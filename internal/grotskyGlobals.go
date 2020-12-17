@@ -257,7 +257,7 @@ func defineHTTP(state *interpreterState, e *env) {
 
 			grotskyHeader := make(grotskyDict)
 			for header, vals := range req.Header {
-				grotskyVals := make([]grotskyString, len(vals))
+				grotskyVals := make(grotskyList, len(vals))
 				for i := range vals {
 					grotskyVals[i] = grotskyString(vals[i])
 				}

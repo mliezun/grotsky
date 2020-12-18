@@ -652,16 +652,6 @@ func (p *parser) match(tokens ...tokenType) bool {
 	return false
 }
 
-func (p *parser) matchSameLine(tokens ...tokenType) bool {
-	for _, token := range tokens {
-		if !p.isAtEnd() && p.peek().token == token {
-			p.current++
-			return true
-		}
-	}
-	return false
-}
-
 func (p *parser) check(token tokenType) bool {
 	oldCurrent := p.current
 	for token != tkNewline && !p.isAtEnd() && p.peek().token == tkNewline {

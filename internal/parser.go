@@ -384,10 +384,14 @@ func (p *parser) block() []stmt {
 
 func (p *parser) expressionStmt() stmt {
 	expr := p.expression()
-	return &exprStmt{
-		last:       p.previous(),
-		expression: expr,
+	if expr != nil {
+		return &exprStmt{
+			last:       p.previous(),
+			expression: expr,
+		}
 	}
+	// expr is nil when there are multiple empty lines
+	return nil
 }
 
 func (p *parser) expression() expr {
@@ -686,6 +690,9 @@ func (p *parser) primary() expr {
 	}
 	if p.match(tkSuper) {
 		return p.superExpr()
+	}
+	if p.match(tkNewline) {
+		return nil
 	}
 
 	p.state.fatalError(errUndefinedExpr, p.peek().line, 0)

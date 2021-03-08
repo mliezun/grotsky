@@ -20,6 +20,8 @@ func main() {
 			"Block: stmts []stmt",
 			"While: keyword *token, condition expr, body stmt",
 			"Return: keyword *token, value expr",
+			"Break: keyword *token",
+			"Continue: keyword *token",
 			"If: keyword *token, condition expr, thenBranch []stmt, elifs []*struct{condition expr; thenBranch []stmt}, elseBranch []stmt",
 			"Fn: name *token, params []*token, body []stmt",
 			"Class: name *token, superclass *variableExpr, methods []*fnStmt, staticMethods []*fnStmt",

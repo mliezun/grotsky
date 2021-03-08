@@ -2,18 +2,62 @@ package internal
 
 import (
 	"errors"
+	"fmt"
 )
+
+type parseContext struct {
+	function  string
+	loopCount int
+}
 
 // parser stores parser data
 type parser struct {
 	current int
 
+	parsingContexts []*parseContext
+
 	state *interpreterState
+}
+
+func (p *parser) getParsingContext() *parseContext {
+	return p.parsingContexts[len(p.parsingContexts)-1]
+}
+
+func (p *parser) enterFunction(name string) {
+	p.parsingContexts = append(p.parsingContexts, &parseContext{
+		function:  name,
+		loopCount: 0,
+	})
+}
+
+func (p *parser) leaveFunction(name string) {
+	pc := p.getParsingContext()
+	if pc.function != name {
+		p.state.fatalError(errMaxParameters, p.peek().line, 0)
+	}
+	p.parsingContexts = p.parsingContexts[:len(p.parsingContexts)-1]
+}
+
+func (p *parser) enterLoop() {
+	pc := p.getParsingContext()
+	pc.loopCount++
+}
+
+func (p *parser) leaveLoop() {
+	pc := p.getParsingContext()
+	pc.loopCount--
+}
+
+func (p *parser) insideLoop() bool {
+	return p.getParsingContext().loopCount != 0
 }
 
 const maxFunctionParams = 255
 
 func (p *parser) parse() {
+	p.parsingContexts = make([]*parseContext, 0)
+	p.enterFunction("")
+	defer p.leaveFunction("")
 	for !p.isAtEnd() {
 		st := p.parseStmt()
 		// When multiple empty lines are encountered after a statement
@@ -86,6 +130,10 @@ func (p *parser) class() stmt {
 
 func (p *parser) fn() *fnStmt {
 	name := p.consume(tkIdentifier, errExpectedFunctionName)
+
+	p.enterFunction(name.lexeme)
+	defer p.leaveFunction(name.lexeme)
+
 	p.consume(tkLeftParen, errExpectedParen)
 
 	var params []*token
@@ -118,6 +166,10 @@ func (p *parser) fn() *fnStmt {
 
 func (p *parser) fnExpr() *functionExpr {
 	p.consume(tkLeftParen, errExpectedParen)
+
+	lambdaName := fmt.Sprintf("lambda%d", len(p.parsingContexts))
+	p.enterFunction(lambdaName)
+	defer p.leaveFunction(lambdaName)
 
 	var params []*token
 	if !p.check(tkRightParen) {
@@ -170,6 +222,12 @@ func (p *parser) statement() stmt {
 	if p.match(tkReturn) {
 		return p.ret()
 	}
+	if p.match(tkBreak) {
+		return p.brk()
+	}
+	if p.match(tkContinue) {
+		return p.cont()
+	}
 	if p.match(tkWhile) {
 		return p.while()
 	}
@@ -181,6 +239,9 @@ func (p *parser) statement() stmt {
 
 func (p *parser) forLoop() stmt {
 	keyword := p.previous()
+
+	p.enterLoop()
+	defer p.leaveLoop()
 
 	if p.check(tkIdentifier) {
 		// Enhanced for
@@ -280,8 +341,30 @@ func (p *parser) ret() stmt {
 	}
 }
 
+func (p *parser) brk() stmt {
+	keyword := p.previous()
+	if !p.insideLoop() {
+		p.state.setError(errOnlyAllowedInsideLoop, keyword.line, 0)
+	}
+	return &breakStmt{
+		keyword: keyword,
+	}
+}
+
+func (p *parser) cont() stmt {
+	keyword := p.previous()
+	if !p.insideLoop() {
+		p.state.setError(errOnlyAllowedInsideLoop, keyword.line, 0)
+	}
+	return &continueStmt{
+		keyword: keyword,
+	}
+}
+
 func (p *parser) while() stmt {
 	keyword := p.previous()
+	p.enterLoop()
+	defer p.leaveLoop()
 	cond := p.expression()
 	body := p.declaration(false)
 	return &whileStmt{

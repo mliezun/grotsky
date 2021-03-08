@@ -1,6 +1,8 @@
 package internal
 
-import "sync"
+import (
+	"sync"
+)
 
 type execute struct {
 	mx *sync.Mutex
@@ -35,8 +37,14 @@ func (e execute) visitClassicForStmt(stmt *classicForStmt) R {
 		stmt.initializer.accept(e)
 	}
 	for ; e.truthy(stmt.condition.accept(e)); stmt.increment.accept(e) {
-		if returnVal, isReturn := stmt.body.accept(e).(*returnValue); isReturn {
-			return returnVal
+		val := stmt.body.accept(e)
+		switch val.(type) {
+		case *returnValue:
+			return val
+		case *breakValue:
+			return val
+		case *continueValue:
+			continue
 		}
 	}
 	return nil
@@ -62,8 +70,14 @@ func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 			} else {
 				e.state.runtimeErr(errCannotUnpack, stmt.keyword)
 			}
-			if returnVal, isReturn := e.executeOne(stmt.body, environment).(*returnValue); isReturn {
-				return returnVal
+			val := e.executeOne(stmt.body, environment)
+			switch val.(type) {
+			case *returnValue:
+				return val
+			case *breakValue:
+				return val
+			case *continueValue:
+				continue
 			}
 		}
 	} else if dict, ok := collection.(grotskyDict); ok {
@@ -77,8 +91,14 @@ func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 				environment.define(stmt.identifiers[0].lexeme, key)
 				environment.define(stmt.identifiers[1].lexeme, value)
 			}
-			if returnVal, isReturn := e.executeOne(stmt.body, environment).(*returnValue); isReturn {
-				return returnVal
+			val := e.executeOne(stmt.body, environment)
+			switch val.(type) {
+			case *returnValue:
+				return val
+			case *breakValue:
+				return val
+			case *continueValue:
+				continue
 			}
 		}
 	} else {
@@ -118,8 +138,13 @@ func (e execute) executeBlock(stmts []stmt, env *env) R {
 	e.env = env
 	for _, s := range stmts {
 		val := s.accept(e)
-		if returnVal, isReturn := val.(*returnValue); isReturn {
-			return returnVal
+		switch val.(type) {
+		case *returnValue:
+			return val
+		case *breakValue:
+			return val
+		case *continueValue:
+			return val
 		}
 	}
 	return nil
@@ -128,8 +153,13 @@ func (e execute) executeBlock(stmts []stmt, env *env) R {
 func (e execute) visitWhileStmt(stmt *whileStmt) R {
 	for e.truthy(stmt.condition.accept(e)) {
 		val := stmt.body.accept(e)
-		if returnVal, isReturn := val.(*returnValue); isReturn {
-			return returnVal
+		switch val.(type) {
+		case *returnValue:
+			return val
+		case *breakValue:
+			return val
+		case *continueValue:
+			continue
 		}
 	}
 	return nil
@@ -143,11 +173,25 @@ func (e execute) visitReturnStmt(stmt *returnStmt) R {
 	return nil
 }
 
+func (e execute) visitBreakStmt(stmt *breakStmt) R {
+	return &breakValue{}
+}
+
+func (e execute) visitContinueStmt(stmt *continueStmt) R {
+	return &continueValue{}
+}
+
 func (e execute) visitIfStmt(stmt *ifStmt) R {
 	if e.truthy(stmt.condition.accept(e)) {
 		for _, st := range stmt.thenBranch {
-			if returnVal, isReturn := st.accept(e).(*returnValue); isReturn {
-				return returnVal
+			val := st.accept(e)
+			switch val.(type) {
+			case *returnValue:
+				return val
+			case *breakValue:
+				return val
+			case *continueValue:
+				return val
 			}
 		}
 		return nil
@@ -155,8 +199,14 @@ func (e execute) visitIfStmt(stmt *ifStmt) R {
 	for _, elif := range stmt.elifs {
 		if e.truthy(elif.condition.accept(e)) {
 			for _, st := range elif.thenBranch {
-				if returnVal, isReturn := st.accept(e).(*returnValue); isReturn {
-					return returnVal
+				val := st.accept(e)
+				switch val.(type) {
+				case *returnValue:
+					return val
+				case *breakValue:
+					return val
+				case *continueValue:
+					return val
 				}
 			}
 			return nil
@@ -164,8 +214,14 @@ func (e execute) visitIfStmt(stmt *ifStmt) R {
 	}
 	if stmt.elseBranch != nil {
 		for _, st := range stmt.elseBranch {
-			if returnVal, isReturn := st.accept(e).(*returnValue); isReturn {
-				return returnVal
+			val := st.accept(e)
+			switch val.(type) {
+			case *returnValue:
+				return val
+			case *breakValue:
+				return val
+			case *continueValue:
+				return val
 			}
 		}
 	}

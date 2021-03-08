@@ -22,6 +22,10 @@ type returnValue struct {
 	value interface{}
 }
 
+type breakValue struct{}
+
+type continueValue struct{}
+
 // state stores the state of a interpreter
 type interpreterState struct {
 	errors       []parseError
@@ -99,6 +103,8 @@ var errExpectedFunctionParam = errors.New("Expect function parameter")
 var errMaxParameters = fmt.Errorf("Max number of parameters is %d", maxFunctionParams)
 var errExpectedOpeningCurlyBrace = errors.New("Expected '{' at this position")
 var errExpectedClosingCurlyBrace = errors.New("Expected '}' at this position")
+var errLeavingFunction = fmt.Errorf("Leaving function doesn't match with top stack")
+var errOnlyAllowedInsideLoop = fmt.Errorf("Statement only allowed for use inside loop")
 
 // Runtime errors
 var errUndefinedVar = errors.New("Undefined variable")

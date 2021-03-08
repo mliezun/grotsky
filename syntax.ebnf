@@ -54,5 +54,7 @@ classicFor     → (varDecl | exprStmt | ",") expression? "," expression?;
 newFor         → IDENTIFIER ("," IDENTIFIER)? "in" expression;
 ifStmt         → "if" expression block ("elif" expression block)* ("else" block)?;
 returnStmt     → "return" expression?;
+breakStmt      → "break";
+continueStmt   → "continue";
 whileStmt      → "while" expression statement;
 block          → "{" declaration* "}";

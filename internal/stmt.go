@@ -12,6 +12,8 @@ type stmtVisitor interface {
 	visitBlockStmt(stmt *blockStmt) R
 	visitWhileStmt(stmt *whileStmt) R
 	visitReturnStmt(stmt *returnStmt) R
+	visitBreakStmt(stmt *breakStmt) R
+	visitContinueStmt(stmt *continueStmt) R
 	visitIfStmt(stmt *ifStmt) R
 	visitFnStmt(stmt *fnStmt) R
 	visitClassStmt(stmt *classStmt) R
@@ -83,6 +85,22 @@ type returnStmt struct {
 
 func (s *returnStmt) accept(visitor stmtVisitor) R {
 	return visitor.visitReturnStmt(s)
+}
+
+type breakStmt struct {
+	keyword *token
+}
+
+func (s *breakStmt) accept(visitor stmtVisitor) R {
+	return visitor.visitBreakStmt(s)
+}
+
+type continueStmt struct {
+	keyword *token
+}
+
+func (s *continueStmt) accept(visitor stmtVisitor) R {
+	return visitor.visitContinueStmt(s)
 }
 
 type ifStmt struct {

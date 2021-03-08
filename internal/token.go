@@ -42,7 +42,7 @@ const (
 
 	// Keywords.
 	// and, class, else, false, fn, for, if, elif, nil, or,
-	// return, super, this, true, let, while, not, in, begin, end
+	// return, break, continue, super, this, true, let, while, not, in, begin, end
 	tkAnd
 	tkClass
 	tkElse
@@ -54,6 +54,8 @@ const (
 	tkNil
 	tkOr
 	tkReturn
+	tkBreak
+	tkContinue
 	tkSuper
 	tkThis
 	tkTrue

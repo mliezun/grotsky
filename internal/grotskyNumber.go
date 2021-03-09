@@ -26,6 +26,9 @@ var numberBinaryOperations = map[operator]func(x, y float64) interface{}{
 	opDiv: func(x, y float64) interface{} {
 		return grotskyNumber(x / y)
 	},
+	opMod: func(x, y float64) interface{} {
+		return grotskyNumber(int64(x) % int64(y))
+	},
 	opMul: func(x, y float64) interface{} {
 		return grotskyNumber(x * y)
 	},

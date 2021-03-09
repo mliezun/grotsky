@@ -6,6 +6,7 @@ const (
 	opAdd operator = "add"
 	opSub          = "sub"
 	opDiv          = "div"
+	opMod          = "mod"
 	opMul          = "mul"
 	opPow          = "pow"
 	opNeg          = "neg"

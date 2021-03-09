@@ -571,7 +571,7 @@ func (p *parser) addition() expr {
 
 func (p *parser) multiplication() expr {
 	expr := p.power()
-	for p.match(tkSlash, tkStar) {
+	for p.match(tkSlash, tkMod, tkStar) {
 		operator := p.previous()
 		right := p.power()
 		expr = &binaryExpr{

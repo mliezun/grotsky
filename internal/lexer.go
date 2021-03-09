@@ -83,6 +83,8 @@ func (l *lexer) scanToken() {
 		l.emit(tkPlus, nil)
 	case '/':
 		l.emit(tkSlash, nil)
+	case '%':
+		l.emit(tkMod, nil)
 	case '*':
 		l.emit(tkStar, nil)
 	case '^':

@@ -7,7 +7,7 @@ const (
 	tkNewline
 
 	// Single-character tokens.
-	// (, ), [, ], {, } ',', ., -, +, ;, /, *, ^, :, ;
+	// (, ), [, ], {, } ',', ., -, +, ;, /, %, *, ^, :, ;
 	tkLeftParen
 	tkRightParen
 	tkLeftBrace
@@ -19,6 +19,7 @@ const (
 	tkMinus
 	tkPlus
 	tkSlash
+	tkMod
 	tkStar
 	tkPower
 	tkColon

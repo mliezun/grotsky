@@ -453,6 +453,8 @@ func (e execute) visitBinaryExpr(expr *binaryExpr) R {
 		value, err = e.operateBinary(opSub, left, right)
 	case tkSlash:
 		value, err = e.operateBinary(opDiv, left, right)
+	case tkMod:
+		value, err = e.operateBinary(opMod, left, right)
 	case tkStar:
 		value, err = e.operateBinary(opMul, left, right)
 	case tkPower:

@@ -152,6 +152,12 @@ func TestParser(t *testing.T) {
 		checkLexer(t, `for 1; i < 2; i = i + 1 {}`, 1, errExpectedInit.Error(), errUndefinedExpr.Error())
 	}
 
+	// break,continue error
+	{
+		checkLexer(t, `break`, 1, errOnlyAllowedInsideLoop.Error())
+		checkLexer(t, `continue`, 1, errOnlyAllowedInsideLoop.Error())
+	}
+
 	// Assignment error
 	{
 		checkLexer(t, `"asd" = 3`, 1, errUndefinedStmt.Error())
@@ -232,6 +238,9 @@ func TestExpressions(t *testing.T) {
 
 		// Divide numbers
 		checkExpression(t, "12 / 2", "6")
+
+		// Mod numbers
+		checkExpression(t, "10 % 2", "0")
 
 		// Power numbers
 		checkExpression(t, "2^2", "4")
@@ -831,6 +840,23 @@ func TestStatements(t *testing.T) {
 		}
 		let f = count(10)
 		`, "f", "0")
+
+		checkStatements(t, `
+		fn testBreakContinue() {
+			let i = 0
+			while true {
+				i = i + 1
+				if i % 2 == 0 {
+					continue
+				}
+				if i >= 10 {
+					break
+				}
+			}
+			return i
+		}
+		let f = testBreakContinue()
+		`, "f", "11")
 
 		checkStatements(t, `
 		fn firstEl(arr) {

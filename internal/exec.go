@@ -10,12 +10,49 @@ type execute struct {
 	globals *env
 	env     *env
 
+	cls []*callStack
+
 	state *interpreterState
+}
+
+func (e *execute) getExecContext() *callStack {
+	return e.cls[len(e.cls)-1]
+}
+
+func (e *execute) enterFunction(name string) {
+	e.cls = append(e.cls, &callStack{
+		function:  name,
+		loopCount: 0,
+	})
+}
+
+func (e *execute) leaveFunction(name string) {
+	pc := e.getExecContext()
+	if pc.function != name {
+		e.state.runtimeErr(errLeavingFunction, &token{})
+	}
+	e.cls = e.cls[:len(e.cls)-1]
+}
+
+func (e *execute) enterLoop() {
+	pc := e.getExecContext()
+	pc.loopCount++
+}
+
+func (e *execute) leaveLoop() {
+	pc := e.getExecContext()
+	pc.loopCount--
+}
+
+func (e *execute) insideLoop() bool {
+	return e.getExecContext().loopCount != 0
 }
 
 var exec = execute{}
 
-func (e execute) interpret() (res bool) {
+func (e *execute) interpret() (res bool) {
+	e.enterFunction("")
+	//defer e.leaveFunction("")
 	defer func() {
 		if e.state.runtimeError != nil {
 			recover()
@@ -28,33 +65,46 @@ func (e execute) interpret() (res bool) {
 	return true
 }
 
-func (e execute) visitExprStmt(stmt *exprStmt) R {
+func (e *execute) visitExprStmt(stmt *exprStmt) R {
 	return stmt.expression.accept(e)
 }
 
-func (e execute) visitClassicForStmt(stmt *classicForStmt) R {
+func (e *execute) visitClassicForStmt(stmt *classicForStmt) R {
 	if stmt.initializer != nil {
 		stmt.initializer.accept(e)
 	}
+	e.enterLoop()
+	defer e.leaveLoop()
 	for ; e.truthy(stmt.condition.accept(e)); stmt.increment.accept(e) {
 		val := stmt.body.accept(e)
 		switch val.(type) {
 		case *returnValue:
 			return val
 		case *breakValue:
-			return val
+			if e.insideLoop() {
+				return nil
+			} else {
+				e.state.runtimeErr(errOnlyAllowedInsideLoop, &token{})
+			}
 		case *continueValue:
-			continue
+			if e.insideLoop() {
+				continue
+			} else {
+				e.state.runtimeErr(errOnlyAllowedInsideLoop, &token{})
+			}
 		}
 	}
 	return nil
 }
 
-func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
+func (e *execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 	collection := stmt.collection.accept(e)
 	environment := newEnv(e.env)
 
 	identifiersCount := len(stmt.identifiers)
+
+	e.enterLoop()
+	defer e.leaveLoop()
 
 	if array, ok := collection.(grotskyList); ok {
 		for _, el := range array {
@@ -75,9 +125,17 @@ func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 			case *returnValue:
 				return val
 			case *breakValue:
-				return val
+				if e.insideLoop() {
+					return nil
+				} else {
+					e.state.runtimeErr(errOnlyAllowedInsideLoop, &token{})
+				}
 			case *continueValue:
-				continue
+				if e.insideLoop() {
+					continue
+				} else {
+					e.state.runtimeErr(errOnlyAllowedInsideLoop, &token{})
+				}
 			}
 		}
 	} else if dict, ok := collection.(grotskyDict); ok {
@@ -96,9 +154,17 @@ func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 			case *returnValue:
 				return val
 			case *breakValue:
-				return val
+				if e.insideLoop() {
+					return nil
+				} else {
+					e.state.runtimeErr(errOnlyAllowedInsideLoop, &token{})
+				}
 			case *continueValue:
-				continue
+				if e.insideLoop() {
+					continue
+				} else {
+					e.state.runtimeErr(errOnlyAllowedInsideLoop, &token{})
+				}
 			}
 		}
 	} else {
@@ -108,7 +174,7 @@ func (e execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 	return nil
 }
 
-func (e execute) visitLetStmt(stmt *letStmt) R {
+func (e *execute) visitLetStmt(stmt *letStmt) R {
 	var val interface{}
 	if stmt.initializer != nil {
 		val = stmt.initializer.accept(e)
@@ -117,11 +183,11 @@ func (e execute) visitLetStmt(stmt *letStmt) R {
 	return nil
 }
 
-func (e execute) visitBlockStmt(stmt *blockStmt) R {
+func (e *execute) visitBlockStmt(stmt *blockStmt) R {
 	return e.executeBlock(stmt.stmts, newEnv(e.env))
 }
 
-func (e execute) executeOne(st stmt, env *env) R {
+func (e *execute) executeOne(st stmt, env *env) R {
 	previous := e.env
 	defer func() {
 		e.env = previous
@@ -130,7 +196,7 @@ func (e execute) executeOne(st stmt, env *env) R {
 	return st.accept(e)
 }
 
-func (e execute) executeBlock(stmts []stmt, env *env) R {
+func (e *execute) executeBlock(stmts []stmt, env *env) R {
 	previous := e.env
 	defer func() {
 		e.env = previous
@@ -142,30 +208,48 @@ func (e execute) executeBlock(stmts []stmt, env *env) R {
 		case *returnValue:
 			return val
 		case *breakValue:
-			return val
+			if e.insideLoop() {
+				return val
+			} else {
+				e.state.runtimeErr(errOnlyAllowedInsideLoop, &token{})
+			}
 		case *continueValue:
-			return val
+			if e.insideLoop() {
+				return val
+			} else {
+				e.state.runtimeErr(errOnlyAllowedInsideLoop, &token{})
+			}
 		}
 	}
 	return nil
 }
 
-func (e execute) visitWhileStmt(stmt *whileStmt) R {
+func (e *execute) visitWhileStmt(stmt *whileStmt) R {
+	e.enterLoop()
+	defer e.leaveLoop()
 	for e.truthy(stmt.condition.accept(e)) {
 		val := stmt.body.accept(e)
 		switch val.(type) {
 		case *returnValue:
 			return val
 		case *breakValue:
-			return val
+			if e.insideLoop() {
+				return nil
+			} else {
+				e.state.runtimeErr(errOnlyAllowedInsideLoop, &token{})
+			}
 		case *continueValue:
-			continue
+			if e.insideLoop() {
+				continue
+			} else {
+				e.state.runtimeErr(errOnlyAllowedInsideLoop, &token{})
+			}
 		}
 	}
 	return nil
 }
 
-func (e execute) visitReturnStmt(stmt *returnStmt) R {
+func (e *execute) visitReturnStmt(stmt *returnStmt) R {
 	if stmt.value != nil {
 		result := &returnValue{value: stmt.value.accept(e)}
 		return result
@@ -173,15 +257,15 @@ func (e execute) visitReturnStmt(stmt *returnStmt) R {
 	return nil
 }
 
-func (e execute) visitBreakStmt(stmt *breakStmt) R {
+func (e *execute) visitBreakStmt(stmt *breakStmt) R {
 	return &breakValue{}
 }
 
-func (e execute) visitContinueStmt(stmt *continueStmt) R {
+func (e *execute) visitContinueStmt(stmt *continueStmt) R {
 	return &continueValue{}
 }
 
-func (e execute) visitIfStmt(stmt *ifStmt) R {
+func (e *execute) visitIfStmt(stmt *ifStmt) R {
 	if e.truthy(stmt.condition.accept(e)) {
 		for _, st := range stmt.thenBranch {
 			val := st.accept(e)
@@ -189,9 +273,17 @@ func (e execute) visitIfStmt(stmt *ifStmt) R {
 			case *returnValue:
 				return val
 			case *breakValue:
-				return val
+				if e.insideLoop() {
+					return val
+				} else {
+					e.state.runtimeErr(errOnlyAllowedInsideLoop, &token{})
+				}
 			case *continueValue:
-				return val
+				if e.insideLoop() {
+					return val
+				} else {
+					e.state.runtimeErr(errOnlyAllowedInsideLoop, &token{})
+				}
 			}
 		}
 		return nil
@@ -204,9 +296,17 @@ func (e execute) visitIfStmt(stmt *ifStmt) R {
 				case *returnValue:
 					return val
 				case *breakValue:
-					return val
+					if e.insideLoop() {
+						return val
+					} else {
+						e.state.runtimeErr(errOnlyAllowedInsideLoop, &token{})
+					}
 				case *continueValue:
-					return val
+					if e.insideLoop() {
+						return val
+					} else {
+						e.state.runtimeErr(errOnlyAllowedInsideLoop, &token{})
+					}
 				}
 			}
 			return nil
@@ -219,16 +319,24 @@ func (e execute) visitIfStmt(stmt *ifStmt) R {
 			case *returnValue:
 				return val
 			case *breakValue:
-				return val
+				if e.insideLoop() {
+					return val
+				} else {
+					e.state.runtimeErr(errOnlyAllowedInsideLoop, &token{})
+				}
 			case *continueValue:
-				return val
+				if e.insideLoop() {
+					return val
+				} else {
+					e.state.runtimeErr(errOnlyAllowedInsideLoop, &token{})
+				}
 			}
 		}
 	}
 	return nil
 }
 
-func (e execute) visitFnStmt(stmt *fnStmt) R {
+func (e *execute) visitFnStmt(stmt *fnStmt) R {
 	e.env.define(stmt.name.lexeme, &grotskyFunction{
 		declaration:   stmt,
 		closure:       e.env,
@@ -237,7 +345,7 @@ func (e execute) visitFnStmt(stmt *fnStmt) R {
 	return nil
 }
 
-func (e execute) visitClassStmt(stmt *classStmt) R {
+func (e *execute) visitClassStmt(stmt *classStmt) R {
 	class := &grotskyClass{
 		name: stmt.name.lexeme,
 	}
@@ -281,7 +389,7 @@ func (e execute) visitClassStmt(stmt *classStmt) R {
 	return nil
 }
 
-func (e execute) visitListExpr(expr *listExpr) R {
+func (e *execute) visitListExpr(expr *listExpr) R {
 	list := make(grotskyList, len(expr.elements))
 	for i, el := range expr.elements {
 		list[i] = el.accept(e)
@@ -289,7 +397,7 @@ func (e execute) visitListExpr(expr *listExpr) R {
 	return list
 }
 
-func (e execute) visitDictionaryExpr(expr *dictionaryExpr) R {
+func (e *execute) visitDictionaryExpr(expr *dictionaryExpr) R {
 	dict := make(grotskyDict)
 	for i := 0; i < len(expr.elements)/2; i++ {
 		dict[expr.elements[i*2].accept(e)] = expr.elements[i*2+1].accept(e)
@@ -297,13 +405,13 @@ func (e execute) visitDictionaryExpr(expr *dictionaryExpr) R {
 	return dict
 }
 
-func (e execute) visitAssignExpr(expr *assignExpr) R {
+func (e *execute) visitAssignExpr(expr *assignExpr) R {
 	val := expr.value.accept(e)
 	e.env.assign(e.state, expr.name, val)
 	return val
 }
 
-func (e execute) visitAccessExpr(expr *accessExpr) R {
+func (e *execute) visitAccessExpr(expr *accessExpr) R {
 	object := expr.object.accept(e)
 	str, isStr := object.(grotskyString)
 	if isStr {
@@ -346,7 +454,7 @@ func (e execute) visitAccessExpr(expr *accessExpr) R {
 	return nil
 }
 
-func (e execute) sliceList(list grotskyList, accessExpr *accessExpr) interface{} {
+func (e *execute) sliceList(list grotskyList, accessExpr *accessExpr) interface{} {
 	first, second, third := e.exprToInt(accessExpr.first, accessExpr.brace),
 		e.exprToInt(accessExpr.second, accessExpr.brace),
 		e.exprToInt(accessExpr.third, accessExpr.brace)
@@ -401,7 +509,7 @@ func (e execute) sliceList(list grotskyList, accessExpr *accessExpr) interface{}
 	return e.stepList(list, *third)
 }
 
-func (e execute) exprToInt(expr expr, token *token) *int64 {
+func (e *execute) exprToInt(expr expr, token *token) *int64 {
 	if expr == nil {
 		return nil
 	}
@@ -413,7 +521,7 @@ func (e execute) exprToInt(expr expr, token *token) *int64 {
 	return &valueI
 }
 
-func (e execute) stepList(list grotskyList, step int64) grotskyList {
+func (e *execute) stepList(list grotskyList, step int64) grotskyList {
 	if step <= 1 {
 		return list
 	}
@@ -429,7 +537,7 @@ func (e execute) stepList(list grotskyList, step int64) grotskyList {
 	return out
 }
 
-func (e execute) visitBinaryExpr(expr *binaryExpr) R {
+func (e *execute) visitBinaryExpr(expr *binaryExpr) R {
 	var value interface{}
 	var err error
 	left := expr.left.accept(e)
@@ -466,7 +574,7 @@ func (e execute) visitBinaryExpr(expr *binaryExpr) R {
 	return value
 }
 
-func (e execute) operateUnary(op operator, left interface{}) (interface{}, error) {
+func (e *execute) operateUnary(op operator, left interface{}) (interface{}, error) {
 	leftVal := left.(grotskyInstance)
 	apply, err := leftVal.getOperator(op)
 	if err != nil {
@@ -490,7 +598,7 @@ func equalingNil(op operator, left, right interface{}) (shouldCompare bool, resu
 	return
 }
 
-func (e execute) operateBinary(op operator, left, right interface{}) (interface{}, error) {
+func (e *execute) operateBinary(op operator, left, right interface{}) (interface{}, error) {
 	if left != nil && right != nil {
 		leftVal := left.(grotskyInstance)
 		apply, err := leftVal.getOperator(op)
@@ -505,7 +613,7 @@ func (e execute) operateBinary(op operator, left, right interface{}) (interface{
 	return nil, errUndefinedOp
 }
 
-func (e execute) visitCallExpr(expr *callExpr) R {
+func (e *execute) visitCallExpr(expr *callExpr) R {
 	callee := expr.callee.accept(e)
 	arguments := make([]interface{}, len(expr.arguments))
 	for i := range expr.arguments {
@@ -517,6 +625,9 @@ func (e execute) visitCallExpr(expr *callExpr) R {
 		e.state.runtimeErr(errOnlyFunction, expr.paren)
 	}
 
+	e.enterFunction(fn.String())
+	defer e.leaveFunction(fn.String())
+
 	result, err := fn.call(arguments)
 	if err != nil {
 		e.state.runtimeErr(err, expr.paren)
@@ -525,7 +636,7 @@ func (e execute) visitCallExpr(expr *callExpr) R {
 	return result
 }
 
-func (e execute) visitGetExpr(expr *getExpr) R {
+func (e *execute) visitGetExpr(expr *getExpr) R {
 	object := expr.object.accept(e)
 	if obj, ok := object.(grotskyInstance); ok {
 		return obj.get(e.state, expr.name)
@@ -534,7 +645,7 @@ func (e execute) visitGetExpr(expr *getExpr) R {
 	return nil
 }
 
-func (e execute) visitSetExpr(expr *setExpr) R {
+func (e *execute) visitSetExpr(expr *setExpr) R {
 	obj, ok := expr.object.accept(e).(grotskyInstance)
 	if !ok {
 		e.state.runtimeErr(errExpectedObject, expr.name)
@@ -543,7 +654,7 @@ func (e execute) visitSetExpr(expr *setExpr) R {
 	return nil
 }
 
-func (e execute) visitSuperExpr(expr *superExpr) R {
+func (e *execute) visitSuperExpr(expr *superExpr) R {
 	superclass := e.env.get(e.state, expr.keyword).(*grotskyClass)
 	// assert typeof(e.env.get(expr.keyword)) == (*grotskyClass)
 	this := &token{
@@ -560,15 +671,15 @@ func (e execute) visitSuperExpr(expr *superExpr) R {
 	return method.bind(object)
 }
 
-func (e execute) visitGroupingExpr(expr *groupingExpr) R {
+func (e *execute) visitGroupingExpr(expr *groupingExpr) R {
 	return expr.expression.accept(e)
 }
 
-func (e execute) visitLiteralExpr(expr *literalExpr) R {
+func (e *execute) visitLiteralExpr(expr *literalExpr) R {
 	return expr.value
 }
 
-func (e execute) visitLogicalExpr(expr *logicalExpr) R {
+func (e *execute) visitLogicalExpr(expr *logicalExpr) R {
 	left := e.truthy(expr.left.accept(e))
 
 	if expr.operator.token == tkOr {
@@ -587,11 +698,11 @@ func (e execute) visitLogicalExpr(expr *logicalExpr) R {
 	return grotskyBool(left && right)
 }
 
-func (e execute) visitThisExpr(expr *thisExpr) R {
+func (e *execute) visitThisExpr(expr *thisExpr) R {
 	return e.env.get(e.state, expr.keyword)
 }
 
-func (e execute) visitUnaryExpr(expr *unaryExpr) R {
+func (e *execute) visitUnaryExpr(expr *unaryExpr) R {
 	var err error
 	value := expr.right.accept(e)
 	switch expr.operator.token {
@@ -606,7 +717,7 @@ func (e execute) visitUnaryExpr(expr *unaryExpr) R {
 	return value
 }
 
-func (e execute) truthy(value interface{}) bool {
+func (e *execute) truthy(value interface{}) bool {
 	if value == nil {
 		return false
 	}
@@ -625,11 +736,11 @@ func (e execute) truthy(value interface{}) bool {
 	return true
 }
 
-func (e execute) visitVariableExpr(expr *variableExpr) R {
+func (e *execute) visitVariableExpr(expr *variableExpr) R {
 	return e.env.get(e.state, expr.name)
 }
 
-func (e execute) visitFunctionExpr(expr *functionExpr) R {
+func (e *execute) visitFunctionExpr(expr *functionExpr) R {
 	return &grotskyFunction{
 		declaration: &fnStmt{body: expr.body, params: expr.params},
 		closure:     e.env,

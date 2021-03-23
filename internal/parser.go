@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-type parseContext struct {
+type callStack struct {
 	function  string
 	loopCount int
 }
@@ -14,17 +14,17 @@ type parseContext struct {
 type parser struct {
 	current int
 
-	parsingContexts []*parseContext
+	cls []*callStack
 
 	state *interpreterState
 }
 
-func (p *parser) getParsingContext() *parseContext {
-	return p.parsingContexts[len(p.parsingContexts)-1]
+func (p *parser) getParsingContext() *callStack {
+	return p.cls[len(p.cls)-1]
 }
 
 func (p *parser) enterFunction(name string) {
-	p.parsingContexts = append(p.parsingContexts, &parseContext{
+	p.cls = append(p.cls, &callStack{
 		function:  name,
 		loopCount: 0,
 	})
@@ -35,7 +35,7 @@ func (p *parser) leaveFunction(name string) {
 	if pc.function != name {
 		p.state.fatalError(errMaxParameters, p.peek().line, 0)
 	}
-	p.parsingContexts = p.parsingContexts[:len(p.parsingContexts)-1]
+	p.cls = p.cls[:len(p.cls)-1]
 }
 
 func (p *parser) enterLoop() {
@@ -55,7 +55,7 @@ func (p *parser) insideLoop() bool {
 const maxFunctionParams = 255
 
 func (p *parser) parse() {
-	p.parsingContexts = make([]*parseContext, 0)
+	p.cls = make([]*callStack, 0)
 	p.enterFunction("")
 	defer p.leaveFunction("")
 	for !p.isAtEnd() {
@@ -167,7 +167,7 @@ func (p *parser) fn() *fnStmt {
 func (p *parser) fnExpr() *functionExpr {
 	p.consume(tkLeftParen, errExpectedParen)
 
-	lambdaName := fmt.Sprintf("lambda%d", len(p.parsingContexts))
+	lambdaName := fmt.Sprintf("lambda%d", len(p.cls))
 	p.enterFunction(lambdaName)
 	defer p.leaveFunction(lambdaName)
 

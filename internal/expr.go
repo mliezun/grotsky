@@ -44,6 +44,7 @@ func (s *dictionaryExpr) accept(visitor exprVisitor) R {
 type assignExpr struct {
 	name *token
 	value expr
+	access expr
 }
 
 func (s *assignExpr) accept(visitor exprVisitor) R {
@@ -97,6 +98,7 @@ type setExpr struct {
 	object expr
 	name *token
 	value expr
+	access expr
 }
 
 func (s *setExpr) accept(visitor exprVisitor) R {

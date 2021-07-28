@@ -438,17 +438,30 @@ func (p *parser) assignment() expr {
 		equal := p.previous()
 		value := p.assignment()
 
+		access := expr
+		for p.match(tkLeftBrace) {
+			access = p.access(access)
+		}
+
 		if variable, isVar := expr.(*variableExpr); isVar {
-			return &assignExpr{
+			assign := &assignExpr{
 				name:  variable.name,
 				value: value,
 			}
+			if expr != access {
+				assign.access = access
+			}
+			return assign
 		} else if get, isGet := expr.(*getExpr); isGet {
-			return &setExpr{
+			set := &setExpr{
 				name:   get.name,
 				object: get.object,
 				value:  value,
 			}
+			if expr != access {
+				set.access = access
+			}
+			return set
 		}
 
 		p.state.fatalError(errUndefinedStmt, equal.line, 0)

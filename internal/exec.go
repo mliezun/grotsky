@@ -407,6 +407,25 @@ func (e *execute) visitDictionaryExpr(expr *dictionaryExpr) R {
 
 func (e *execute) visitAssignExpr(expr *assignExpr) R {
 	val := expr.value.accept(e)
+	if expr.access != nil {
+		access := expr.access.(*accessExpr)
+		object := e.env.get(e.state, expr.name)
+		switch collection := object.(type) {
+		case grotskyDict:
+			value := e.accessDict(collection, access)
+			if value.valueAccessed != nil {
+				value.dict[value.keyAccessed] = val
+				return val
+			}
+		case grotskyList:
+			value := e.accessList(collection, access)
+			if value.valueAccessed != nil {
+				*value.valueAccessed = val
+				return val
+			}
+		}
+		e.state.runtimeErr(errInvalidAccess, access.brace)
+	}
 	e.env.assign(e.state, expr.name, val)
 	return val
 }
@@ -422,42 +441,82 @@ func (e *execute) visitAccessExpr(expr *accessExpr) R {
 		for i, r := range str {
 			list[i] = r
 		}
-		result := e.sliceList(list, expr)
-		if runes, ok := result.(grotskyList); ok {
-			newStr := ""
-			for _, r := range runes {
-				newStr += string(r.(rune))
-			}
-			return grotskyString(newStr)
+		accessor := &listAccessor{
+			list: list,
 		}
-		return grotskyString(result.(rune))
+		value := e.sliceList(accessor, expr)
+		if value.valueAccessed != nil {
+			return grotskyString((*value.valueAccessed).(rune))
+		}
+		newStr := ""
+		for _, r := range value.list {
+			newStr += string(r.(rune))
+		}
+		return grotskyString(newStr)
 	}
 	list, isList := object.(grotskyList)
 	if isList {
-		if len(list) == 0 {
-			return list
+		value := e.accessList(list, expr)
+		if value.valueAccessed != nil {
+			return *value.valueAccessed
 		}
-		return e.sliceList(list, expr)
+		return value.list
 	}
 	dict, isDict := object.(grotskyDict)
 	if isDict {
-		if expr.first == nil || expr.second != nil || expr.third != nil {
-			e.state.runtimeErr(errExpectedKey, expr.brace)
+		value := e.accessDict(dict, expr)
+		if value.valueAccessed != nil {
+			return *value.valueAccessed
 		}
-		if len(dict) == 0 {
-			return dict
-		}
-		val, _ := dict[expr.first.accept(e)]
-		return val
+		return value.dict
 	}
 	e.state.runtimeErr(errInvalidAccess, expr.brace)
 	return nil
 }
 
-func (e *execute) sliceList(list grotskyList, accessExpr *accessExpr) interface{} {
+type listAccessor struct {
+	list          grotskyList
+	valueAccessed *interface{}
+}
+
+func (e *execute) accessList(list grotskyList, expr *accessExpr) *listAccessor {
+	accessor := &listAccessor{
+		list: list,
+	}
+	if len(list) == 0 {
+		return accessor
+	}
+	return e.sliceList(accessor, expr)
+}
+
+type dictAccessor struct {
+	dict          grotskyDict
+	valueAccessed *interface{}
+	keyAccessed   interface{}
+}
+
+func (e *execute) accessDict(dict grotskyDict, expr *accessExpr) *dictAccessor {
+	if expr.first == nil || expr.second != nil || expr.third != nil {
+		e.state.runtimeErr(errExpectedKey, expr.brace)
+	}
+	accessor := &dictAccessor{
+		dict: dict,
+	}
+	if len(dict) == 0 {
+		return accessor
+	}
+	accessor.keyAccessed = expr.first.accept(e)
+	value := dict[accessor.keyAccessed]
+	accessor.valueAccessed = &value
+	return accessor
+}
+
+func (e *execute) sliceList(accessor *listAccessor, accessExpr *accessExpr) *listAccessor {
 	first, second, third := e.exprToInt(accessExpr.first, accessExpr.brace),
 		e.exprToInt(accessExpr.second, accessExpr.brace),
 		e.exprToInt(accessExpr.third, accessExpr.brace)
+
+	list := accessor.list
 
 	if first != nil {
 		if accessExpr.firstColon != nil {
@@ -472,22 +531,27 @@ func (e *execute) sliceList(list grotskyList, accessExpr *accessExpr) interface{
 					if third == nil {
 						e.state.runtimeErr(errExpectedStep, accessExpr.secondColon)
 					}
-					return e.stepList(list[*first:sec], *third)
+					accessor.list = e.stepList(list[*first:sec], *third)
+					return accessor
 				}
 				// [a:b]
-				return list[*first:sec]
+				accessor.list = list[*first:sec]
+				return accessor
 			}
 
 			// [a::c]
 			if accessExpr.secondColon != nil && third != nil {
-				return e.stepList(list[*first:], *third)
+				accessor.list = e.stepList(list[*first:], *third)
+				return accessor
 			}
 
 			// [a:]
-			return list[*first:]
+			accessor.list = list[*first:]
+			return accessor
 		}
 		// [a]
-		return list[*first]
+		accessor.valueAccessed = &list[*first]
+		return accessor
 	}
 
 	if second != nil {
@@ -497,16 +561,19 @@ func (e *execute) sliceList(list grotskyList, accessExpr *accessExpr) interface{
 		}
 		// [:b:c]
 		if accessExpr.secondColon != nil && third != nil {
-			return e.stepList(list[:sec], *third)
+			accessor.list = e.stepList(list[:sec], *third)
+			return accessor
 		}
 		// [:b]
-		return list[:sec]
+		accessor.list = list[:sec]
+		return accessor
 	}
 
 	// assert third != nil
 	// e.state.runtimeErr(errExpectedStep, accessExpr.secondColon)
 	// [::c]
-	return e.stepList(list, *third)
+	accessor.list = e.stepList(list, *third)
+	return accessor
 }
 
 func (e *execute) exprToInt(expr expr, token *token) *int64 {

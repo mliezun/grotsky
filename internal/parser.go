@@ -438,9 +438,19 @@ func (p *parser) assignment() expr {
 		equal := p.previous()
 		value := p.assignment()
 
-		access := expr
-		for p.match(tkLeftBrace) {
-			access = p.access(access)
+		// TODO: expr is already access, go up the chain and find original expr
+
+		access, isAccess := expr.(*accessExpr)
+		if isAccess {
+			object := access.object
+			for {
+				_, ok := object.(*accessExpr)
+				if !ok {
+					break
+				}
+				object = object.(*accessExpr).object
+			}
+			expr = object
 		}
 
 		if variable, isVar := expr.(*variableExpr); isVar {
@@ -448,7 +458,7 @@ func (p *parser) assignment() expr {
 				name:  variable.name,
 				value: value,
 			}
-			if expr != access {
+			if access != nil {
 				assign.access = access
 			}
 			return assign
@@ -458,7 +468,7 @@ func (p *parser) assignment() expr {
 				object: get.object,
 				value:  value,
 			}
-			if expr != access {
+			if access != nil {
 				set.access = access
 			}
 			return set

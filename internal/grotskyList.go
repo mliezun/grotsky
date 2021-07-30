@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"fmt"
 	"reflect"
 )
 
@@ -85,7 +84,7 @@ func (l grotskyList) String() string {
 	out := "["
 	i := 0
 	for _, val := range l {
-		out += fmt.Sprintf("%s", printObj(val))
+		out += printObj(val)
 		if len(l) > 1 && i != len(l)-1 {
 			out += ", "
 		}

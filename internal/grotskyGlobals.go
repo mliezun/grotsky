@@ -181,35 +181,9 @@ func defineIo(e *env, p IPrinter) {
 		return p.Println(arguments...)
 	}
 
-	var readfile nativeFn
-	readfile.callFn = func(arguments []interface{}) (interface{}, error) {
-		if len(arguments) != 1 {
-			return nil, errInvalidNumberArguments
-		}
-		pathGr, ok := arguments[0].(grotskyString)
-		if !ok {
-			return nil, errExpectedString
-		}
-		exec.mx.Unlock()
-		defer exec.mx.Lock()
-		file, err := os.Open(string(pathGr))
-		if err != nil {
-			return nil, err
-		}
-		defer file.Close()
-
-		b, err := ioutil.ReadAll(file)
-		if err != nil {
-			return nil, err
-		}
-
-		return grotskyString(b), nil
-	}
-
 	e.define("io", &nativeObj{
 		methods: map[string]*nativeFn{
-			"println":  &println,
-			"readfile": &readfile,
+			"println": &println,
 		},
 	})
 }

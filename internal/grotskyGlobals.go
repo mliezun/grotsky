@@ -3,6 +3,7 @@ package internal
 import (
 	"errors"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 )
@@ -60,6 +61,7 @@ func defineGlobals(state *interpreterState, e *env, p IPrinter) {
 	defineType(e)
 	defineImport(state, e)
 	defineEnv(e)
+	defineNet(e)
 }
 
 func defineType(e *env) {
@@ -184,6 +186,96 @@ func defineIo(e *env, p IPrinter) {
 	e.define("io", &nativeObj{
 		methods: map[string]*nativeFn{
 			"println": &println,
+		},
+	})
+}
+
+func defineNet(e *env) {
+	var listenTcp nativeFn
+	listenTcp.callFn = func(arguments []interface{}) (interface{}, error) {
+		exec.mx.Unlock()
+		defer exec.mx.Lock()
+		if len(arguments) != 1 {
+			return nil, errInvalidNumberArguments
+		}
+		address, ok := arguments[0].(grotskyString)
+		if !ok {
+			return nil, errExpectedString
+		}
+		ln, err := net.Listen("tcp", string(address))
+		if err != nil {
+			return nil, err
+		}
+		listenObj := &nativeObj{
+			methods: map[string]*nativeFn{
+				"address": {
+					callFn: func(arguments []interface{}) (interface{}, error) {
+						return grotskyString(ln.Addr().String()), nil
+					},
+				},
+				"close": {
+					callFn: func(arguments []interface{}) (interface{}, error) {
+						ln.Close()
+						return nil, nil
+					},
+				},
+				"accept": {
+					callFn: func(arguments []interface{}) (interface{}, error) {
+						conn, err := ln.Accept()
+						if err != nil {
+							return nil, err
+						}
+						return &nativeObj{
+							methods: map[string]*nativeFn{
+								"address": {
+									callFn: func(arguments []interface{}) (interface{}, error) {
+										return grotskyString(conn.RemoteAddr().String()), nil
+									},
+								},
+								"read": {
+									callFn: func(arguments []interface{}) (interface{}, error) {
+										buffer := make([]byte, 4096)
+										size, err := conn.Read(buffer)
+										if err != nil {
+											return nil, err
+										}
+										return grotskyString(buffer[:size]), nil
+									},
+								},
+								"write": {
+									callFn: func(arguments []interface{}) (interface{}, error) {
+										if len(arguments) != 1 {
+											return nil, errInvalidNumberArguments
+										}
+										content, ok := arguments[0].(grotskyString)
+										if !ok {
+											return nil, errExpectedString
+										}
+										n, err := conn.Write([]byte(content))
+										if err != nil {
+											return nil, err
+										}
+										return grotskyNumber(n), nil
+									},
+								},
+								"close": {
+									callFn: func(arguments []interface{}) (interface{}, error) {
+										conn.Close()
+										return nil, nil
+									},
+								},
+							},
+						}, nil
+					},
+				},
+			},
+		}
+		return listenObj, nil
+	}
+
+	e.define("net", &nativeObj{
+		methods: map[string]*nativeFn{
+			"listenTcp": &listenTcp,
 		},
 	})
 }

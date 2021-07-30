@@ -982,6 +982,47 @@ func TestStatements(t *testing.T) {
 		`, "a.msg", "ok")
 	}
 
+	// Assignments to colections
+	{
+		// Assign to list
+		checkStatements(t, `
+		let list = [1, 2, 3]
+		list[0] = 10
+		`, "list[0]", "10")
+
+		// Assign to dict
+		checkStatements(t, `
+		let dict = {
+			"a": 1,
+			"b": 2
+		}
+		dict["c"] = 3`, `dict["c"]`, "3")
+
+		// Assign to list inside list
+		checkStatements(t, `
+		let list = [[1], 2, 3]
+		list[0][0] = 10
+		`, "list[0][0]", "10")
+
+		// Assign to list inside dict
+		checkStatements(t, `
+		let dictlist = {"a": [1, 2, 3]}
+		dictlist["a"][0] = 10
+		`, `dictlist["a"][0]`, "10")
+
+		// Assign to dict inside list
+		checkStatements(t, `
+		let listdict = [1, 2, 3, {"a": 1}]
+		listdict[3]["b"] = 2
+		`, `listdict[3]["b"]`, "2")
+
+		// Assign to dict inside dict
+		checkStatements(t, `
+		let dictdict = {"a": {"A": 1}}
+		dictdict["a"]["B"] = 2
+		`, `dictdict["a"]["B"]`, "2")
+	}
+
 	// Types
 	{
 		checkStatements(t, `

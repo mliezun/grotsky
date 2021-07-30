@@ -409,7 +409,7 @@ func (e *execute) visitAssignExpr(expr *assignExpr) R {
 	val := expr.value.accept(e)
 	if expr.access != nil {
 		access := expr.access.(*accessExpr)
-		object := e.env.get(e.state, expr.name)
+		object := access.object.accept(e)
 		switch collection := object.(type) {
 		case grotskyDict:
 			value := e.accessDict(collection, access)

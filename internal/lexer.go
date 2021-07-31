@@ -149,11 +149,52 @@ func (l *lexer) scanToken() {
 	}
 }
 
+func (l *lexer) unescapeSequence() grotskyString {
+	if l.isAtEnd() {
+		return grotskyString("")
+	}
+	c := l.advance()
+	switch c {
+	case 'a':
+		return grotskyString("\a")
+	case 'b':
+		return grotskyString("\b")
+	case 'f':
+		return grotskyString("\f")
+	case 'n':
+		return grotskyString("\n")
+	case 'r':
+		return grotskyString("\r")
+	case 't':
+		return grotskyString("\t")
+	case 'v':
+		return grotskyString("\v")
+	case '\\':
+		return grotskyString("\\")
+	case '"':
+		return grotskyString("\"")
+	default:
+		return grotskyString("")
+	}
+}
+
 func (l *lexer) string() {
+	literal := grotskyString("")
 	for !l.isAtEnd() && !l.match('"') {
 		if l.match('\n') {
 			l.line++
 		}
+		if l.match('\\') {
+			l.advance()
+			unescaped := l.unescapeSequence()
+			if unescaped == "" {
+				l.state.setError(errUnclosedString, l.line, l.start)
+				return
+			}
+			literal += unescaped
+			continue
+		}
+		literal += grotskyString(l.state.source[l.current])
 		l.advance()
 	}
 
@@ -161,8 +202,6 @@ func (l *lexer) string() {
 		l.state.setError(errUnclosedString, l.line, l.start)
 		return
 	}
-
-	literal := grotskyString(l.state.source[l.start+1 : l.current])
 
 	// Consume ending "
 	l.advance()

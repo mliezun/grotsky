@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -320,13 +321,27 @@ func defineStrings(e *env) {
 			return grotskyString(rune(x)), nil
 		},
 	}
+	asNumber := nativeFn{
+		callFn: func(arguments []interface{}) (interface{}, error) {
+			if len(arguments) != 1 {
+				return nil, errInvalidNumberArguments
+			}
+			str, _ := arguments[0].(grotskyString)
+			num, err := strconv.ParseFloat(string(str), 64)
+			if err != nil {
+				return nil, nil
+			}
+			return grotskyNumber(num), nil
+		},
+	}
 
 	e.define("strings", &nativeObj{
 		methods: map[string]*nativeFn{
-			"toLower": &toLower,
-			"toUpper": &toUpper,
-			"ord":     &ord,
-			"chr":     &chr,
+			"toLower":  &toLower,
+			"toUpper":  &toUpper,
+			"ord":      &ord,
+			"chr":      &chr,
+			"asNumber": &asNumber,
 		},
 	})
 }

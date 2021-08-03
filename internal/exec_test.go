@@ -1041,6 +1041,12 @@ func TestStatements(t *testing.T) {
 
 		checkStatements(t, `
 		let a = strings.chr(97)`, "a", "a")
+
+		checkStatements(t, `
+		let a = strings.asNumber("97")`, "a", "97")
+
+		checkStatements(t, `
+		let a = strings.asNumber("12.2")`, "a", "12.2")
 	}
 
 	// Types

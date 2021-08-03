@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type nativeFn struct {
@@ -62,6 +63,7 @@ func defineGlobals(state *interpreterState, e *env, p IPrinter) {
 	defineImport(state, e)
 	defineEnv(e)
 	defineNet(e)
+	defineStrings(e)
 }
 
 func defineType(e *env) {
@@ -276,6 +278,55 @@ func defineNet(e *env) {
 	e.define("net", &nativeObj{
 		methods: map[string]*nativeFn{
 			"listenTcp": &listenTcp,
+		},
+	})
+}
+
+func defineStrings(e *env) {
+	toLower := nativeFn{
+		callFn: func(arguments []interface{}) (interface{}, error) {
+			if len(arguments) != 1 {
+				return nil, errInvalidNumberArguments
+			}
+			str, _ := arguments[0].(grotskyString)
+			return grotskyString(strings.ToLower(string(str))), nil
+		},
+	}
+	toUpper := nativeFn{
+		callFn: func(arguments []interface{}) (interface{}, error) {
+			if len(arguments) != 1 {
+				return nil, errInvalidNumberArguments
+			}
+			str, _ := arguments[0].(grotskyString)
+			return grotskyString(strings.ToUpper(string(str))), nil
+		},
+	}
+	ord := nativeFn{
+		callFn: func(arguments []interface{}) (interface{}, error) {
+			if len(arguments) != 1 {
+				return nil, errInvalidNumberArguments
+			}
+			str, _ := arguments[0].(grotskyString)
+			runes := []rune(str)
+			return grotskyNumber(runes[0]), nil
+		},
+	}
+	chr := nativeFn{
+		callFn: func(arguments []interface{}) (interface{}, error) {
+			if len(arguments) != 1 {
+				return nil, errInvalidNumberArguments
+			}
+			x, _ := arguments[0].(grotskyNumber)
+			return grotskyString(rune(x)), nil
+		},
+	}
+
+	e.define("strings", &nativeObj{
+		methods: map[string]*nativeFn{
+			"toLower": &toLower,
+			"toUpper": &toUpper,
+			"ord":     &ord,
+			"chr":     &chr,
 		},
 	})
 }

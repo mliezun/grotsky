@@ -1028,6 +1028,21 @@ func TestStatements(t *testing.T) {
 		a.do()`, `a.dict["a"]`, "1")
 	}
 
+	// Strings module
+	{
+		checkStatements(t, `
+		let a = strings.toLower("AAA")`, "a", "aaa")
+
+		checkStatements(t, `
+		let a = strings.toUpper("aaa")`, "a", "AAA")
+
+		checkStatements(t, `
+		let a = strings.ord("a")`, "a", fmt.Sprintf("%d", rune('a')))
+
+		checkStatements(t, `
+		let a = strings.chr(97)`, "a", "a")
+	}
+
 	// Types
 	{
 		checkStatements(t, `

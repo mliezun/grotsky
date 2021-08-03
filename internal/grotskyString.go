@@ -1,5 +1,7 @@
 package internal
 
+import "fmt"
+
 type grotskyString string
 
 // Representable object that can be represented as a string
@@ -67,5 +69,5 @@ func (s grotskyString) String() string {
 }
 
 func (s grotskyString) Repr() string {
-	return "\"" + string(s) + "\""
+	return fmt.Sprintf("%#v", string(s))
 }

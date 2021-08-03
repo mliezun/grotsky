@@ -413,7 +413,7 @@ func (e *execute) visitAssignExpr(expr *assignExpr) R {
 		switch collection := object.(type) {
 		case grotskyDict:
 			value := e.accessDict(collection, access)
-			if value.valueAccessed != nil {
+			if value.keyAccessed != nil {
 				value.dict[value.keyAccessed] = val
 				return val
 			}
@@ -500,12 +500,12 @@ func (e *execute) accessDict(dict grotskyDict, expr *accessExpr) *dictAccessor {
 		e.state.runtimeErr(errExpectedKey, expr.brace)
 	}
 	accessor := &dictAccessor{
-		dict: dict,
+		dict:        dict,
+		keyAccessed: expr.first.accept(e),
 	}
 	if len(dict) == 0 {
 		return accessor
 	}
-	accessor.keyAccessed = expr.first.accept(e)
 	value := dict[accessor.keyAccessed]
 	accessor.valueAccessed = &value
 	return accessor
@@ -717,8 +717,31 @@ func (e *execute) visitSetExpr(expr *setExpr) R {
 	if !ok {
 		e.state.runtimeErr(errExpectedObject, expr.name)
 	}
-	obj.set(e.state, expr.name, expr.value.accept(e))
-	return nil
+
+	val := expr.value.accept(e)
+
+	if expr.access != nil {
+		access := expr.access.(*accessExpr)
+		object := access.object.accept(e)
+		switch collection := object.(type) {
+		case grotskyDict:
+			value := e.accessDict(collection, access)
+			if value.keyAccessed != nil {
+				value.dict[value.keyAccessed] = val
+				return val
+			}
+		case grotskyList:
+			value := e.accessList(collection, access)
+			if value.valueAccessed != nil {
+				*value.valueAccessed = val
+				return val
+			}
+		}
+		e.state.runtimeErr(errInvalidAccess, access.brace)
+	}
+
+	obj.set(e.state, expr.name, val)
+	return val
 }
 
 func (e *execute) visitSuperExpr(expr *superExpr) R {

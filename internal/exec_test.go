@@ -1012,6 +1012,20 @@ func TestStatements(t *testing.T) {
 		let dictdict = {"a": {"A": 1}}
 		dictdict["a"]["B"] = 2
 		`, `dictdict["a"]["B"]`, "2")
+
+		// Assign to dict inside class
+		checkStatements(t, `
+		class A {
+			init() {
+				this.dict = {}
+			}
+
+			do() {
+				this.dict["a"] = 1
+			}
+		}
+		let a = A()
+		a.do()`, `a.dict["a"]`, "1")
 	}
 
 	// Types

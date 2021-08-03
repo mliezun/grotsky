@@ -438,8 +438,6 @@ func (p *parser) assignment() expr {
 		equal := p.previous()
 		value := p.assignment()
 
-		// TODO: expr is already access, go up the chain and find original expr
-
 		access, isAccess := expr.(*accessExpr)
 		if isAccess {
 			object := access.object

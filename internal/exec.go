@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -171,6 +172,19 @@ func (e *execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 		e.state.runtimeErr(errExpectedCollection, stmt.keyword)
 	}
 
+	return nil
+}
+
+func (e *execute) visitTryCatchStmt(stmt *tryCatchStmt) R {
+	defer func() {
+		if r := recover(); r != nil {
+			e.state.runtimeError = nil
+			env := newEnv(e.env)
+			env.define(stmt.name.lexeme, grotskyString(fmt.Sprintf("%v", r)))
+			e.executeOne(stmt.catchBody, env)
+		}
+	}()
+	stmt.tryBody.accept(e)
 	return nil
 }
 

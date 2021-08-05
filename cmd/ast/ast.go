@@ -14,6 +14,7 @@ func main() {
 	case "Stmt":
 		out = generateAst("Stmt", []string{
 			"Expr: last *token, expression expr",
+			"TryCatch: tryBody stmt, name *token, catchBody stmt",
 			"ClassicFor: keyword *token, initializer stmt, condition expr, increment expr, body stmt",
 			"EnhancedFor: keyword *token, identifiers []*token, collection expr, body stmt",
 			"Let: name *token, initializer expr",

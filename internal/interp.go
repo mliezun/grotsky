@@ -49,7 +49,9 @@ func RunSourceWithPrinter(absPath, source string, p IPrinter) bool {
 		return false
 	}
 
-	exec.mx.Lock()
+	// exec.mx.Lock()
+
+	defer state.PrintErrors()
 
 	return exec.interpret()
 }
@@ -70,6 +72,11 @@ func importModule(previousState *interpreterState, absPath, moduleSource string)
 	parser := &parser{
 		state: &state,
 	}
+
+	oldExec := exec
+	defer func() {
+		exec = oldExec
+	}()
 
 	moduleEnv := newEnv(nil)
 	exec = execute{
@@ -93,7 +100,9 @@ func importModule(previousState *interpreterState, absPath, moduleSource string)
 		return nil, false
 	}
 
-	exec.mx.Lock()
+	// exec.mx.Lock()
+
+	defer state.PrintErrors()
 
 	if !exec.interpret() {
 		return nil, false

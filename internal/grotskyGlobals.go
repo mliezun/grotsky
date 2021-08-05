@@ -115,8 +115,8 @@ func defineImport(state *interpreterState, e *env) {
 			modulePath = filepath.Join(basePath, modulePath)
 		}
 
-		exec.mx.Unlock()
-		defer exec.mx.Lock()
+		// exec.mx.Unlock()
+		// defer exec.mx.Lock()
 
 		file, err := os.Open(modulePath)
 		if err != nil {
@@ -181,8 +181,8 @@ func defineEnv(e *env) {
 func defineIo(e *env, p IPrinter) {
 	var println nativeFn
 	println.callFn = func(arguments []interface{}) (interface{}, error) {
-		exec.mx.Unlock()
-		defer exec.mx.Lock()
+		// exec.mx.Unlock()
+		// defer exec.mx.Lock()
 		return p.Println(arguments...)
 	}
 
@@ -196,8 +196,8 @@ func defineIo(e *env, p IPrinter) {
 func defineNet(e *env) {
 	var listenTcp nativeFn
 	listenTcp.callFn = func(arguments []interface{}) (interface{}, error) {
-		exec.mx.Unlock()
-		defer exec.mx.Lock()
+		// exec.mx.Unlock()
+		// defer exec.mx.Lock()
 		if len(arguments) != 1 {
 			return nil, errInvalidNumberArguments
 		}

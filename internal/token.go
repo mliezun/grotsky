@@ -64,6 +64,8 @@ const (
 	tkWhile
 	tkNot
 	tkIn
+	tkTry
+	tkCatch
 )
 
 type token struct {

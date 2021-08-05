@@ -60,13 +60,6 @@ func (s *interpreterState) runtimeErr(err error, token *token, msgs ...string) {
 		token: token,
 		msgs:  msgs,
 	}
-	s.logger.Fprintf(
-		os.Stderr,
-		"Runtime Error on line %d\n\t%s: %s\n",
-		s.runtimeError.token.line,
-		s.runtimeError.err.Error(),
-		s.runtimeError.token.lexeme,
-	)
 	panic(err)
 }
 
@@ -74,6 +67,15 @@ func (s *interpreterState) runtimeErr(err error, token *token, msgs ...string) {
 func (s *interpreterState) PrintErrors() bool {
 	for _, e := range s.errors {
 		s.logger.Fprintf(os.Stderr, "Error on line %d\n\t%s", e.line, e.err.Error())
+	}
+	if s.runtimeError != nil {
+		s.logger.Fprintf(
+			os.Stderr,
+			"Runtime Error on line %d\n\t%s: %s\n",
+			s.runtimeError.token.line,
+			s.runtimeError.err.Error(),
+			s.runtimeError.token.lexeme,
+		)
 	}
 	return len(s.errors) != 0
 }
@@ -133,4 +135,5 @@ var errExpectedDot = errors.New("Keyword 'super' is only valid for property acce
 var errExpectedDict = errors.New("A dictionary was expected at this position")
 var errExpectedList = errors.New("A list was expected at this position")
 var errExpectedInit = errors.New("Empty expression or let was expected at this position")
+var errExpectedCatch = errors.New("A catch block was expected at this position")
 var errUndefinedType = errors.New("Undefined type")

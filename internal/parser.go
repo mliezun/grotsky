@@ -216,6 +216,9 @@ func (p *parser) statement() stmt {
 	if p.match(tkFor) {
 		return p.forLoop()
 	}
+	if p.match(tkTry) {
+		return p.tryCatch()
+	}
 	if p.match(tkIf) {
 		return p.ifStmt()
 	}
@@ -288,6 +291,19 @@ func (p *parser) enhancedFor(keyword *token) stmt {
 		identifiers: ids,
 		body:        body,
 		collection:  collection,
+	}
+}
+
+func (p *parser) tryCatch() stmt {
+	tryBody := p.declaration(false)
+	p.consume(tkCatch, errExpectedCatch)
+	name := p.consume(tkIdentifier, errExpectedIdentifier)
+	catchBody := p.declaration(false)
+
+	return &tryCatchStmt{
+		tryBody:   tryBody,
+		name:      name,
+		catchBody: catchBody,
 	}
 }
 

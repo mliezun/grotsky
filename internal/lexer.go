@@ -33,6 +33,8 @@ var keywords = map[string]tokenType{
 	"while":    tkWhile,
 	"not":      tkNot,
 	"in":       tkIn,
+	"try":      tkTry,
+	"catch":    tkCatch,
 }
 
 func (l *lexer) scan() {

@@ -6,6 +6,7 @@ type stmt interface {
 
 type stmtVisitor interface {
 	visitExprStmt(stmt *exprStmt) R
+	visitTryCatchStmt(stmt *tryCatchStmt) R
 	visitClassicForStmt(stmt *classicForStmt) R
 	visitEnhancedForStmt(stmt *enhancedForStmt) R
 	visitLetStmt(stmt *letStmt) R
@@ -26,6 +27,16 @@ type exprStmt struct {
 
 func (s *exprStmt) accept(visitor stmtVisitor) R {
 	return visitor.visitExprStmt(s)
+}
+
+type tryCatchStmt struct {
+	tryBody stmt
+	name *token
+	catchBody stmt
+}
+
+func (s *tryCatchStmt) accept(visitor stmtVisitor) R {
+	return visitor.visitTryCatchStmt(s)
 }
 
 type classicForStmt struct {

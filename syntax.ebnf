@@ -43,6 +43,7 @@ function       → IDENTIFIER "(" parameters? ")" (block | exprStmt) ;
 parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
 varDecl        → "let" IDENTIFIER ("=" expression)?;
 statement      → forStmt
+                | tryCatchStmt
                 | ifStmt
                 | returnStmt
                 | whileStmt
@@ -50,6 +51,7 @@ statement      → forStmt
                 | block;
 exprStmt       → expression;
 forStmt        → "for"  (classicFor | newFor) statement;
+tryCatchStmt   → "try" block "catch" IDENTIFIER block;
 classicFor     → (varDecl | exprStmt | ",") expression? "," expression?;
 newFor         → IDENTIFIER ("," IDENTIFIER)? "in" expression;
 ifStmt         → "if" expression block ("elif" expression block)* ("else" block)?;

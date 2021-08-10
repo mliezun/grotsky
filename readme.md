@@ -391,3 +391,18 @@ Outputs:
 ```
 en_US.UTF-8
 ```
+
+### Try-Catch
+
+```js
+try {
+    let utils = import("utils.gr")
+} catch err {
+    io.println(err)
+}
+```
+
+Outputs:
+```
+open utils.gr: no such file or directory
+```

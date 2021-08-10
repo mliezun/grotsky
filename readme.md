@@ -3,7 +3,7 @@
 [![build](https://github.com/mliezun/grotsky/workflows/build/badge.svg)](https://github.com/mliezun/grotsky/actions?query=workflow%3Abuild)
 
 
-Grotsky toy programming language. Made after reading the book Crafting Interpreters. You can also find clox and jlox implementations on my github projects.
+Grotsky toy programming language. Implemented in go as a Tree-based interpreter. Made after reading the book Crafting Interpreters. You can also find clox and jlox implementations on my github projects.
 
 Grotsky is inspired a little bit by go and python. Uses a C-like style with curly braces but no semicolons, includes some basic collections like lists and dicts. Also has the hability to listen to tcp ports, read environment variables and import modules.
 
@@ -25,6 +25,12 @@ Run using `$ ./grotsky source.gr`
 
 ```js
 io.println("Hello world!")
+```
+
+### Comments
+
+```js
+# Comments start with '#'
 ```
 
 ### Arithmetic Expressions
@@ -129,6 +135,79 @@ Outputs:
 aaaaaaaaaa
 ```
 
+#### Classic For-Loop
+
+```js
+let list = []
+for let i = 0; i < 10; i = i + 1 {
+    list = list + [i]
+}
+io.println(list)
+```
+
+Outputs:
+```
+[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+```
+
+#### Enhanced For-Loop
+
+##### Iterate List
+```js
+let list = [0, 1, 2, 3, 4]
+for i in list {
+    io.println(i)
+}
+```
+
+Outputs:
+```
+0
+1
+2
+3
+4
+```
+
+##### Iterate Dict
+```js
+let dict = {
+    "a": 1,
+    "b": 2,
+    "c": 3
+}
+for k, v in dict {
+    io.println(k, v)
+}
+```
+
+Outputs:
+```
+b 2
+c 3
+a 1
+```
+
+##### Unpacked List of Lists
+
+```js
+let listOfLists = [
+    ["a", 1, 3],
+    ["b", 2, 4],
+    ["c", 3, 5]
+]
+for x, y, z in listOfLists {
+    io.println(x, y, z)
+}
+```
+
+Outputs:
+```
+a 1 3
+b 2 4
+c 3 5
+```
+
 ### Functions and Closures
 
 ```js
@@ -153,4 +232,96 @@ Outputs:
 1
 2
 3
+```
+
+### Classes
+
+#### Simple Class
+
+```js
+class A {
+    init(n) {
+        this.n = n
+    }
+
+    print() {
+        io.println("N:", this.n)
+    }
+}
+
+let a = A(10)
+a.print()
+```
+
+Outputs:
+```
+N: 10
+```
+
+#### Superclasses
+
+```js
+class A {
+    print() {
+        io.println("Printing:", this.text)
+    }
+
+    appendToText(text) {
+        this.text = this.text + text
+    }
+}
+
+class B < A { # Inherits from A
+    init() {
+        this.text = ""
+    }
+
+    appendToText(text) {
+        if this.text.length + text.length < 5 {
+            super.appendToText(text) # Call to method on superclass
+        }
+    }
+}
+
+let b = B()
+b.appendToText("Hello!") # str.length > 5
+b.print()
+b.appendToText("Hell")
+b.print()
+```
+
+Outputs:
+```
+Printing: 
+Printing: Hell
+```
+
+#### Magic Methods
+
+Available magic methods: add, sub, div, mod, mul, pow, neg, eq, neq, lt, lte, gt, gte.
+
+```js
+class Magic {
+    init(value) {
+        this.value = value
+    }
+
+    add(other) {
+        # Addition as in result = this + other
+        this.value = this.value + other.value
+    }
+
+    print() {
+        io.println("Magic is:", this.value)
+    }
+}
+
+let a = Magic(1)
+a + Magic(2)
+a.print()
+```
+
+Outputs:
+```
+Magic is: 3
 ```

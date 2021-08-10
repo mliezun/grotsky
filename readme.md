@@ -325,3 +325,57 @@ Outputs:
 ```
 Magic is: 3
 ```
+
+### Modules
+
+File `utils.gr`:
+```js
+fn map(list, mapFn) {
+    let out = []
+    for e in list {
+        out = out + [mapFn(e)]
+    }
+    return out
+}
+```
+
+Usage:
+```js
+let utils = import("utils.gr")
+let list = [0, 1, 2, 3, 4]
+io.println(utils.map(list, fn (e) 2 ^ e))
+```
+
+Outputs:
+```js
+[1, 2, 4, 8, 16]
+```
+
+### Net utils
+
+#### TCP Socket
+
+```js
+let socket = net.listenTcp("127.0.0.1", "6500")
+while true {
+    let conn = socket.accept()
+    io.println("Received connection from:", conn.address())
+    conn.write("ok\n")
+    conn.close()
+}
+```
+
+Try from console:
+```
+$ telnet localhost 6500
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+ok
+Connection closed by foreign host.
+```
+
+Outputs:
+```
+Received connection from: 127.0.0.1:52238
+```

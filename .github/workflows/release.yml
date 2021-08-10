@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build
+    name: Release
     runs-on: ubuntu-latest
     steps:
 
@@ -36,8 +36,13 @@ jobs:
         go test -v -race -coverprofile=coverage.txt -covermode=atomic github.com/mliezun/grotsky/internal
         bash <(curl -s https://codecov.io/bash)
 
+    - name: Extract branch name
+      shell: bash
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: extract_branch
+
     - name: Prepare Release Linux
-      run: tar -czvf grotsky-${GITHUB_REF##*/}-linux-x86_64.tar.gz grotsky
+      run: tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz grotsky
 
     - name: Create Release
       id: create_release
@@ -45,8 +50,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${GITHUB_REF##*/}
-        release_name: Release ${GITHUB_REF##*/}
+        tag_name: ${{ steps.extract_branch.outputs.branch }}
+        release_name: Release ${{ steps.extract_branch.outputs.branch }}
         body: |
           Automated Release
         draft: false
@@ -59,6 +64,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-        asset_path: ./grotsky-${GITHUB_REF##*/}-linux-x86_64.tar.gz
-        asset_name: grotsky-${GITHUB_REF##*/}-linux-x86_64.tar.gz
+        asset_path: ./grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz
+        asset_name: grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz
         asset_content_type: application/gzip

@@ -21,20 +21,12 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Get dependencies
-      run: |
-        go get -v -t -d ./...
-        if [ -f Gopkg.toml ]; then
-            curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-            dep ensure
-        fi
+      run: go get -v -t -d ./...
 
     - name: Build
-      run: go build -v ./cmd/grotsky/
-
-    - name: Test
       run: |
-        go test -v -race -coverprofile=coverage.txt -covermode=atomic github.com/mliezun/grotsky/internal
-        bash <(curl -s https://codecov.io/bash)
+        GOOS=linux GOARCH=amd64 go build -ldflags '-extldflags "-fno-PIC -static"' -buildmode pie -tags 'osusergo netgo static_build' -o grotsky-linux ./cmd/grotsky/
+        GOOS=darwin GOARCH=amd64 go build -ldflags '-extldflags "-fno-PIC -static"' -buildmode pie -tags 'osusergo netgo static_build' -o grotsky-macos  ./cmd/grotsky/
 
     - name: Extract branch name
       shell: bash
@@ -42,7 +34,14 @@ jobs:
       id: extract_branch
 
     - name: Prepare Release Linux
-      run: tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz grotsky
+      run: |
+        mv grotsky-linux grotsky
+        tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz grotsky
+
+    - name: Prepare Release Mac
+      run: |
+        mv grotsky-macos grotsky
+        tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-macos-x86_64.tar.gz grotsky
 
     - name: Create Release
       id: create_release
@@ -66,4 +65,15 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
         asset_path: ./grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz
         asset_name: grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz
+        asset_content_type: application/gzip
+
+    - name: Upload Release Mac
+      id: upload-release-macos
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+        asset_path: ./grotsky-${{ steps.extract_branch.outputs.branch }}-macos-x86_64.tar.gz
+        asset_name: grotsky-${{ steps.extract_branch.outputs.branch }}-macos-x86_64.tar.gz
         asset_content_type: application/gzip

@@ -684,7 +684,7 @@ func (p *parser) arguments(tk tokenType) []expr {
 				p.state.fatalError(errMaxArguments, p.peek().line, 0)
 			}
 			arguments = append(arguments, p.expression())
-			if !p.match(tkComma) {
+			if !p.match(tkComma) || p.check(tk) {
 				break
 			}
 		}

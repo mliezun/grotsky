@@ -373,6 +373,13 @@ func TestExpressions(t *testing.T) {
 		// List access
 		checkExpression(t, `[1,2,3,4,5,6,7,8,9,10,11,12,13,14][:20:0][0:10:100]`, "[]")
 		checkExpression(t, `[1,2][1:20]`, "[2]")
+
+		// Consume trailing comma
+		checkExpression(t, `[
+			1,
+			2,
+			3,
+		]`, "[1, 2, 3]")
 	}
 
 	// Dicts

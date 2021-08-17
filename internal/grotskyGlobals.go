@@ -2,6 +2,7 @@ package internal
 
 import (
 	"errors"
+	"io/fs"
 	"io/ioutil"
 	"net"
 	"os"
@@ -186,9 +187,80 @@ func defineIo(e *env, p IPrinter) {
 		return p.Println(arguments...)
 	}
 
+	var readFile nativeFn
+	readFile.callFn = func(arguments []interface{}) (interface{}, error) {
+		// exec.mx.Unlock()
+		// defer exec.mx.Lock()
+		if len(arguments) != 1 {
+			return nil, errInvalidNumberArguments
+		}
+		path, ok := arguments[0].(grotskyString)
+		if !ok {
+			return nil, errExpectedString
+		}
+		content, err := ioutil.ReadFile(string(path))
+		if err != nil {
+			return nil, err
+		}
+		return grotskyString(content), nil
+	}
+
+	var writeFile nativeFn
+	writeFile.callFn = func(arguments []interface{}) (interface{}, error) {
+		// exec.mx.Unlock()
+		// defer exec.mx.Lock()
+		if len(arguments) != 2 {
+			return nil, errInvalidNumberArguments
+		}
+		path, ok := arguments[0].(grotskyString)
+		if !ok {
+			return nil, errExpectedString
+		}
+		content, ok := arguments[1].(grotskyString)
+		if !ok {
+			return nil, errExpectedString
+		}
+		err := ioutil.WriteFile(string(path), []byte(content), fs.ModePerm)
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+
+	var listDir nativeFn
+	listDir.callFn = func(arguments []interface{}) (interface{}, error) {
+		// exec.mx.Unlock()
+		// defer exec.mx.Lock()
+		if len(arguments) != 1 {
+			return nil, errInvalidNumberArguments
+		}
+		path, ok := arguments[0].(grotskyString)
+		if !ok {
+			return nil, errExpectedString
+		}
+		list, err := ioutil.ReadDir(string(path))
+		if err != nil {
+			return nil, err
+		}
+		out := make(grotskyList, len(list))
+		for i, l := range list {
+			file := make(grotskyDict)
+			file[grotskyString("is_dir")] = grotskyBool(l.IsDir())
+			file[grotskyString("mod_time")] = grotskyNumber(l.ModTime().Unix())
+			file[grotskyString("mode")] = grotskyString(l.Mode().String())
+			file[grotskyString("name")] = grotskyString(l.Name())
+			file[grotskyString("size")] = grotskyNumber(l.Size())
+			out[i] = file
+		}
+		return out, nil
+	}
+
 	e.define("io", &nativeObj{
 		methods: map[string]*nativeFn{
-			"println": &println,
+			"println":   &println,
+			"readFile":  &readFile,
+			"writeFile": &writeFile,
+			"listDir":   &listDir,
 		},
 	})
 }

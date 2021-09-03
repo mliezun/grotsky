@@ -406,6 +406,21 @@ func defineStrings(e *env) {
 			return grotskyNumber(num), nil
 		},
 	}
+	split := nativeFn{
+		callFn: func(arguments []interface{}) (interface{}, error) {
+			if len(arguments) != 2 {
+				return nil, errInvalidNumberArguments
+			}
+			str, _ := arguments[0].(grotskyString)
+			sep, _ := arguments[1].(grotskyString)
+			separated := strings.Split(string(str), string(sep))
+			out := make(grotskyList, len(separated))
+			for i, s := range separated {
+				out[i] = grotskyString(s)
+			}
+			return out, nil
+		},
+	}
 
 	e.define("strings", &nativeObj{
 		methods: map[string]*nativeFn{
@@ -414,6 +429,7 @@ func defineStrings(e *env) {
 			"ord":      &ord,
 			"chr":      &chr,
 			"asNumber": &asNumber,
+			"split":    &split,
 		},
 	})
 }

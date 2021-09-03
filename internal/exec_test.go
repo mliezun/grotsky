@@ -1054,6 +1054,9 @@ func TestStatements(t *testing.T) {
 
 		checkStatements(t, `
 		let a = strings.asNumber("12.2")`, "a", "12.2")
+
+		checkStatements(t, `
+		let a = strings.split("a,b,c,d", ",")`, "a", `["a", "b", "c", "d"]`)
 	}
 
 	// Types

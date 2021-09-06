@@ -255,7 +255,7 @@ func defineIo(e *env, p IPrinter) {
 		if !ok {
 			return nil, errExpectedString
 		}
-		perm, ok := arguments[0].(grotskyNumber)
+		perm, ok := arguments[1].(grotskyNumber)
 		if !ok {
 			return nil, errExpectedNumber
 		}

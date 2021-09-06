@@ -227,6 +227,23 @@ func defineIo(e *env, p IPrinter) {
 		return nil, nil
 	}
 
+	var fileExists nativeFn
+	fileExists.callFn = func(arguments []interface{}) (interface{}, error) {
+		// exec.mx.Unlock()
+		// defer exec.mx.Lock()
+		if len(arguments) != 1 {
+			return nil, errInvalidNumberArguments
+		}
+		path, ok := arguments[0].(grotskyString)
+		if !ok {
+			return nil, errExpectedString
+		}
+		if _, err := os.Stat(string(path)); os.IsNotExist(err) {
+			return grotskyBool(false), nil
+		}
+		return grotskyBool(true), nil
+	}
+
 	var listDir nativeFn
 	listDir.callFn = func(arguments []interface{}) (interface{}, error) {
 		// exec.mx.Unlock()

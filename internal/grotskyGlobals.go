@@ -244,6 +244,27 @@ func defineIo(e *env, p IPrinter) {
 		return grotskyBool(true), nil
 	}
 
+	var mkdirAll nativeFn
+	mkdirAll.callFn = func(arguments []interface{}) (interface{}, error) {
+		// exec.mx.Unlock()
+		// defer exec.mx.Lock()
+		if len(arguments) != 2 {
+			return nil, errInvalidNumberArguments
+		}
+		path, ok := arguments[0].(grotskyString)
+		if !ok {
+			return nil, errExpectedString
+		}
+		perm, ok := arguments[0].(grotskyNumber)
+		if !ok {
+			return nil, errExpectedNumber
+		}
+		if err := os.MkdirAll(string(path), fs.FileMode(perm)); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+
 	var listDir nativeFn
 	listDir.callFn = func(arguments []interface{}) (interface{}, error) {
 		// exec.mx.Unlock()
@@ -274,10 +295,12 @@ func defineIo(e *env, p IPrinter) {
 
 	e.define("io", &nativeObj{
 		methods: map[string]*nativeFn{
-			"println":   &println,
-			"readFile":  &readFile,
-			"writeFile": &writeFile,
-			"listDir":   &listDir,
+			"println":    &println,
+			"readFile":   &readFile,
+			"writeFile":  &writeFile,
+			"listDir":    &listDir,
+			"fileExists": &fileExists,
+			"mkdirAll":   &mkdirAll,
 		},
 	})
 }

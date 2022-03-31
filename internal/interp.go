@@ -14,17 +14,17 @@ type IPrinter interface {
 
 // RunSourceWithPrinter runs source code on a fresh interpreter instance
 func RunSourceWithPrinter(absPath, source string, p IPrinter) bool {
-	state := interpreterState{
+	state := interpreterState[R]{
 		absPath: absPath,
 		source:  source,
 		errors:  make([]parseError, 0),
 		logger:  p,
 	}
-	lexer := &lexer{
+	lexer := &lexer[R]{
 		line:  1,
 		state: &state,
 	}
-	parser := &parser{
+	parser := &parser[R]{
 		state: &state,
 	}
 
@@ -56,20 +56,20 @@ func RunSourceWithPrinter(absPath, source string, p IPrinter) bool {
 	return exec.interpret()
 }
 
-func importModule(previousState *interpreterState, absPath, moduleSource string) (*env, bool) {
+func importModule(previousState *interpreterState[R], absPath, moduleSource string) (*env, bool) {
 	p := previousState.logger
 
-	state := interpreterState{
+	state := interpreterState[R]{
 		absPath: absPath,
 		source:  moduleSource,
 		errors:  make([]parseError, 0),
 		logger:  p,
 	}
-	lexer := &lexer{
+	lexer := &lexer[R]{
 		line:  1,
 		state: &state,
 	}
-	parser := &parser{
+	parser := &parser[R]{
 		state: &state,
 	}
 

@@ -13,7 +13,7 @@ type execute struct {
 
 	cls []*callStack
 
-	state *interpreterState
+	state *interpreterState[R]
 }
 
 func (e *execute) getExecContext() *callStack {
@@ -66,11 +66,11 @@ func (e *execute) interpret() (res bool) {
 	return true
 }
 
-func (e *execute) visitExprStmt(stmt *exprStmt) R {
+func (e *execute) visitExprStmt(stmt *exprStmt[R]) R {
 	return stmt.expression.accept(e)
 }
 
-func (e *execute) visitClassicForStmt(stmt *classicForStmt) R {
+func (e *execute) visitClassicForStmt(stmt *classicForStmt[R]) R {
 	if stmt.initializer != nil {
 		stmt.initializer.accept(e)
 	}
@@ -98,7 +98,7 @@ func (e *execute) visitClassicForStmt(stmt *classicForStmt) R {
 	return nil
 }
 
-func (e *execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
+func (e *execute) visitEnhancedForStmt(stmt *enhancedForStmt[R]) R {
 	collection := stmt.collection.accept(e)
 	environment := newEnv(e.env)
 
@@ -175,7 +175,7 @@ func (e *execute) visitEnhancedForStmt(stmt *enhancedForStmt) R {
 	return nil
 }
 
-func (e *execute) visitTryCatchStmt(stmt *tryCatchStmt) R {
+func (e *execute) visitTryCatchStmt(stmt *tryCatchStmt[R]) R {
 	defer func() {
 		if r := recover(); r != nil {
 			e.state.runtimeError = nil
@@ -188,7 +188,7 @@ func (e *execute) visitTryCatchStmt(stmt *tryCatchStmt) R {
 	return nil
 }
 
-func (e *execute) visitLetStmt(stmt *letStmt) R {
+func (e *execute) visitLetStmt(stmt *letStmt[R]) R {
 	var val interface{}
 	if stmt.initializer != nil {
 		val = stmt.initializer.accept(e)
@@ -197,11 +197,11 @@ func (e *execute) visitLetStmt(stmt *letStmt) R {
 	return nil
 }
 
-func (e *execute) visitBlockStmt(stmt *blockStmt) R {
+func (e *execute) visitBlockStmt(stmt *blockStmt[R]) R {
 	return e.executeBlock(stmt.stmts, newEnv(e.env))
 }
 
-func (e *execute) executeOne(st stmt, env *env) R {
+func (e *execute) executeOne(st stmt[R], env *env) R {
 	previous := e.env
 	defer func() {
 		e.env = previous
@@ -210,7 +210,7 @@ func (e *execute) executeOne(st stmt, env *env) R {
 	return st.accept(e)
 }
 
-func (e *execute) executeBlock(stmts []stmt, env *env) R {
+func (e *execute) executeBlock(stmts []stmt[R], env *env) R {
 	previous := e.env
 	defer func() {
 		e.env = previous
@@ -238,7 +238,7 @@ func (e *execute) executeBlock(stmts []stmt, env *env) R {
 	return nil
 }
 
-func (e *execute) visitWhileStmt(stmt *whileStmt) R {
+func (e *execute) visitWhileStmt(stmt *whileStmt[R]) R {
 	e.enterLoop()
 	defer e.leaveLoop()
 	for e.truthy(stmt.condition.accept(e)) {
@@ -263,7 +263,7 @@ func (e *execute) visitWhileStmt(stmt *whileStmt) R {
 	return nil
 }
 
-func (e *execute) visitReturnStmt(stmt *returnStmt) R {
+func (e *execute) visitReturnStmt(stmt *returnStmt[R]) R {
 	if stmt.value != nil {
 		result := &returnValue{value: stmt.value.accept(e)}
 		return result
@@ -271,15 +271,15 @@ func (e *execute) visitReturnStmt(stmt *returnStmt) R {
 	return nil
 }
 
-func (e *execute) visitBreakStmt(stmt *breakStmt) R {
+func (e *execute) visitBreakStmt(stmt *breakStmt[R]) R {
 	return &breakValue{}
 }
 
-func (e *execute) visitContinueStmt(stmt *continueStmt) R {
+func (e *execute) visitContinueStmt(stmt *continueStmt[R]) R {
 	return &continueValue{}
 }
 
-func (e *execute) visitIfStmt(stmt *ifStmt) R {
+func (e *execute) visitIfStmt(stmt *ifStmt[R]) R {
 	if e.truthy(stmt.condition.accept(e)) {
 		for _, st := range stmt.thenBranch {
 			val := st.accept(e)
@@ -350,7 +350,7 @@ func (e *execute) visitIfStmt(stmt *ifStmt) R {
 	return nil
 }
 
-func (e *execute) visitFnStmt(stmt *fnStmt) R {
+func (e *execute) visitFnStmt(stmt *fnStmt[R]) R {
 	e.env.define(stmt.name.lexeme, &grotskyFunction{
 		declaration:   stmt,
 		closure:       e.env,
@@ -359,7 +359,7 @@ func (e *execute) visitFnStmt(stmt *fnStmt) R {
 	return nil
 }
 
-func (e *execute) visitClassStmt(stmt *classStmt) R {
+func (e *execute) visitClassStmt(stmt *classStmt[R]) R {
 	class := &grotskyClass{
 		name: stmt.name.lexeme,
 	}
@@ -403,7 +403,7 @@ func (e *execute) visitClassStmt(stmt *classStmt) R {
 	return nil
 }
 
-func (e *execute) visitListExpr(expr *listExpr) R {
+func (e *execute) visitListExpr(expr *listExpr[R]) R {
 	list := make(grotskyList, len(expr.elements))
 	for i, el := range expr.elements {
 		list[i] = el.accept(e)
@@ -411,7 +411,7 @@ func (e *execute) visitListExpr(expr *listExpr) R {
 	return list
 }
 
-func (e *execute) visitDictionaryExpr(expr *dictionaryExpr) R {
+func (e *execute) visitDictionaryExpr(expr *dictionaryExpr[R]) R {
 	dict := make(grotskyDict)
 	for i := 0; i < len(expr.elements)/2; i++ {
 		dict[expr.elements[i*2].accept(e)] = expr.elements[i*2+1].accept(e)
@@ -419,10 +419,10 @@ func (e *execute) visitDictionaryExpr(expr *dictionaryExpr) R {
 	return dict
 }
 
-func (e *execute) visitAssignExpr(expr *assignExpr) R {
+func (e *execute) visitAssignExpr(expr *assignExpr[R]) R {
 	val := expr.value.accept(e)
 	if expr.access != nil {
-		access := expr.access.(*accessExpr)
+		access := expr.access.(*accessExpr[R])
 		object := access.object.accept(e)
 		switch collection := object.(type) {
 		case grotskyDict:
@@ -444,7 +444,7 @@ func (e *execute) visitAssignExpr(expr *assignExpr) R {
 	return val
 }
 
-func (e *execute) visitAccessExpr(expr *accessExpr) R {
+func (e *execute) visitAccessExpr(expr *accessExpr[R]) R {
 	object := expr.object.accept(e)
 	str, isStr := object.(grotskyString)
 	if isStr {
@@ -493,7 +493,7 @@ type listAccessor struct {
 	valueAccessed *interface{}
 }
 
-func (e *execute) accessList(list grotskyList, expr *accessExpr) *listAccessor {
+func (e *execute) accessList(list grotskyList, expr *accessExpr[R]) *listAccessor {
 	accessor := &listAccessor{
 		list: list,
 	}
@@ -509,7 +509,7 @@ type dictAccessor struct {
 	keyAccessed   interface{}
 }
 
-func (e *execute) accessDict(dict grotskyDict, expr *accessExpr) *dictAccessor {
+func (e *execute) accessDict(dict grotskyDict, expr *accessExpr[R]) *dictAccessor {
 	if expr.first == nil || expr.second != nil || expr.third != nil {
 		e.state.runtimeErr(errExpectedKey, expr.brace)
 	}
@@ -525,7 +525,7 @@ func (e *execute) accessDict(dict grotskyDict, expr *accessExpr) *dictAccessor {
 	return accessor
 }
 
-func (e *execute) sliceList(accessor *listAccessor, accessExpr *accessExpr) *listAccessor {
+func (e *execute) sliceList(accessor *listAccessor, accessExpr *accessExpr[R]) *listAccessor {
 	first, second, third := e.exprToInt(accessExpr.first, accessExpr.brace),
 		e.exprToInt(accessExpr.second, accessExpr.brace),
 		e.exprToInt(accessExpr.third, accessExpr.brace)
@@ -590,7 +590,7 @@ func (e *execute) sliceList(accessor *listAccessor, accessExpr *accessExpr) *lis
 	return accessor
 }
 
-func (e *execute) exprToInt(expr expr, token *token) *int64 {
+func (e *execute) exprToInt(expr expr[R], token *token) *int64 {
 	if expr == nil {
 		return nil
 	}
@@ -618,7 +618,7 @@ func (e *execute) stepList(list grotskyList, step int64) grotskyList {
 	return out
 }
 
-func (e *execute) visitBinaryExpr(expr *binaryExpr) R {
+func (e *execute) visitBinaryExpr(expr *binaryExpr[R]) R {
 	var value interface{}
 	var err error
 	left := expr.left.accept(e)
@@ -694,7 +694,7 @@ func (e *execute) operateBinary(op operator, left, right interface{}) (interface
 	return nil, errUndefinedOp
 }
 
-func (e *execute) visitCallExpr(expr *callExpr) R {
+func (e *execute) visitCallExpr(expr *callExpr[R]) R {
 	callee := expr.callee.accept(e)
 	arguments := make([]interface{}, len(expr.arguments))
 	for i := range expr.arguments {
@@ -717,7 +717,7 @@ func (e *execute) visitCallExpr(expr *callExpr) R {
 	return result
 }
 
-func (e *execute) visitGetExpr(expr *getExpr) R {
+func (e *execute) visitGetExpr(expr *getExpr[R]) R {
 	object := expr.object.accept(e)
 	if obj, ok := object.(grotskyInstance); ok {
 		return obj.get(e.state, expr.name)
@@ -726,7 +726,7 @@ func (e *execute) visitGetExpr(expr *getExpr) R {
 	return nil
 }
 
-func (e *execute) visitSetExpr(expr *setExpr) R {
+func (e *execute) visitSetExpr(expr *setExpr[R]) R {
 	obj, ok := expr.object.accept(e).(grotskyInstance)
 	if !ok {
 		e.state.runtimeErr(errExpectedObject, expr.name)
@@ -735,7 +735,7 @@ func (e *execute) visitSetExpr(expr *setExpr) R {
 	val := expr.value.accept(e)
 
 	if expr.access != nil {
-		access := expr.access.(*accessExpr)
+		access := expr.access.(*accessExpr[R])
 		object := access.object.accept(e)
 		switch collection := object.(type) {
 		case grotskyDict:
@@ -758,7 +758,7 @@ func (e *execute) visitSetExpr(expr *setExpr) R {
 	return val
 }
 
-func (e *execute) visitSuperExpr(expr *superExpr) R {
+func (e *execute) visitSuperExpr(expr *superExpr[R]) R {
 	superclass := e.env.get(e.state, expr.keyword).(*grotskyClass)
 	// assert typeof(e.env.get(expr.keyword)) == (*grotskyClass)
 	this := &token{
@@ -775,15 +775,15 @@ func (e *execute) visitSuperExpr(expr *superExpr) R {
 	return method.bind(object)
 }
 
-func (e *execute) visitGroupingExpr(expr *groupingExpr) R {
+func (e *execute) visitGroupingExpr(expr *groupingExpr[R]) R {
 	return expr.expression.accept(e)
 }
 
-func (e *execute) visitLiteralExpr(expr *literalExpr) R {
+func (e *execute) visitLiteralExpr(expr *literalExpr[R]) R {
 	return expr.value
 }
 
-func (e *execute) visitLogicalExpr(expr *logicalExpr) R {
+func (e *execute) visitLogicalExpr(expr *logicalExpr[R]) R {
 	left := e.truthy(expr.left.accept(e))
 
 	if expr.operator.token == tkOr {
@@ -802,11 +802,11 @@ func (e *execute) visitLogicalExpr(expr *logicalExpr) R {
 	return grotskyBool(left && right)
 }
 
-func (e *execute) visitThisExpr(expr *thisExpr) R {
+func (e *execute) visitThisExpr(expr *thisExpr[R]) R {
 	return e.env.get(e.state, expr.keyword)
 }
 
-func (e *execute) visitUnaryExpr(expr *unaryExpr) R {
+func (e *execute) visitUnaryExpr(expr *unaryExpr[R]) R {
 	var err error
 	value := expr.right.accept(e)
 	switch expr.operator.token {
@@ -840,13 +840,13 @@ func (e *execute) truthy(value interface{}) bool {
 	return true
 }
 
-func (e *execute) visitVariableExpr(expr *variableExpr) R {
+func (e *execute) visitVariableExpr(expr *variableExpr[R]) R {
 	return e.env.get(e.state, expr.name)
 }
 
-func (e *execute) visitFunctionExpr(expr *functionExpr) R {
+func (e *execute) visitFunctionExpr(expr *functionExpr[R]) R {
 	return &grotskyFunction{
-		declaration: &fnStmt{body: expr.body, params: expr.params},
+		declaration: &fnStmt[R]{body: expr.body, params: expr.params},
 		closure:     e.env,
 	}
 }

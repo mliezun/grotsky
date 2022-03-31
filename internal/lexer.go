@@ -4,12 +4,12 @@ import (
 	"strconv"
 )
 
-type lexer struct {
+type lexer[T any] struct {
 	start   int
 	current int
 	line    int
 
-	state *interpreterState
+	state *interpreterState[T]
 }
 
 var keywords = map[string]tokenType{
@@ -37,7 +37,7 @@ var keywords = map[string]tokenType{
 	"catch":    tkCatch,
 }
 
-func (l *lexer) scan() {
+func (l *lexer[T]) scan() {
 	for !l.isAtEnd() {
 		l.start = l.current
 		l.scanToken()
@@ -60,7 +60,7 @@ func (l *lexer) scan() {
 	})
 }
 
-func (l *lexer) scanToken() {
+func (l *lexer[T]) scanToken() {
 	c := l.advance()
 	switch c {
 	case '[':
@@ -151,7 +151,7 @@ func (l *lexer) scanToken() {
 	}
 }
 
-func (l *lexer) unescapeSequence() grotskyString {
+func (l *lexer[T]) unescapeSequence() grotskyString {
 	if l.isAtEnd() {
 		return grotskyString("")
 	}
@@ -180,7 +180,7 @@ func (l *lexer) unescapeSequence() grotskyString {
 	}
 }
 
-func (l *lexer) string() {
+func (l *lexer[T]) string() {
 	literal := grotskyString("")
 	for !l.isAtEnd() && !l.match('"') {
 		if l.match('\n') {
@@ -211,7 +211,7 @@ func (l *lexer) string() {
 	l.emit(tkString, literal)
 }
 
-func (l *lexer) number() {
+func (l *lexer[T]) number() {
 	for !l.isAtEnd() && l.isDigit(l.next()) {
 		l.advance()
 	}
@@ -228,7 +228,7 @@ func (l *lexer) number() {
 	l.emit(tkNumber, grotskyNumber(literal))
 }
 
-func (l *lexer) identifier() {
+func (l *lexer[T]) identifier() {
 	for !l.isAtEnd() && l.isAlpha(l.next()) {
 		l.advance()
 	}
@@ -243,13 +243,13 @@ func (l *lexer) identifier() {
 	l.emit(tokenType, nil)
 }
 
-func (l *lexer) advance() rune {
+func (l *lexer[T]) advance() rune {
 	current := l.state.source[l.current]
 	l.current++
 	return rune(current)
 }
 
-func (l *lexer) match(c rune) bool {
+func (l *lexer[T]) match(c rune) bool {
 	if l.isAtEnd() {
 		return false
 	}
@@ -257,7 +257,7 @@ func (l *lexer) match(c rune) bool {
 	return rune(current) == c
 }
 
-func (l *lexer) emit(tk tokenType, literal interface{}) {
+func (l *lexer[T]) emit(tk tokenType, literal interface{}) {
 	l.state.tokens = append(l.state.tokens, token{
 		token:   tk,
 		lexeme:  l.state.source[l.start:l.current],
@@ -266,18 +266,18 @@ func (l *lexer) emit(tk tokenType, literal interface{}) {
 	})
 }
 
-func (l *lexer) isAtEnd() bool {
+func (l *lexer[T]) isAtEnd() bool {
 	return l.current >= len(l.state.source)
 }
 
-func (l *lexer) next() rune {
+func (l *lexer[T]) next() rune {
 	return rune(l.state.source[l.current])
 }
 
-func (l *lexer) isDigit(c rune) bool {
+func (l *lexer[T]) isDigit(c rune) bool {
 	return c >= '0' && c <= '9'
 }
 
-func (l *lexer) isAlpha(c rune) bool {
+func (l *lexer[T]) isAlpha(c rune) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
 }

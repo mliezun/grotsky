@@ -1,149 +1,149 @@
 package internal
 
-type stmt interface {
-	accept(stmtVisitor) R
+type stmt[T any] interface {
+	accept(stmtVisitor[T]) T
 }
 
-type stmtVisitor interface {
-	visitExprStmt(stmt *exprStmt) R
-	visitTryCatchStmt(stmt *tryCatchStmt) R
-	visitClassicForStmt(stmt *classicForStmt) R
-	visitEnhancedForStmt(stmt *enhancedForStmt) R
-	visitLetStmt(stmt *letStmt) R
-	visitBlockStmt(stmt *blockStmt) R
-	visitWhileStmt(stmt *whileStmt) R
-	visitReturnStmt(stmt *returnStmt) R
-	visitBreakStmt(stmt *breakStmt) R
-	visitContinueStmt(stmt *continueStmt) R
-	visitIfStmt(stmt *ifStmt) R
-	visitFnStmt(stmt *fnStmt) R
-	visitClassStmt(stmt *classStmt) R
+type stmtVisitor[T any] interface {
+	visitExprStmt(stmt *exprStmt[T]) T
+	visitTryCatchStmt(stmt *tryCatchStmt[T]) T
+	visitClassicForStmt(stmt *classicForStmt[T]) T
+	visitEnhancedForStmt(stmt *enhancedForStmt[T]) T
+	visitLetStmt(stmt *letStmt[T]) T
+	visitBlockStmt(stmt *blockStmt[T]) T
+	visitWhileStmt(stmt *whileStmt[T]) T
+	visitReturnStmt(stmt *returnStmt[T]) T
+	visitBreakStmt(stmt *breakStmt[T]) T
+	visitContinueStmt(stmt *continueStmt[T]) T
+	visitIfStmt(stmt *ifStmt[T]) T
+	visitFnStmt(stmt *fnStmt[T]) T
+	visitClassStmt(stmt *classStmt[T]) T
 }
 
-type exprStmt struct {
+type exprStmt[T any] struct {
 	last *token
-	expression expr
+	expression expr[T]
 }
 
-func (s *exprStmt) accept(visitor stmtVisitor) R {
+func (s *exprStmt[T]) accept(visitor stmtVisitor[T]) T {
 	return visitor.visitExprStmt(s)
 }
 
-type tryCatchStmt struct {
-	tryBody stmt
+type tryCatchStmt[T any] struct {
+	tryBody stmt[T]
 	name *token
-	catchBody stmt
+	catchBody stmt[T]
 }
 
-func (s *tryCatchStmt) accept(visitor stmtVisitor) R {
+func (s *tryCatchStmt[T]) accept(visitor stmtVisitor[T]) T {
 	return visitor.visitTryCatchStmt(s)
 }
 
-type classicForStmt struct {
+type classicForStmt[T any] struct {
 	keyword *token
-	initializer stmt
-	condition expr
-	increment expr
-	body stmt
+	initializer stmt[T]
+	condition expr[T]
+	increment expr[T]
+	body stmt[T]
 }
 
-func (s *classicForStmt) accept(visitor stmtVisitor) R {
+func (s *classicForStmt[T]) accept(visitor stmtVisitor[T]) T {
 	return visitor.visitClassicForStmt(s)
 }
 
-type enhancedForStmt struct {
+type enhancedForStmt[T any] struct {
 	keyword *token
 	identifiers []*token
-	collection expr
-	body stmt
+	collection expr[T]
+	body stmt[T]
 }
 
-func (s *enhancedForStmt) accept(visitor stmtVisitor) R {
+func (s *enhancedForStmt[T]) accept(visitor stmtVisitor[T]) T {
 	return visitor.visitEnhancedForStmt(s)
 }
 
-type letStmt struct {
+type letStmt[T any] struct {
 	name *token
-	initializer expr
+	initializer expr[T]
 }
 
-func (s *letStmt) accept(visitor stmtVisitor) R {
+func (s *letStmt[T]) accept(visitor stmtVisitor[T]) T {
 	return visitor.visitLetStmt(s)
 }
 
-type blockStmt struct {
-	stmts []stmt
+type blockStmt[T any] struct {
+	stmts []stmt[T]
 }
 
-func (s *blockStmt) accept(visitor stmtVisitor) R {
+func (s *blockStmt[T]) accept(visitor stmtVisitor[T]) T {
 	return visitor.visitBlockStmt(s)
 }
 
-type whileStmt struct {
+type whileStmt[T any] struct {
 	keyword *token
-	condition expr
-	body stmt
+	condition expr[T]
+	body stmt[T]
 }
 
-func (s *whileStmt) accept(visitor stmtVisitor) R {
+func (s *whileStmt[T]) accept(visitor stmtVisitor[T]) T {
 	return visitor.visitWhileStmt(s)
 }
 
-type returnStmt struct {
+type returnStmt[T any] struct {
 	keyword *token
-	value expr
+	value expr[T]
 }
 
-func (s *returnStmt) accept(visitor stmtVisitor) R {
+func (s *returnStmt[T]) accept(visitor stmtVisitor[T]) T {
 	return visitor.visitReturnStmt(s)
 }
 
-type breakStmt struct {
+type breakStmt[T any] struct {
 	keyword *token
 }
 
-func (s *breakStmt) accept(visitor stmtVisitor) R {
+func (s *breakStmt[T]) accept(visitor stmtVisitor[T]) T {
 	return visitor.visitBreakStmt(s)
 }
 
-type continueStmt struct {
+type continueStmt[T any] struct {
 	keyword *token
 }
 
-func (s *continueStmt) accept(visitor stmtVisitor) R {
+func (s *continueStmt[T]) accept(visitor stmtVisitor[T]) T {
 	return visitor.visitContinueStmt(s)
 }
 
-type ifStmt struct {
+type ifStmt[T any] struct {
 	keyword *token
-	condition expr
-	thenBranch []stmt
-	elifs []*struct{condition expr; thenBranch []stmt}
-	elseBranch []stmt
+	condition expr[T]
+	thenBranch []stmt[T]
+	elifs []*struct{condition expr[T]; thenBranch []stmt[T]}
+	elseBranch []stmt[T]
 }
 
-func (s *ifStmt) accept(visitor stmtVisitor) R {
+func (s *ifStmt[T]) accept(visitor stmtVisitor[T]) T {
 	return visitor.visitIfStmt(s)
 }
 
-type fnStmt struct {
+type fnStmt[T any] struct {
 	name *token
 	params []*token
-	body []stmt
+	body []stmt[T]
 }
 
-func (s *fnStmt) accept(visitor stmtVisitor) R {
+func (s *fnStmt[T]) accept(visitor stmtVisitor[T]) T {
 	return visitor.visitFnStmt(s)
 }
 
-type classStmt struct {
+type classStmt[T any] struct {
 	name *token
-	superclass *variableExpr
-	methods []*fnStmt
-	staticMethods []*fnStmt
+	superclass *variableExpr[T]
+	methods []*fnStmt[T]
+	staticMethods []*fnStmt[T]
 }
 
-func (s *classStmt) accept(visitor stmtVisitor) R {
+func (s *classStmt[T]) accept(visitor stmtVisitor[T]) T {
 	return visitor.visitClassStmt(s)
 }
 

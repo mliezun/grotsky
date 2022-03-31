@@ -27,17 +27,17 @@ type breakValue struct{}
 type continueValue struct{}
 
 // state stores the state of a interpreter
-type interpreterState struct {
+type interpreterState[T any] struct {
 	errors       []parseError
 	absPath      string
 	source       string
 	tokens       []token
-	stmts        []stmt
+	stmts        []stmt[T]
 	runtimeError *runtimeError
 	logger       IPrinter
 }
 
-func (s *interpreterState) setError(err error, line, pos int) {
+func (s *interpreterState[T]) setError(err error, line, pos int) {
 	s.errors = append(s.errors, parseError{
 		err:  err,
 		line: line,
@@ -45,7 +45,7 @@ func (s *interpreterState) setError(err error, line, pos int) {
 	})
 }
 
-func (s *interpreterState) fatalError(err error, line, pos int) {
+func (s *interpreterState[T]) fatalError(err error, line, pos int) {
 	s.errors = append(s.errors, parseError{
 		err:  err,
 		line: line,
@@ -54,7 +54,7 @@ func (s *interpreterState) fatalError(err error, line, pos int) {
 	panic(err)
 }
 
-func (s *interpreterState) runtimeErr(err error, token *token, msgs ...string) {
+func (s *interpreterState[T]) runtimeErr(err error, token *token, msgs ...string) {
 	s.runtimeError = &runtimeError{
 		err:   err,
 		token: token,
@@ -64,7 +64,7 @@ func (s *interpreterState) runtimeErr(err error, token *token, msgs ...string) {
 }
 
 // PrintErrors prints all errors, returns true if any error printed
-func (s *interpreterState) PrintErrors() bool {
+func (s *interpreterState[T]) PrintErrors() bool {
 	for _, e := range s.errors {
 		s.logger.Fprintf(os.Stderr, "Error on line %d\n\t%s", e.line, e.err.Error())
 	}

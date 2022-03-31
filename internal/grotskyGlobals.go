@@ -30,7 +30,7 @@ type nativeObj struct {
 	getOperatorFn func(op operator) (operatorApply, error)
 }
 
-func (n *nativeObj) get(state *interpreterState, tk *token) interface{} {
+func (n *nativeObj) get(state *interpreterState[R], tk *token) interface{} {
 	if prop, ok := n.properties[tk.lexeme]; ok {
 		return prop
 	}
@@ -41,7 +41,7 @@ func (n *nativeObj) get(state *interpreterState, tk *token) interface{} {
 	return nil
 }
 
-func (n *nativeObj) set(state *interpreterState, name *token, value interface{}) {
+func (n *nativeObj) set(state *interpreterState[R], name *token, value interface{}) {
 	if n.setFn == nil {
 		state.runtimeErr(errReadOnly, name)
 	}
@@ -59,7 +59,7 @@ func (n *nativeObj) String() string {
 	return "<instance native>"
 }
 
-func defineGlobals(state *interpreterState, e *env, p IPrinter) {
+func defineGlobals(state *interpreterState[R], e *env, p IPrinter) {
 	defineIo(e, p)
 	defineType(e)
 	defineImport(state, e)
@@ -99,7 +99,7 @@ func defineType(e *env) {
 	e.define("type", &typeFn)
 }
 
-func defineImport(state *interpreterState, e *env) {
+func defineImport(state *interpreterState[R], e *env) {
 	var importFn nativeFn
 	importFn.callFn = func(arguments []interface{}) (interface{}, error) {
 		if len(arguments) != 1 {

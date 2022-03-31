@@ -55,12 +55,12 @@ var numberBinaryOperations = map[operator]func(x, y float64) interface{}{
 	},
 }
 
-func (n grotskyNumber) get(state *interpreterState, tk *token) interface{} {
+func (n grotskyNumber) get(state *interpreterState[R], tk *token) interface{} {
 	state.runtimeErr(errUndefinedProp, tk)
 	return nil
 }
 
-func (n grotskyNumber) set(state *interpreterState, name *token, value interface{}) {
+func (n grotskyNumber) set(state *interpreterState[R], name *token, value interface{}) {
 	state.runtimeErr(errReadOnly, name)
 }
 

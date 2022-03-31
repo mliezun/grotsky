@@ -11,26 +11,26 @@ type callStack struct {
 }
 
 // parser stores parser data
-type parser struct {
+type parser[T any] struct {
 	current int
 
 	cls []*callStack
 
-	state *interpreterState
+	state *interpreterState[T]
 }
 
-func (p *parser) getParsingContext() *callStack {
+func (p *parser[T]) getParsingContext() *callStack {
 	return p.cls[len(p.cls)-1]
 }
 
-func (p *parser) enterFunction(name string) {
+func (p *parser[T]) enterFunction(name string) {
 	p.cls = append(p.cls, &callStack{
 		function:  name,
 		loopCount: 0,
 	})
 }
 
-func (p *parser) leaveFunction(name string) {
+func (p *parser[T]) leaveFunction(name string) {
 	pc := p.getParsingContext()
 	if pc.function != name {
 		p.state.fatalError(errMaxParameters, p.peek().line, 0)
@@ -38,23 +38,23 @@ func (p *parser) leaveFunction(name string) {
 	p.cls = p.cls[:len(p.cls)-1]
 }
 
-func (p *parser) enterLoop() {
+func (p *parser[T]) enterLoop() {
 	pc := p.getParsingContext()
 	pc.loopCount++
 }
 
-func (p *parser) leaveLoop() {
+func (p *parser[T]) leaveLoop() {
 	pc := p.getParsingContext()
 	pc.loopCount--
 }
 
-func (p *parser) insideLoop() bool {
+func (p *parser[T]) insideLoop() bool {
 	return p.getParsingContext().loopCount != 0
 }
 
 const maxFunctionParams = 255
 
-func (p *parser) parse() {
+func (p *parser[T]) parse() {
 	p.cls = make([]*callStack, 0)
 	p.enterFunction("")
 	defer p.leaveFunction("")
@@ -69,7 +69,7 @@ func (p *parser) parse() {
 	}
 }
 
-func (p *parser) parseStmt() stmt {
+func (p *parser[T]) parseStmt() stmt[T] {
 	defer func() {
 		if r := recover(); r != nil {
 			p.synchronize()
@@ -78,8 +78,8 @@ func (p *parser) parseStmt() stmt {
 	return p.declaration(true)
 }
 
-func (p *parser) declaration(expectNewLine bool) stmt {
-	var s stmt
+func (p *parser[T]) declaration(expectNewLine bool) stmt[T] {
+	var s stmt[T]
 	if p.match(tkClass) {
 		s = p.class()
 	} else if p.match(tkFn) {
@@ -95,21 +95,21 @@ func (p *parser) declaration(expectNewLine bool) stmt {
 	return s
 }
 
-func (p *parser) class() stmt {
+func (p *parser[T]) class() stmt[T] {
 	name := p.consume(tkIdentifier, errExpectedIdentifier)
 
-	var superclass *variableExpr
+	var superclass *variableExpr[T]
 	if p.match(tkLess) {
 		class := p.consume(tkIdentifier, errExpectedIdentifier)
-		superclass = &variableExpr{
+		superclass = &variableExpr[T]{
 			name: class,
 		}
 	}
 
 	p.consume(tkLeftCurlyBrace, errExpectedOpeningCurlyBrace)
 
-	var methods []*fnStmt
-	var staticMethods []*fnStmt
+	var methods []*fnStmt[T]
+	var staticMethods []*fnStmt[T]
 	for !p.check(tkRightCurlyBrace) && !p.isAtEnd() {
 		if p.match(tkClass) {
 			staticMethods = append(staticMethods, p.fn())
@@ -120,7 +120,7 @@ func (p *parser) class() stmt {
 
 	p.consume(tkRightCurlyBrace, errExpectedClosingCurlyBrace)
 
-	return &classStmt{
+	return &classStmt[T]{
 		name:          name,
 		methods:       methods,
 		staticMethods: staticMethods,
@@ -128,7 +128,7 @@ func (p *parser) class() stmt {
 	}
 }
 
-func (p *parser) fn() *fnStmt {
+func (p *parser[T]) fn() *fnStmt[T] {
 	name := p.consume(tkIdentifier, errExpectedFunctionName)
 
 	p.enterFunction(name.lexeme)
@@ -150,21 +150,21 @@ func (p *parser) fn() *fnStmt {
 	}
 	p.consume(tkRightParen, errUnclosedParen)
 
-	body := make([]stmt, 0)
+	body := make([]stmt[T], 0)
 	if p.match(tkLeftCurlyBrace) {
 		body = p.block()
 	} else {
 		body = append(body, p.expressionStmt())
 	}
 
-	return &fnStmt{
+	return &fnStmt[T]{
 		name:   name,
 		params: params,
 		body:   body,
 	}
 }
 
-func (p *parser) fnExpr() *functionExpr {
+func (p *parser[T]) fnExpr() *functionExpr[T] {
 	p.consume(tkLeftParen, errExpectedParen)
 
 	lambdaName := fmt.Sprintf("lambda%d", len(p.cls))
@@ -185,34 +185,34 @@ func (p *parser) fnExpr() *functionExpr {
 	}
 	p.consume(tkRightParen, errUnclosedParen)
 
-	body := make([]stmt, 0)
+	body := make([]stmt[T], 0)
 	if p.match(tkLeftCurlyBrace) {
 		body = p.block()
 	} else {
 		body = append(body, p.expressionStmt())
 	}
 
-	return &functionExpr{
+	return &functionExpr[T]{
 		params: params,
 		body:   body,
 	}
 }
 
-func (p *parser) let() stmt {
+func (p *parser[T]) let() stmt[T] {
 	name := p.consume(tkIdentifier, errExpectedIdentifier)
 
-	var init expr
+	var init expr[T]
 	if p.match(tkEqual) {
 		init = p.expression()
 	}
 
-	return &letStmt{
+	return &letStmt[T]{
 		name:        name,
 		initializer: init,
 	}
 }
 
-func (p *parser) statement() stmt {
+func (p *parser[T]) statement() stmt[T] {
 	if p.match(tkFor) {
 		return p.forLoop()
 	}
@@ -235,12 +235,12 @@ func (p *parser) statement() stmt {
 		return p.while()
 	}
 	if p.match(tkLeftCurlyBrace) {
-		return &blockStmt{stmts: p.block()}
+		return &blockStmt[T]{stmts: p.block()}
 	}
 	return p.expressionStmt()
 }
 
-func (p *parser) forLoop() stmt {
+func (p *parser[T]) forLoop() stmt[T] {
 	keyword := p.previous()
 
 	p.enterLoop()
@@ -251,7 +251,7 @@ func (p *parser) forLoop() stmt {
 		return p.enhancedFor(keyword)
 	}
 	// Classic for
-	var init stmt
+	var init stmt[T]
 	if p.match(tkSemicolon) {
 		init = nil
 	} else if p.match(tkLet) {
@@ -268,7 +268,7 @@ func (p *parser) forLoop() stmt {
 
 	body := p.declaration(false)
 
-	return &classicForStmt{
+	return &classicForStmt[T]{
 		keyword:     keyword,
 		initializer: init,
 		condition:   cond,
@@ -277,7 +277,7 @@ func (p *parser) forLoop() stmt {
 	}
 }
 
-func (p *parser) enhancedFor(keyword *token) stmt {
+func (p *parser[T]) enhancedFor(keyword *token) stmt[T] {
 	var ids []*token
 	for p.match(tkIdentifier) {
 		ids = append(ids, p.previous())
@@ -286,7 +286,7 @@ func (p *parser) enhancedFor(keyword *token) stmt {
 	p.consume(tkIn, errExpectedIn)
 	collection := p.expression()
 	body := p.declaration(false)
-	return &enhancedForStmt{
+	return &enhancedForStmt[T]{
 		keyword:     keyword,
 		identifiers: ids,
 		body:        body,
@@ -294,21 +294,21 @@ func (p *parser) enhancedFor(keyword *token) stmt {
 	}
 }
 
-func (p *parser) tryCatch() stmt {
+func (p *parser[T]) tryCatch() stmt[T] {
 	tryBody := p.declaration(false)
 	p.consume(tkCatch, errExpectedCatch)
 	name := p.consume(tkIdentifier, errExpectedIdentifier)
 	catchBody := p.declaration(false)
 
-	return &tryCatchStmt{
+	return &tryCatchStmt[T]{
 		tryBody:   tryBody,
 		name:      name,
 		catchBody: catchBody,
 	}
 }
 
-func (p *parser) ifStmt() stmt {
-	st := &ifStmt{
+func (p *parser[T]) ifStmt() stmt[T] {
+	st := &ifStmt[T]{
 		keyword: p.previous(),
 	}
 
@@ -322,8 +322,8 @@ func (p *parser) ifStmt() stmt {
 
 	for p.match(tkElif) {
 		elif := &struct {
-			condition  expr
-			thenBranch []stmt
+			condition  expr[T]
+			thenBranch []stmt[T]
 		}{
 			condition: p.expression(),
 		}
@@ -345,63 +345,63 @@ func (p *parser) ifStmt() stmt {
 	return st
 }
 
-func (p *parser) ret() stmt {
-	var value expr
+func (p *parser[T]) ret() stmt[T] {
+	var value expr[T]
 	keyword := p.previous()
 	if !p.check(tkNewline) {
 		value = p.expression()
 	}
-	return &returnStmt{
+	return &returnStmt[T]{
 		keyword: keyword,
 		value:   value,
 	}
 }
 
-func (p *parser) brk() stmt {
+func (p *parser[T]) brk() stmt[T] {
 	keyword := p.previous()
 	if !p.insideLoop() {
 		p.state.setError(errOnlyAllowedInsideLoop, keyword.line, 0)
 	}
-	return &breakStmt{
+	return &breakStmt[T]{
 		keyword: keyword,
 	}
 }
 
-func (p *parser) cont() stmt {
+func (p *parser[T]) cont() stmt[T] {
 	keyword := p.previous()
 	if !p.insideLoop() {
 		p.state.setError(errOnlyAllowedInsideLoop, keyword.line, 0)
 	}
-	return &continueStmt{
+	return &continueStmt[T]{
 		keyword: keyword,
 	}
 }
 
-func (p *parser) while() stmt {
+func (p *parser[T]) while() stmt[T] {
 	keyword := p.previous()
 	p.enterLoop()
 	defer p.leaveLoop()
 	cond := p.expression()
 	body := p.declaration(false)
-	return &whileStmt{
+	return &whileStmt[T]{
 		keyword:   keyword,
 		condition: cond,
 		body:      body,
 	}
 }
 
-func (p *parser) block() []stmt {
-	var stmts []stmt
+func (p *parser[T]) block() []stmt[T] {
+	var stmts []stmt[T]
 	for !p.match(tkRightCurlyBrace) {
 		stmts = append(stmts, p.declaration(false))
 	}
 	return stmts
 }
 
-func (p *parser) expressionStmt() stmt {
+func (p *parser[T]) expressionStmt() stmt[T] {
 	expr := p.expression()
 	if expr != nil {
-		return &exprStmt{
+		return &exprStmt[T]{
 			last:       p.previous(),
 			expression: expr,
 		}
@@ -410,23 +410,23 @@ func (p *parser) expressionStmt() stmt {
 	return nil
 }
 
-func (p *parser) expression() expr {
+func (p *parser[T]) expression() expr[T] {
 	return p.assignment()
 }
 
-func (p *parser) list() expr {
+func (p *parser[T]) list() expr[T] {
 	elements := p.arguments(tkRightBrace)
 	brace := p.consume(tkRightBrace, errUnclosedBracket)
-	return &listExpr{
+	return &listExpr[T]{
 		elements: elements,
 		brace:    brace,
 	}
 }
 
-func (p *parser) dictionary() expr {
+func (p *parser[T]) dictionary() expr[T] {
 	elements := p.dictElements()
 	curlyBrace := p.consume(tkRightCurlyBrace, errUnclosedCurlyBrace)
-	return &dictionaryExpr{
+	return &dictionaryExpr[T]{
 		elements:   elements,
 		curlyBrace: curlyBrace,
 	}
@@ -434,8 +434,8 @@ func (p *parser) dictionary() expr {
 
 // dictElements returns array of keys & values where keys
 // are stored in even positions and values in odd positions
-func (p *parser) dictElements() []expr {
-	elements := make([]expr, 0)
+func (p *parser[T]) dictElements() []expr[T] {
+	elements := make([]expr[T], 0)
 	for !p.check(tkRightCurlyBrace) {
 		key := p.expression()
 		p.consume(tkColon, errExpectedColon)
@@ -448,27 +448,27 @@ func (p *parser) dictElements() []expr {
 	return elements
 }
 
-func (p *parser) assignment() expr {
+func (p *parser[T]) assignment() expr[T] {
 	expr := p.or()
 	if p.match(tkEqual) {
 		equal := p.previous()
 		value := p.assignment()
 
-		access, isAccess := expr.(*accessExpr)
+		access, isAccess := expr.(*accessExpr[T])
 		if isAccess {
 			object := access.object
 			for {
-				_, ok := object.(*accessExpr)
+				_, ok := object.(*accessExpr[T])
 				if !ok {
 					break
 				}
-				object = object.(*accessExpr).object
+				object = object.(*accessExpr[T]).object
 			}
 			expr = object
 		}
 
-		if variable, isVar := expr.(*variableExpr); isVar {
-			assign := &assignExpr{
+		if variable, isVar := expr.(*variableExpr[T]); isVar {
+			assign := &assignExpr[T]{
 				name:  variable.name,
 				value: value,
 			}
@@ -476,8 +476,8 @@ func (p *parser) assignment() expr {
 				assign.access = access
 			}
 			return assign
-		} else if get, isGet := expr.(*getExpr); isGet {
-			set := &setExpr{
+		} else if get, isGet := expr.(*getExpr[T]); isGet {
+			set := &setExpr[T]{
 				name:   get.name,
 				object: get.object,
 				value:  value,
@@ -493,8 +493,8 @@ func (p *parser) assignment() expr {
 	return expr
 }
 
-func (p *parser) access(object expr) expr {
-	slice := &accessExpr{
+func (p *parser[T]) access(object expr[T]) expr[T] {
+	slice := &accessExpr[T]{
 		object: object,
 		brace:  p.previous(),
 	}
@@ -503,7 +503,7 @@ func (p *parser) access(object expr) expr {
 	return slice
 }
 
-func (p *parser) slice(slice *accessExpr) {
+func (p *parser[T]) slice(slice *accessExpr[T]) {
 	if p.match(tkColon) {
 		slice.firstColon = p.previous()
 		if p.match(tkColon) {
@@ -536,12 +536,12 @@ func (p *parser) slice(slice *accessExpr) {
 	}
 }
 
-func (p *parser) or() expr {
+func (p *parser[T]) or() expr[T] {
 	expr := p.and()
 	for p.match(tkOr) {
 		operator := p.previous()
 		right := p.and()
-		expr = &logicalExpr{
+		expr = &logicalExpr[T]{
 			left:     expr,
 			operator: operator,
 			right:    right,
@@ -550,12 +550,12 @@ func (p *parser) or() expr {
 	return expr
 }
 
-func (p *parser) and() expr {
+func (p *parser[T]) and() expr[T] {
 	expr := p.equality()
 	for p.match(tkAnd) {
 		operator := p.previous()
 		right := p.equality()
-		expr = &logicalExpr{
+		expr = &logicalExpr[T]{
 			left:     expr,
 			operator: operator,
 			right:    right,
@@ -564,12 +564,12 @@ func (p *parser) and() expr {
 	return expr
 }
 
-func (p *parser) equality() expr {
+func (p *parser[T]) equality() expr[T] {
 	expr := p.comparison()
 	for p.match(tkEqualEqual, tkBangEqual) {
 		operator := p.previous()
 		right := p.comparison()
-		expr = &binaryExpr{
+		expr = &binaryExpr[T]{
 			left:     expr,
 			operator: operator,
 			right:    right,
@@ -578,12 +578,12 @@ func (p *parser) equality() expr {
 	return expr
 }
 
-func (p *parser) comparison() expr {
+func (p *parser[T]) comparison() expr[T] {
 	expr := p.addition()
 	for p.match(tkGreater, tkGreaterEqual, tkLess, tkLessEqual) {
 		operator := p.previous()
 		right := p.addition()
-		expr = &binaryExpr{
+		expr = &binaryExpr[T]{
 			left:     expr,
 			operator: operator,
 			right:    right,
@@ -592,12 +592,12 @@ func (p *parser) comparison() expr {
 	return expr
 }
 
-func (p *parser) addition() expr {
+func (p *parser[T]) addition() expr[T] {
 	expr := p.multiplication()
 	for p.match(tkPlus, tkMinus) {
 		operator := p.previous()
 		right := p.multiplication()
-		expr = &binaryExpr{
+		expr = &binaryExpr[T]{
 			left:     expr,
 			operator: operator,
 			right:    right,
@@ -606,12 +606,12 @@ func (p *parser) addition() expr {
 	return expr
 }
 
-func (p *parser) multiplication() expr {
+func (p *parser[T]) multiplication() expr[T] {
 	expr := p.power()
 	for p.match(tkSlash, tkMod, tkStar) {
 		operator := p.previous()
 		right := p.power()
-		expr = &binaryExpr{
+		expr = &binaryExpr[T]{
 			left:     expr,
 			operator: operator,
 			right:    right,
@@ -620,12 +620,12 @@ func (p *parser) multiplication() expr {
 	return expr
 }
 
-func (p *parser) power() expr {
+func (p *parser[T]) power() expr[T] {
 	expr := p.unary()
 	for p.match(tkPower) {
 		operator := p.previous()
 		right := p.unary()
-		expr = &binaryExpr{
+		expr = &binaryExpr[T]{
 			left:     expr,
 			operator: operator,
 			right:    right,
@@ -634,11 +634,11 @@ func (p *parser) power() expr {
 	return expr
 }
 
-func (p *parser) unary() expr {
+func (p *parser[T]) unary() expr[T] {
 	if p.match(tkNot, tkMinus) {
 		operator := p.previous()
 		right := p.unary()
-		return &unaryExpr{
+		return &unaryExpr[T]{
 			operator: operator,
 			right:    right,
 		}
@@ -646,14 +646,14 @@ func (p *parser) unary() expr {
 	return p.call()
 }
 
-func (p *parser) call() expr {
+func (p *parser[T]) call() expr[T] {
 	expr := p.primary()
 	for {
 		if p.match(tkLeftParen) {
 			expr = p.finishCall(expr)
 		} else if p.match(tkDot) {
 			name := p.consume(tkIdentifier, errExpectedProp)
-			expr = &getExpr{
+			expr = &getExpr[T]{
 				object: expr,
 				name:   name,
 			}
@@ -666,18 +666,18 @@ func (p *parser) call() expr {
 	return expr
 }
 
-func (p *parser) finishCall(callee expr) expr {
+func (p *parser[T]) finishCall(callee expr[T]) expr[T] {
 	arguments := p.arguments(tkRightParen)
 	paren := p.consume(tkRightParen, errors.New("Expect ')' after arguments"))
-	return &callExpr{
+	return &callExpr[T]{
 		callee:    callee,
 		arguments: arguments,
 		paren:     paren,
 	}
 }
 
-func (p *parser) arguments(tk tokenType) []expr {
-	arguments := make([]expr, 0)
+func (p *parser[T]) arguments(tk tokenType) []expr[T] {
+	arguments := make([]expr[T], 0)
 	if !p.check(tk) {
 		for {
 			if tk == tkRightParen && len(arguments) >= maxFunctionParams {
@@ -692,26 +692,26 @@ func (p *parser) arguments(tk tokenType) []expr {
 	return arguments
 }
 
-func (p *parser) primary() expr {
+func (p *parser[T]) primary() expr[T] {
 	if p.match(tkNumber, tkString) {
-		return &literalExpr{value: p.previous().literal}
+		return &literalExpr[T]{value: p.previous().literal}
 	}
 	if p.match(tkFalse) {
-		return &literalExpr{value: grotskyBool(false)}
+		return &literalExpr[T]{value: grotskyBool(false)}
 	}
 	if p.match(tkTrue) {
-		return &literalExpr{value: grotskyBool(true)}
+		return &literalExpr[T]{value: grotskyBool(true)}
 	}
 	if p.match(tkNil) {
-		return &literalExpr{value: nil}
+		return &literalExpr[T]{value: nil}
 	}
 	if p.match(tkIdentifier) {
-		return &variableExpr{name: p.previous()}
+		return &variableExpr[T]{name: p.previous()}
 	}
 	if p.match(tkLeftParen) {
 		expr := p.expression()
 		p.consume(tkRightParen, errUnclosedParen)
-		return &groupingExpr{expression: expr}
+		return &groupingExpr[T]{expression: expr}
 	}
 	if p.match(tkLeftBrace) {
 		return p.list()
@@ -723,7 +723,7 @@ func (p *parser) primary() expr {
 		return p.fnExpr()
 	}
 	if p.match(tkThis) {
-		return &thisExpr{keyword: p.previous()}
+		return &thisExpr[T]{keyword: p.previous()}
 	}
 	if p.match(tkSuper) {
 		return p.superExpr()
@@ -733,11 +733,11 @@ func (p *parser) primary() expr {
 	}
 
 	p.state.fatalError(errUndefinedExpr, p.peek().line, 0)
-	return &literalExpr{}
+	return &literalExpr[T]{}
 }
 
-func (p *parser) superExpr() expr {
-	super := &superExpr{
+func (p *parser[T]) superExpr() expr[T] {
+	super := &superExpr[T]{
 		keyword: p.previous(),
 	}
 	if !p.check(tkLeftParen) {
@@ -753,7 +753,7 @@ func (p *parser) superExpr() expr {
 	return super
 }
 
-func (p *parser) consume(tk tokenType, err error) *token {
+func (p *parser[T]) consume(tk tokenType, err error) *token {
 	if p.check(tk) {
 		return p.advance()
 	}
@@ -762,14 +762,14 @@ func (p *parser) consume(tk tokenType, err error) *token {
 	return &token{}
 }
 
-func (p *parser) advance() *token {
+func (p *parser[T]) advance() *token {
 	if !p.isAtEnd() {
 		p.current++
 	}
 	return p.previous()
 }
 
-func (p *parser) match(tokens ...tokenType) bool {
+func (p *parser[T]) match(tokens ...tokenType) bool {
 	for _, token := range tokens {
 		if p.check(token) {
 			p.current++
@@ -779,7 +779,7 @@ func (p *parser) match(tokens ...tokenType) bool {
 	return false
 }
 
-func (p *parser) check(token tokenType) bool {
+func (p *parser[T]) check(token tokenType) bool {
 	oldCurrent := p.current
 	for token != tkNewline && !p.isAtEnd() && p.peek().token == tkNewline {
 		p.current++
@@ -791,11 +791,11 @@ func (p *parser) check(token tokenType) bool {
 	return matchs
 }
 
-func (p *parser) peek() token {
+func (p *parser[T]) peek() token {
 	return p.state.tokens[p.current]
 }
 
-func (p *parser) previous() *token {
+func (p *parser[T]) previous() *token {
 	for i := 1; i <= p.current; i-- {
 		if p.state.tokens[p.current-i].token != tkNewline {
 			break
@@ -804,11 +804,11 @@ func (p *parser) previous() *token {
 	return &p.state.tokens[p.current-1]
 }
 
-func (p *parser) isAtEnd() bool {
+func (p *parser[T]) isAtEnd() bool {
 	return p.peek().token == tkEOF
 }
 
-func (p *parser) synchronize() {
+func (p *parser[T]) synchronize() {
 	p.advance()
 	for !p.isAtEnd() {
 		switch p.peek().token {

@@ -10,7 +10,7 @@ type grotskyCallable interface {
 }
 
 type grotskyFunction struct {
-	declaration   *fnStmt
+	declaration   *fnStmt[R]
 	closure       *env
 	isInitializer bool
 }
@@ -27,7 +27,7 @@ func (f *grotskyFunction) call(arguments []interface{}) (result interface{}, err
 	}
 
 	if len(f.declaration.body) == 1 {
-		if exprSt, ok := f.declaration.body[0].(*exprStmt); ok {
+		if exprSt, ok := f.declaration.body[0].(*exprStmt[R]); ok {
 			resultVal := exec.executeOne(exprSt, env)
 			return resultVal, nil
 		}

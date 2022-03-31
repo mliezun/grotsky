@@ -13,38 +13,38 @@ func main() {
 	switch os.Args[1] {
 	case "Stmt":
 		out = generateAst("Stmt", []string{
-			"Expr: last *token, expression expr",
-			"TryCatch: tryBody stmt, name *token, catchBody stmt",
-			"ClassicFor: keyword *token, initializer stmt, condition expr, increment expr, body stmt",
-			"EnhancedFor: keyword *token, identifiers []*token, collection expr, body stmt",
-			"Let: name *token, initializer expr",
-			"Block: stmts []stmt",
-			"While: keyword *token, condition expr, body stmt",
-			"Return: keyword *token, value expr",
+			"Expr: last *token, expression expr[T]",
+			"TryCatch: tryBody stmt[T], name *token, catchBody stmt[T]",
+			"ClassicFor: keyword *token, initializer stmt[T], condition expr[T], increment expr[T], body stmt[T]",
+			"EnhancedFor: keyword *token, identifiers []*token, collection expr[T], body stmt[T]",
+			"Let: name *token, initializer expr[T]",
+			"Block: stmts []stmt[T]",
+			"While: keyword *token, condition expr[T], body stmt[T]",
+			"Return: keyword *token, value expr[T]",
 			"Break: keyword *token",
 			"Continue: keyword *token",
-			"If: keyword *token, condition expr, thenBranch []stmt, elifs []*struct{condition expr; thenBranch []stmt}, elseBranch []stmt",
-			"Fn: name *token, params []*token, body []stmt",
-			"Class: name *token, superclass *variableExpr, methods []*fnStmt, staticMethods []*fnStmt",
+			"If: keyword *token, condition expr[T], thenBranch []stmt[T], elifs []*struct{condition expr[T]; thenBranch []stmt[T]}, elseBranch []stmt[T]",
+			"Fn: name *token, params []*token, body []stmt[T]",
+			"Class: name *token, superclass *variableExpr[T], methods []*fnStmt[T], staticMethods []*fnStmt[T]",
 		})
 	case "Expr":
 		out = generateAst("Expr", []string{
-			"List: elements []expr, brace *token",
-			"Dictionary: elements []expr, curlyBrace *token",
-			"Assign: name *token, value expr, access expr",
-			"Access: object expr, brace *token, first expr, firstColon *token, second expr, secondColon *token, third expr",
-			"Binary: left expr, operator *token, right expr",
-			"Call: callee expr, paren *token, arguments []expr",
-			"Get: object expr, name *token",
-			"Set: object expr, name *token, value expr, access expr",
+			"List: elements []expr[T], brace *token",
+			"Dictionary: elements []expr[T], curlyBrace *token",
+			"Assign: name *token, value expr[T], access expr[T]",
+			"Access: object expr[T], brace *token, first expr[T], firstColon *token, second expr[T], secondColon *token, third expr[T]",
+			"Binary: left expr[T], operator *token, right expr[T]",
+			"Call: callee expr[T], paren *token, arguments []expr[T]",
+			"Get: object expr[T], name *token",
+			"Set: object expr[T], name *token, value expr[T], access expr[T]",
 			"Super: keyword *token, method *token",
-			"Grouping: expression expr",
+			"Grouping: expression expr[T]",
 			"Literal: value interface{}",
-			"Logical: left expr, operator *token, right expr",
+			"Logical: left expr[T], operator *token, right expr[T]",
 			"This: keyword *token",
-			"Unary: operator *token, right expr",
+			"Unary: operator *token, right expr[T]",
 			"Variable: name *token",
-			"Function: params []*token, body []stmt",
+			"Function: params []*token, body []stmt[T]",
 		})
 	}
 	fmt.Println(out)
@@ -54,18 +54,18 @@ func generateAst(baseName string, types []string) string {
 	out := "package internal\n\n"
 
 	// Start base interface
-	out += "type " + strings.ToLower(baseName) + " interface {\n"
-	out += "\taccept(" + strings.ToLower(baseName) + "Visitor) R\n"
+	out += "type " + strings.ToLower(baseName) + "[T any] interface {\n"
+	out += "\taccept(" + strings.ToLower(baseName) + "Visitor[T]) T\n"
 	out += "}\n\n"
 	// End base interface
 
 	// Start Visitor interface
-	out += fmt.Sprintf("type %sVisitor interface {\n", strings.ToLower(baseName))
+	out += fmt.Sprintf("type %sVisitor[T any] interface {\n", strings.ToLower(baseName))
 	for _, t := range types {
 		typeDef := strings.Split(t, ":")
 		name := strings.TrimSpace(typeDef[0])
 		structType := strings.ToLower(string(name[0])) + name[1:] + baseName
-		out += "\tvisit" + name + baseName + "(" + strings.ToLower(baseName) + " *" + structType + ") R\n"
+		out += "\tvisit" + name + baseName + "(" + strings.ToLower(baseName) + " *" + structType + "[T]) T\n"
 	}
 	out += "}\n\n"
 	// End Visitor interface
@@ -85,7 +85,7 @@ func generateAst(baseName string, types []string) string {
 func generateType(baseName, name, fields string) string {
 	// Start Structure Definition
 	structName := strings.ToLower(string(name[0])) + name[1:] + baseName
-	out := "type " + structName + " struct {\n"
+	out := "type " + structName + "[T any] struct {\n"
 	fieldArray := strings.Split(fields, ",")
 	for _, field := range fieldArray {
 		out += "\t" + strings.TrimSpace(field) + "\n"
@@ -94,7 +94,7 @@ func generateType(baseName, name, fields string) string {
 	// End Structure Definition
 
 	// Start Method Definition
-	out += "func (s *" + structName + ") accept(visitor " + strings.ToLower(baseName) + "Visitor) R {\n"
+	out += "func (s *" + structName + "[T]) accept(visitor " + strings.ToLower(baseName) + "Visitor[T]) T {\n"
 	out += "\treturn visitor.visit" + name + baseName + "(s)\n"
 	out += "}\n\n"
 	// End Method Definition

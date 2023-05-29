@@ -414,36 +414,36 @@ impl Lexer<'_> {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct FnExpr {
     params: Vec<TokenData>,
     body: Vec<Stmt>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct VarExpr {
     name: Option<TokenData>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct ListExpr {
     elements: Vec<Expr>,
     brace: TokenData,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct DictionaryExpr {
     elements: Vec<Expr>,
     curly_brace: TokenData,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct AssignExpr {
     name: TokenData,
     value: Box<Expr>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct AccessExpr {
     object: Box<Expr>,
     brace: TokenData,
@@ -454,68 +454,68 @@ struct AccessExpr {
     third: Box<Expr>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct BinaryExpr {
     left: Box<Expr>,
     operator: TokenData,
     right: Box<Expr>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct CallExpr {
     callee: Box<Expr>,
     paren: TokenData,
     arguments: Vec<Expr>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct GetExpr {
     object: Box<Expr>,
     name: TokenData,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct SetExpr {
     object: Box<Expr>,
     name: TokenData,
     value: Box<Expr>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct SuperExpr {
     keyword: TokenData,
     method: TokenData,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct GroupingExpr {
     expression: Box<Expr>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct LiteralExpr {
     value: Literal,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct LogicalExpr {
     left: Box<Expr>,
     operator: TokenData,
     right: Box<Expr>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct ThisExpr {
     keyword: TokenData,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct UnaryExpr {
     operator: TokenData,
     right: Box<Expr>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 enum Expr {
     Fn(FnExpr),
     Var(VarExpr),
@@ -549,13 +549,13 @@ struct Parser<'a> {
 
 const MAX_FUNCTION_PARAMS: usize = 255;
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct LetStmt {
     name: TokenData,
     initializer: Option<Expr>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct ClassicForStmt {
     keyword: TokenData,
     initializer: Option<Box<Stmt>>,
@@ -564,7 +564,7 @@ struct ClassicForStmt {
     body: Box<Stmt>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct EnhancedForStmt {
     keyword: TokenData,
     identifiers: Vec<TokenData>,
@@ -572,43 +572,43 @@ struct EnhancedForStmt {
     body: Box<Stmt>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct TryCatchStmt {
     try_body: Box<Stmt>,
     name: TokenData,
     catch_body: Box<Stmt>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct WhileStmt {
     keyword: TokenData,
     condition: Expr,
     body: Box<Stmt>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct ReturnStmt {
     keyword: TokenData,
     value: Option<Expr>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct BreakStmt {
     keyword: TokenData,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct ContinueStmt {
     keyword: TokenData,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct ElifBranch {
     condition: Expr,
     then_branch: Vec<Stmt>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct IfStmt {
     keyword: TokenData,
     condition: Expr,
@@ -617,14 +617,14 @@ struct IfStmt {
     else_branch: Vec<Stmt>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct FnStmt {
     name: TokenData,
     params: Vec<TokenData>,
     body: Vec<Stmt>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct ClassStmt {
     name: Option<TokenData>,
     methods: Vec<FnStmt>,
@@ -632,18 +632,18 @@ struct ClassStmt {
     superclass: Option<VarExpr>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct BlockStmt {
     stmts: Vec<Stmt>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct ExprStmt {
     last: Option<TokenData>,
     expression: Expr,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 enum Stmt {
     Fn(FnStmt),
     Let(LetStmt),
@@ -661,6 +661,14 @@ enum Stmt {
 }
 
 impl Parser<'_> {
+    fn new(state: &'_ mut InterpreterState) -> Parser<'_> {
+        return Parser {
+            current: 0,
+            cls: vec![],
+            state: state,
+        };
+    }
+
     fn get_parsing_context(&mut self) -> &mut CallStack {
         let len = self.cls.len();
         return &mut self.cls[len - 1];
@@ -1667,5 +1675,8 @@ pub fn scan(source: String) {
     let state = &mut InterpreterState::new(source);
     let mut lex = Lexer::new(state);
     lex.scan();
+    let mut parser = Parser::new(state);
+    parser.parse();
     println!("{:#?}", state.tokens);
+    println!("{:#?}", state.stmts);
 }

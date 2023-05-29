@@ -1671,6 +1671,87 @@ impl Parser<'_> {
     }
 }
 
+enum Result {}
+
+trait StmtVisitor {
+    fn visit_expr_stmt(&self, stmt: &ExprStmt) -> Result;
+    fn visit_try_catch_stmt(&self, stmt: &TryCatchStmt) -> Result;
+    fn visit_classic_for_stmt(&self, stmt: &ClassicForStmt) -> Result;
+    fn visit_enhanced_for_stmt(&self, stmt: &EnhancedForStmt) -> Result;
+    fn visit_let_stmt(&self, stmt: &LetStmt) -> Result;
+    fn visit_block_stmt(&self, stmt: &BlockStmt) -> Result;
+    fn visit_while_stmt(&self, stmt: &WhileStmt) -> Result;
+    fn visit_return_stmt(&self, stmt: &ReturnStmt) -> Result;
+    fn visit_break_stmt(&self, stmt: &BreakStmt) -> Result;
+    fn visit_continue_stmt(&self, stmt: &ContinueStmt) -> Result;
+    fn visit_if_stmt(&self, stmt: &IfStmt) -> Result;
+    fn visit_fn_stmt(&self, stmt: &FnStmt) -> Result;
+    fn visit_class_stmt(&self, stmt: &ClassStmt) -> Result;
+}
+
+trait ExprVisitor {
+    fn visit_function_expr(&self, expr: &FnExpr) -> Result;
+    fn visit_variable_expr(&self, expr: &VarExpr) -> Result;
+    fn visit_list_expr(&self, expr: &ListExpr) -> Result;
+    fn visit_dictionary_expr(&self, expr: &DictionaryExpr) -> Result;
+    fn visit_assign_expr(&self, expr: &AssignExpr) -> Result;
+    fn visit_access_expr(&self, expr: &AccessExpr) -> Result;
+    fn visit_binary_expr(&self, expr: &BinaryExpr) -> Result;
+    fn visit_call_expr(&self, expr: &CallExpr) -> Result;
+    fn visit_get_expr(&self, expr: &GetExpr) -> Result;
+    fn visit_set_expr(&self, expr: &SetExpr) -> Result;
+    fn visit_super_expr(&self, expr: &SuperExpr) -> Result;
+    fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Result;
+    fn visit_literal_expr(&self, expr: &LiteralExpr) -> Result;
+    fn visit_logical_expr(&self, expr: &LogicalExpr) -> Result;
+    fn visit_this_expr(&self, expr: &ThisExpr) -> Result;
+    fn visit_unary_expr(&self, expr: &UnaryExpr) -> Result;
+}
+
+impl Expr {
+    fn accept(&self, visitor: &dyn ExprVisitor) -> Result {
+        match self {
+            Expr::Fn(expr) => visitor.visit_function_expr(&expr),
+            Expr::Var(expr) => visitor.visit_variable_expr(&expr),
+            Expr::List(expr) => visitor.visit_list_expr(&expr),
+            Expr::Dictionary(expr) => visitor.visit_dictionary_expr(&expr),
+            Expr::Assign(expr) => visitor.visit_assign_expr(&expr),
+            Expr::Access(expr) => visitor.visit_access_expr(&expr),
+            Expr::Binary(expr) => visitor.visit_binary_expr(&expr),
+            Expr::Call(expr) => visitor.visit_call_expr(&expr),
+            Expr::Get(expr) => visitor.visit_get_expr(&expr),
+            Expr::Set(expr) => visitor.visit_set_expr(&expr),
+            Expr::Super(expr) => visitor.visit_super_expr(&expr),
+            Expr::Grouping(expr) => visitor.visit_grouping_expr(&expr),
+            Expr::Literal(expr) => visitor.visit_literal_expr(&expr),
+            Expr::Logical(expr) => visitor.visit_logical_expr(&expr),
+            Expr::This(expr) => visitor.visit_this_expr(&expr),
+            Expr::Unary(expr) => visitor.visit_unary_expr(&expr),
+            Expr::Empty => unreachable!(),
+        }
+    }
+}
+
+impl Stmt {
+    fn accept(&self, visitor: &dyn StmtVisitor) -> Result {
+        match self {
+            Stmt::Fn(stmt) => visitor.visit_fn_stmt(&stmt),
+            Stmt::Let(stmt) => visitor.visit_let_stmt(&stmt),
+            Stmt::Block(stmt) => visitor.visit_block_stmt(&stmt),
+            Stmt::Class(stmt) => visitor.visit_class_stmt(&stmt),
+            Stmt::ClassicFor(stmt) => visitor.visit_classic_for_stmt(&stmt),
+            Stmt::EnhancedFor(stmt) => visitor.visit_enhanced_for_stmt(&stmt),
+            Stmt::While(stmt) => visitor.visit_while_stmt(&stmt),
+            Stmt::If(stmt) => visitor.visit_if_stmt(&stmt),
+            Stmt::Continue(stmt) => visitor.visit_continue_stmt(&stmt),
+            Stmt::Return(stmt) => visitor.visit_return_stmt(&stmt),
+            Stmt::Break(stmt) => visitor.visit_break_stmt(&stmt),
+            Stmt::TryCatch(stmt) => visitor.visit_try_catch_stmt(&stmt),
+            Stmt::Expr(stmt) => visitor.visit_expr_stmt(&stmt),
+        }
+    }
+}
+
 pub fn scan(source: String) {
     let state = &mut InterpreterState::new(source);
     let mut lex = Lexer::new(state);

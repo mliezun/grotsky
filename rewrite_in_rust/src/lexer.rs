@@ -441,7 +441,6 @@ struct DictionaryExpr {
 struct AssignExpr {
     name: TokenData,
     value: Box<Expr>,
-    access: Option<Box<Expr>>,
 }
 
 #[derive(PartialEq)]
@@ -480,7 +479,6 @@ struct SetExpr {
     object: Box<Expr>,
     name: TokenData,
     value: Box<Expr>,
-    access: Option<Box<Expr>>,
 }
 
 #[derive(PartialEq)]
@@ -549,7 +547,7 @@ struct Parser<'a> {
     state: &'a mut InterpreterState,
 }
 
-const max_function_params: usize = 255;
+const MAX_FUNCTION_PARAMS: usize = 255;
 
 #[derive(PartialEq)]
 struct LetStmt {
@@ -734,13 +732,13 @@ impl Parser<'_> {
     }
 
     fn check(&mut self, token: Token) -> bool {
-        let oldCurrent = self.current;
+        let old_current = self.current;
         while token != Token::Newline && !self.is_at_end() && self.peek().token == Token::Newline {
             self.current += 1;
         }
         let matchs = self.peek().token == token;
         if !matchs {
-            self.current = oldCurrent
+            self.current = old_current;
         }
         return matchs;
     }
@@ -871,7 +869,7 @@ impl Parser<'_> {
         let mut params: Vec<TokenData> = vec![];
         if !self.check(Token::RightParen) {
             loop {
-                if params.len() > max_function_params {
+                if params.len() > MAX_FUNCTION_PARAMS {
                     self.state.fatal_error(InterpreterError {
                         message: "Max number of parameters is 255".to_string(),
                         line: self.peek().line,
@@ -917,7 +915,7 @@ impl Parser<'_> {
         let mut params: Vec<TokenData> = vec![];
         if !self.check(Token::RightParen) {
             loop {
-                if params.len() > max_function_params {
+                if params.len() > MAX_FUNCTION_PARAMS {
                     self.state.fatal_error(InterpreterError {
                         message: "Max number of parameters is 255".to_string(),
                         line: self.peek().line,
@@ -1258,37 +1256,36 @@ impl Parser<'_> {
     }
 
     fn assignment(&mut self) -> Expr {
-        let mut expr = self.or();
+        let expr = self.or();
         if self.matches(Token::Equal) {
             let equal = self.previous();
             let value = self.assignment();
 
-            let mut object: Expr = Expr::Empty;
-            let access = match expr {
-                Expr::Access(access) => {
-                    object = *access.object;
-                    loop {
-                        if let Expr::Access(inner_access) = object {
-                            object = *inner_access.object;
-                        } else {
-                            break;
-                        }
-                    }
-                    let access_expr = Box::new(Expr::Access(access));
-                    Some(access_expr)
-                }
-                _ => None,
-            };
-            if object != Expr::Empty {
-                expr = object;
-            }
+            // let mut object: Expr = Expr::Empty;
+            // let access = match expr {
+            //     Expr::Access(access) => {
+            //         object = *access.object;
+            //         loop {
+            //             if let Expr::Access(inner_access) = object {
+            //                 object = *inner_access.object;
+            //             } else {
+            //                 break;
+            //             }
+            //         }
+            //         let access_expr = Box::new(Expr::Access(access));
+            //         Some(access_expr)
+            //     }
+            //     _ => None,
+            // };
+            // if object != Expr::Empty {
+            //     expr = object;
+            // }
 
             match expr {
                 Expr::Var(variable) => {
                     let assign = AssignExpr {
                         name: variable.name.unwrap(),
                         value: Box::new(value),
-                        access: access,
                     };
                     return Expr::Assign(assign);
                 }
@@ -1296,7 +1293,6 @@ impl Parser<'_> {
                     let set = SetExpr {
                         name: get.name,
                         value: Box::new(value),
-                        access: access,
                         object: get.object,
                     };
                     return Expr::Set(set);
@@ -1499,7 +1495,7 @@ impl Parser<'_> {
         let mut expr = self.primary();
         loop {
             if self.matches(Token::LeftParen) {
-                expr = self.finishCall(expr);
+                expr = self.finish_call(expr);
             } else if self.matches(Token::Dot) {
                 let name = self
                     .consume(
@@ -1521,7 +1517,7 @@ impl Parser<'_> {
         return expr;
     }
 
-    fn finishCall(&mut self, callee: Expr) -> Expr {
+    fn finish_call(&mut self, callee: Expr) -> Expr {
         let arguments = self.arguments(Token::RightParen);
         let paren = self
             .consume(Token::RightParen, "Expect ')' after arguments".to_string())
@@ -1538,7 +1534,7 @@ impl Parser<'_> {
         let mut arguments: Vec<Expr> = vec![];
         if !self.check(token_type) {
             loop {
-                if token_type == Token::RightParen && arguments.len() >= max_function_params {
+                if token_type == Token::RightParen && arguments.len() >= MAX_FUNCTION_PARAMS {
                     self.state.fatal_error(InterpreterError {
                         message: "Max number of arguments is 255".to_string(),
                         line: self.peek().line,
@@ -1625,7 +1621,7 @@ impl Parser<'_> {
 
     fn super_expr(&mut self) -> Expr {
         let keyword = self.previous();
-        let mut method: TokenData;
+        let method: TokenData;
         if !self.check(Token::LeftParen) {
             self.consume(
                 Token::Dot,

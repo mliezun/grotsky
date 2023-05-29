@@ -65,7 +65,7 @@ enum Token {
     Catch,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 enum Literal {
     String(String),
     Number(f64),
@@ -73,7 +73,7 @@ enum Literal {
     Nil,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 struct TokenData {
     token: Token,
     lexeme: String,
@@ -427,7 +427,7 @@ struct VarExpr {
 
 #[derive(PartialEq)]
 struct ListExpr {
-    elements: Box<Expr>,
+    elements: Vec<Expr>,
     brace: TokenData,
 }
 
@@ -663,28 +663,29 @@ enum Stmt {
 }
 
 impl Parser<'_> {
-    fn get_parsing_context(&self) -> &CallStack {
-        return &self.cls[self.cls.len() - 1];
+    fn get_parsing_context(&mut self) -> &mut CallStack {
+        let len = self.cls.len();
+        return &mut self.cls[len - 1];
     }
 
-    fn enter_function(&mut self, name: String) {
+    fn enter_function(&mut self, name: &String) {
         self.cls.push(CallStack {
-            function: name,
+            function: name.to_string(),
             loop_count: 0,
         });
     }
 
     fn peek(&self) -> TokenData {
-        return self.state.tokens[self.current];
+        return self.state.tokens[self.current].clone();
     }
 
     fn is_at_end(&self) -> bool {
         return self.peek().token == Token::EOF;
     }
 
-    fn leave_function(&mut self, name: String) {
+    fn leave_function(&mut self, name: &String) {
         let pc = self.get_parsing_context();
-        if pc.function != name {
+        if pc.function != name.to_string() {
             self.state.fatal_error(InterpreterError {
                 message: "Max number of parameters is 255".to_string(),
                 line: self.peek().line,
@@ -710,7 +711,7 @@ impl Parser<'_> {
 
     fn parse(&mut self) {
         self.cls = vec![];
-        self.enter_function("".to_string());
+        self.enter_function(&"".to_string());
         while !self.is_at_end() {
             // When multiple empty lines are encountered after a statement
             // the parser founds nil statements, we should avoid them to not
@@ -720,7 +721,7 @@ impl Parser<'_> {
                 Some(st) => self.state.stmts.push(st),
             }
         }
-        self.leave_function("".to_string());
+        self.leave_function(&"".to_string());
     }
 
     fn parse_stmt(&mut self) -> Option<Stmt> {
@@ -790,7 +791,7 @@ impl Parser<'_> {
             }
             i -= 1;
         }
-        return self.state.tokens[self.current - 1];
+        return self.state.tokens[self.current - 1].clone();
     }
 
     fn declaration(&mut self, expect_new_line: bool) -> Option<Stmt> {
@@ -860,7 +861,7 @@ impl Parser<'_> {
             .consume(Token::Identifier, "Expected function name".to_string())
             .unwrap();
 
-        self.enter_function(name.lexeme);
+        self.enter_function(&name.lexeme);
 
         self.consume(
             Token::LeftParen,
@@ -895,7 +896,7 @@ impl Parser<'_> {
             body.push(self.expression_stmt());
         }
 
-        self.leave_function(name.lexeme);
+        self.leave_function(&name.lexeme);
 
         return Stmt::Fn(FnStmt {
             name: name,
@@ -910,7 +911,7 @@ impl Parser<'_> {
             "Expected '(' after function name".to_string(),
         );
 
-        let lambda_name = format!("lambda{}", self.cls.len());
+        let lambda_name: &String = &format!("lambda{}", self.cls.len());
         self.enter_function(lambda_name);
 
         let mut params: Vec<TokenData> = vec![];
@@ -1257,25 +1258,30 @@ impl Parser<'_> {
     }
 
     fn assignment(&mut self) -> Expr {
-        let expr = self.or();
+        let mut expr = self.or();
         if self.matches(Token::Equal) {
             let equal = self.previous();
             let value = self.assignment();
 
+            let mut object: Expr = Expr::Empty;
             let access = match expr {
                 Expr::Access(access) => {
-                    let mut object: &Expr = access.object.as_ref();
+                    object = *access.object;
                     loop {
-                        if let Expr::Access(access) = object {
-                            object = access.object.as_ref();
+                        if let Expr::Access(inner_access) = object {
+                            object = *inner_access.object;
                         } else {
                             break;
                         }
                     }
-                    Some(Box::new(*object))
+                    let access_expr = Box::new(Expr::Access(access));
+                    Some(access_expr)
                 }
                 _ => None,
             };
+            if object != Expr::Empty {
+                expr = object;
+            }
 
             match expr {
                 Expr::Var(variable) => {
@@ -1333,7 +1339,7 @@ impl Parser<'_> {
         return Expr::Access(slice);
     }
 
-    fn slice(&self, slice: &mut AccessExpr) {
+    fn slice(&mut self, slice: &mut AccessExpr) {
         if self.matches(Token::Colon) {
             slice.first_colon = self.previous();
             if self.matches(Token::Colon) {

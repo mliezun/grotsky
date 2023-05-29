@@ -424,9 +424,119 @@ struct VarExpr {
 }
 
 #[derive(PartialEq)]
+struct ListExpr  {
+	elements: Box<Expr>,
+	brace: TokenData
+}
+
+#[derive(PartialEq)]
+struct DictionaryExpr {
+	elements: Vec<Expr>,
+	curly_brace: TokenData,
+}
+
+#[derive(PartialEq)]
+struct AssignExpr  {
+	name: TokenData,
+	value: Box<Expr>,
+	access: Option<Box<Expr>>,
+}
+
+#[derive(PartialEq)]
+struct AccessExpr {
+	object: Box<Expr>,
+	brace: TokenData,
+	first: Box<Expr>,
+	firstColon: TokenData,
+	second: Box<Expr>,
+	secondColon: TokenData,
+	third: Box<Expr>,
+}
+
+#[derive(PartialEq)]
+struct BinaryExpr  {
+	left: Box<Expr>,
+	operator: TokenData,
+	right: Box<Expr>,
+}
+
+#[derive(PartialEq)]
+struct CallExpr  {
+	callee: Box<Expr>,
+	paren: TokenData,
+	arguments: Vec<Expr>,
+}
+
+#[derive(PartialEq)]
+struct GetExpr  {
+	object: Box<Expr>,
+	name: TokenData,
+}
+
+#[derive(PartialEq)]
+struct SetExpr  {
+	object: Box<Expr>,
+	name: TokenData,
+	value: Box<Expr>,
+	access: Option<Box<Expr>>,
+}
+
+#[derive(PartialEq)]
+struct SuperExpr  {
+	keyword: TokenData,
+	method: TokenData,
+}
+
+#[derive(PartialEq)]
+struct GroupingExpr  {
+	expression: Box<Expr>,
+}
+
+#[derive(PartialEq)]
+struct LiteralExpr  {
+	value:Literal,
+}
+
+
+#[derive(PartialEq)]
+struct LogicalExpr  {
+	left: Box<Expr>,
+	operator: TokenData,
+	right: Box<Expr>,
+}
+
+#[derive(PartialEq)]
+struct ThisExpr  {
+	keyword: TokenData,
+}
+
+
+#[derive(PartialEq)]
+struct UnaryExpr  {
+	operator: TokenData,
+	right: Box<Expr>,
+}
+
+
+
+#[derive(PartialEq)]
 enum Expr {
     Fn(FnExpr),
     Var(VarExpr),
+    List(ListExpr),
+    Dictionary(DictionaryExpr),
+    Assign(AssignExpr),
+    Access(AccessExpr),
+    Binary(BinaryExpr),
+    Call(CallExpr),
+    Get(GetExpr),
+    Set(SetExpr),
+    Super(BinaryExpr),
+    Grouping(GroupingExpr),
+    Literal(LiteralExpr),
+    Logical(LogicalExpr),
+    This(ThisExpr),
+    Unary(UnaryExpr),
     Empty,
 }
 
@@ -1033,96 +1143,87 @@ impl Parser<'_> {
         return self.assignment();
     }
 
-    fn  list(&mut self) -> expr[T] {
-        elements = self.arguments(Token::RightBrace)
-        brace = self.consume(Token::RightBrace, errUnclosedBracket)
-        return &listExpr[T]{
-            elements: elements,
-            brace:    brace,
-        }
+    fn  list(&mut self) -> Expr {
+        let elements = self.arguments(Token::RightBrace);
+        let brace = self.consume(Token::RightBrace, "Expected ']' at end of list".to_string()).unwrap();
+        let list_expr = ListExpr{elements,brace};
+        return Expr::List(list_expr);
     }
 
-    fn  dictionary(&mut self) -> expr[T] {
-        elements = self.dictElements()
-        curlyBrace = self.consume(Token::RightCurlyBrace, errUnclosedCurlyBrace)
-        return &dictionaryExpr[T]{
+    fn  dictionary(&mut self) -> Expr {
+        let elements = self.dict_elements();
+        let curly_brace = self.consume(Token::RightCurlyBrace, "Expected '}' at the end of dict".to_string()).unwrap();
+        let dict_expr =  DictionaryExpr{
             elements:   elements,
-            curlyBrace: curlyBrace,
-        }
+            curly_brace: curly_brace,
+        };
+        return Expr::Dictionary(dict_expr);
     }
 
-    // dictElements returns array of keys & values where keys
+    // dict_elements returns array of keys & values where keys
     // are stored in even positions and values in odd positions
-    fn  dictElements(&mut self) -> []expr[T] {
-        elements = make([]expr[T], 0)
-        for !self.check(Token::RightCurlyBrace) {
-            key = self.expression()
-            self.consume(Token::Colon, errExpectedColon)
-            value = self.expression()
-            elements = append(elements, key, value)
+    fn  dict_elements(&mut self) -> Vec<Expr> {
+        let mut elements: Vec<Expr> = vec![];
+        while !self.check(Token::RightCurlyBrace) {
+            let key = self.expression();
+            self.consume(Token::Colon, "Expected ':' after key".to_string());
+            let value = self.expression();
+            elements.push(key);
+            elements.push(value);
             if !self.matches(Token::Comma) {
                 break
             }
         }
-        return elements
+        return elements;
     }
 
-    fn  assignment(&mut self) -> expr[T] {
-        expr = self.or()
+    fn  assignment(&mut self) -> Expr {
+        let expr = self.or();
         if self.matches(Token::Equal) {
-            equal = self.previous()
-            value = self.assignment()
+            let equal = self.previous();
+            let value = self.assignment();
 
-            access, isAccess = expr.(*accessExpr[T])
-            if isAccess {
-                object = access.object
-                for {
-                    _, ok = object.(*accessExpr[T])
-                    if !ok {
-                        break
+            let access = match expr {
+                Expr::Access(access) => {
+                    let mut object: &Expr = access.object.as_ref();
+                    loop {
+                        if let Expr::Access(access) = object {
+                            object = access.object.as_ref();
+                        } else {
+                            break;
+                        }
                     }
-                    object = object.(*accessExpr[T]).object
-                }
-                expr = object
-            }
+                    Some(Box::new(*object))
+                },
+                _ => None,
+            };
 
-            if variable, isVar = expr.(*variableExpr[T]); isVar {
-                assign = &assignExpr[T]{
-                    name:  variable.name,
-                    value: value,
-                }
-                if access != nil {
-                    assign.access = access
-                }
-                return assign
-            } else if get, isGet = expr.(*getExpr[T]); isGet {
-                set = &setExpr[T]{
-                    name:   get.name,
-                    object: get.object,
-                    value:  value,
-                }
-                if access != nil {
-                    set.access = access
-                }
-                return set
+            match expr {
+                Expr::Var(variable) => {
+                    let assign = AssignExpr{name:variable.name.unwrap(), value:Box::new(value), access:access};
+                    return Expr::Assign(assign);
+                },
+                Expr::Get(get) => {
+                    let set = SetExpr{name:get.name, value:Box::new(value), access:access, object:get.object};
+                    return Expr::Set(set);
+                },
+                _ => self.state.fatal_error(InterpreterError { message:"Undefined statement".to_string(), line: equal.line, pos: 0 }),
             }
-
-            self.state.fatalError(errUndefinedStmt, equal.line, 0)
         }
         return expr
     }
 
-    fn  access(object expr[T]) expr[T] {
-        slice = &accessExpr[T]{
-            object: object,
+    fn  access(object: Expr) -> Expr {
+        let slice = AccessExpr{
+            object: Box::new(object),
             brace:  self.previous(),
         }
-        self.slice(slice)
-        self.consume(Token::RightBrace, errors.New("Expected ']' at the end of slice"))
-        return slice
+        self.slice(slice);
+        self.consume(Token::RightBrace, "Expected ']' at the end of slice".to_string());
+        return slice;
     }
 
-    fn  slice(slice *accessExpr[T]) {
+    fn  slice(&self,  slice: &mut AccessExpr) {
         if self.matches(Token::Colon) {
             slice.firstColon = self.previous()
             if self.matches(Token::Colon) {
@@ -1155,9 +1256,9 @@ impl Parser<'_> {
         }
     }
 
-    fn  or(&mut self) -> expr[T] {
-        expr = self.and()
-        for self.matches(Token::Or) {
+    fn  or(&mut self) -> Expr {
+        let expr = self.and();
+        while self.matches(Token::Or) {
             operator = self.previous()
             right = self.and()
             expr = &logicalExpr[T]{
@@ -1169,9 +1270,9 @@ impl Parser<'_> {
         return expr
     }
 
-    fn  and(&mut self) -> expr[T] {
-        expr = self.equality()
-        for self.matches(Token::And) {
+    fn  and(&mut self) -> Expr {
+        let expr = self.equality();
+        while self.matches(Token::And) {
             operator = self.previous()
             right = self.equality()
             expr = &logicalExpr[T]{
@@ -1183,9 +1284,9 @@ impl Parser<'_> {
         return expr
     }
 
-    fn  equality(&mut self) -> expr[T] {
-        expr = self.comparison()
-        for self.matches(Token::EqualEqual, Token::BangEqual) {
+    fn  equality(&mut self) -> Expr {
+        let expr = self.comparison();
+        while self.matches(Token::EqualEqual, Token::BangEqual) {
             operator = self.previous()
             right = self.comparison()
             expr = &binaryExpr[T]{
@@ -1197,9 +1298,9 @@ impl Parser<'_> {
         return expr
     }
 
-    fn  comparison(&mut self) -> expr[T] {
-        expr = self.addition()
-        for self.matches(Token::Greater, Token::GreaterEqual, Token::Less, Token::LessEqual) {
+    fn  comparison(&mut self) -> Expr {
+        let expr = self.addition();
+        while self.matches(Token::Greater, Token::GreaterEqual, Token::Less, Token::LessEqual) {
             operator = self.previous()
             right = self.addition()
             expr = &binaryExpr[T]{
@@ -1211,9 +1312,9 @@ impl Parser<'_> {
         return expr
     }
 
-    fn  addition(&mut self) -> expr[T] {
-        expr = self.multiplication()
-        for self.matches(Token::Plus, Token::Minus) {
+    fn  addition(&mut self) -> Expr {
+        let expr = self.multiplication();
+        while self.matches(Token::Plus, Token::Minus) {
             operator = self.previous()
             right = self.multiplication()
             expr = &binaryExpr[T]{
@@ -1225,9 +1326,9 @@ impl Parser<'_> {
         return expr
     }
 
-    fn  multiplication(&mut self) -> expr[T] {
-        expr = self.power()
-        for self.matches(Token::Slash, Token::Mod, Token::Star) {
+    fn  multiplication(&mut self) -> Expr {
+        let expr = self.power();
+        while self.matches(Token::Slash, Token::Mod, Token::Star) {
             operator = self.previous()
             right = self.power()
             expr = &binaryExpr[T]{
@@ -1239,9 +1340,9 @@ impl Parser<'_> {
         return expr
     }
 
-    fn  power(&mut self) -> expr[T] {
-        expr = self.unary()
-        for self.matches(Token::Power) {
+    fn  power(&mut self) -> Expr {
+        let expr = self.unary();
+        while self.matches(Token::Power) {
             operator = self.previous()
             right = self.unary()
             expr = &binaryExpr[T]{
@@ -1253,7 +1354,7 @@ impl Parser<'_> {
         return expr
     }
 
-    fn  unary(&mut self) -> expr[T] {
+    fn  unary(&mut self) -> Expr {
         if self.matches(Token::Not, Token::Minus) {
             operator = self.previous()
             right = self.unary()
@@ -1262,12 +1363,12 @@ impl Parser<'_> {
                 right:    right,
             }
         }
-        return self.call()
+        return self.call();
     }
 
-    fn  call(&mut self) -> expr[T] {
-        expr = self.primary()
-        for {
+    fn  call(&mut self) -> Expr {
+        let expr = self.primary();
+        loop {
             if self.matches(Token::LeftParen) {
                 expr = self.finishCall(expr)
             } else if self.matches(Token::Dot) {
@@ -1285,9 +1386,9 @@ impl Parser<'_> {
         return expr
     }
 
-    fn  finishCall(callee expr[T]) expr[T] {
-        arguments = self.arguments(Token::RightParen)
-        paren = self.consume(Token::RightParen, errors.New("Expect ')' after arguments"))
+    fn  finishCall(&mut self,callee: Expr) -> Expr {
+        let arguments = self.arguments(Token::RightParen);
+        let paren = self.consume(Token::RightParen, errors.New("Expect ')' after arguments"));
         return &callExpr[T]{
             callee:    callee,
             arguments: arguments,
@@ -1295,8 +1396,8 @@ impl Parser<'_> {
         }
     }
 
-    fn  arguments(Token:: tokenType) []expr[T] {
-        arguments = make([]expr[T], 0)
+    fn  arguments(&mut self,Token:: tokenType) Vec<Expr> {
+        arguments = make([]Expr, 0)
         if !self.check(Token::) {
             for {
                 if Token:: == Token::RightParen && len(arguments) >= max_function_params {
@@ -1311,7 +1412,7 @@ impl Parser<'_> {
         return arguments
     }
 
-    fn  primary(&mut self) -> expr[T] {
+    fn  primary(&mut self) -> Expr {
         if self.matches(Token::Number, Token::String) {
             return &literalExpr[T]{value: self.previous().literal}
         }
@@ -1355,7 +1456,7 @@ impl Parser<'_> {
         return &literalExpr[T]{}
     }
 
-    fn  superExpr(&mut self) -> expr[T] {
+    fn  superExpr(&mut self) -> Expr {
         super = &superExpr[T]{
             keyword: self.previous(),
         }

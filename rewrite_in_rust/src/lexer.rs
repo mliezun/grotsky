@@ -65,13 +65,15 @@ enum Token {
     Catch,
 }
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 enum Literal {
     String(String),
     Number(f64),
+    Boolean(bool),
+    Nil,
 }
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 struct TokenData {
     token: Token,
     lexeme: String,
@@ -415,7 +417,7 @@ impl Lexer<'_> {
 #[derive(PartialEq)]
 struct FnExpr {
     params: Vec<TokenData>,
-    body:   Vec<Stmt>,
+    body: Vec<Stmt>,
 }
 
 #[derive(PartialEq)]
@@ -424,100 +426,96 @@ struct VarExpr {
 }
 
 #[derive(PartialEq)]
-struct ListExpr  {
-	elements: Box<Expr>,
-	brace: TokenData
+struct ListExpr {
+    elements: Box<Expr>,
+    brace: TokenData,
 }
 
 #[derive(PartialEq)]
 struct DictionaryExpr {
-	elements: Vec<Expr>,
-	curly_brace: TokenData,
+    elements: Vec<Expr>,
+    curly_brace: TokenData,
 }
 
 #[derive(PartialEq)]
-struct AssignExpr  {
-	name: TokenData,
-	value: Box<Expr>,
-	access: Option<Box<Expr>>,
+struct AssignExpr {
+    name: TokenData,
+    value: Box<Expr>,
+    access: Option<Box<Expr>>,
 }
 
 #[derive(PartialEq)]
 struct AccessExpr {
-	object: Box<Expr>,
-	brace: TokenData,
-	first: Box<Expr>,
-	firstColon: TokenData,
-	second: Box<Expr>,
-	secondColon: TokenData,
-	third: Box<Expr>,
+    object: Box<Expr>,
+    brace: TokenData,
+    first: Box<Expr>,
+    first_colon: TokenData,
+    second: Box<Expr>,
+    second_colon: TokenData,
+    third: Box<Expr>,
 }
 
 #[derive(PartialEq)]
-struct BinaryExpr  {
-	left: Box<Expr>,
-	operator: TokenData,
-	right: Box<Expr>,
+struct BinaryExpr {
+    left: Box<Expr>,
+    operator: TokenData,
+    right: Box<Expr>,
 }
 
 #[derive(PartialEq)]
-struct CallExpr  {
-	callee: Box<Expr>,
-	paren: TokenData,
-	arguments: Vec<Expr>,
+struct CallExpr {
+    callee: Box<Expr>,
+    paren: TokenData,
+    arguments: Vec<Expr>,
 }
 
 #[derive(PartialEq)]
-struct GetExpr  {
-	object: Box<Expr>,
-	name: TokenData,
+struct GetExpr {
+    object: Box<Expr>,
+    name: TokenData,
 }
 
 #[derive(PartialEq)]
-struct SetExpr  {
-	object: Box<Expr>,
-	name: TokenData,
-	value: Box<Expr>,
-	access: Option<Box<Expr>>,
+struct SetExpr {
+    object: Box<Expr>,
+    name: TokenData,
+    value: Box<Expr>,
+    access: Option<Box<Expr>>,
 }
 
 #[derive(PartialEq)]
-struct SuperExpr  {
-	keyword: TokenData,
-	method: TokenData,
+struct SuperExpr {
+    keyword: TokenData,
+    method: TokenData,
 }
 
 #[derive(PartialEq)]
-struct GroupingExpr  {
-	expression: Box<Expr>,
+struct GroupingExpr {
+    expression: Box<Expr>,
 }
 
 #[derive(PartialEq)]
-struct LiteralExpr  {
-	value:Literal,
-}
-
-
-#[derive(PartialEq)]
-struct LogicalExpr  {
-	left: Box<Expr>,
-	operator: TokenData,
-	right: Box<Expr>,
+struct LiteralExpr {
+    value: Literal,
 }
 
 #[derive(PartialEq)]
-struct ThisExpr  {
-	keyword: TokenData,
+struct LogicalExpr {
+    left: Box<Expr>,
+    operator: TokenData,
+    right: Box<Expr>,
 }
-
 
 #[derive(PartialEq)]
-struct UnaryExpr  {
-	operator: TokenData,
-	right: Box<Expr>,
+struct ThisExpr {
+    keyword: TokenData,
 }
 
-
+#[derive(PartialEq)]
+struct UnaryExpr {
+    operator: TokenData,
+    right: Box<Expr>,
+}
 
 #[derive(PartialEq)]
 enum Expr {
@@ -531,7 +529,7 @@ enum Expr {
     Call(CallExpr),
     Get(GetExpr),
     Set(SetExpr),
-    Super(BinaryExpr),
+    Super(SuperExpr),
     Grouping(GroupingExpr),
     Literal(LiteralExpr),
     Logical(LogicalExpr),
@@ -554,26 +552,26 @@ struct Parser<'a> {
 const max_function_params: usize = 255;
 
 #[derive(PartialEq)]
-struct LetStmt { 
-    name:        TokenData,
+struct LetStmt {
+    name: TokenData,
     initializer: Option<Expr>,
 }
 
 #[derive(PartialEq)]
 struct ClassicForStmt {
-    keyword:TokenData,
-	initializer: Option<Box<Stmt>>,
-	condition: Expr,
-	increment: Expr,
-	body: Box<Stmt>,
+    keyword: TokenData,
+    initializer: Option<Box<Stmt>>,
+    condition: Expr,
+    increment: Expr,
+    body: Box<Stmt>,
 }
 
 #[derive(PartialEq)]
 struct EnhancedForStmt {
     keyword: TokenData,
-	identifiers: Vec<TokenData>,
-	collection: Expr,
-	body: Box<Stmt>,
+    identifiers: Vec<TokenData>,
+    collection: Expr,
+    body: Box<Stmt>,
 }
 
 #[derive(PartialEq)]
@@ -624,16 +622,16 @@ struct IfStmt {
 #[derive(PartialEq)]
 struct FnStmt {
     name: TokenData,
-	params: Vec<TokenData>,
-	body: Vec<Stmt>,
+    params: Vec<TokenData>,
+    body: Vec<Stmt>,
 }
 
 #[derive(PartialEq)]
 struct ClassStmt {
-    name:          Option<TokenData>,
-    methods:       Vec<FnStmt>,
+    name: Option<TokenData>,
+    methods: Vec<FnStmt>,
     static_methods: Vec<FnStmt>,
-    superclass:    Option<VarExpr>,
+    superclass: Option<VarExpr>,
 }
 
 #[derive(PartialEq)]
@@ -642,9 +640,9 @@ struct BlockStmt {
 }
 
 #[derive(PartialEq)]
-struct ExprStmt  {
-	last: Option<TokenData>,
-	expression: Expr,
+struct ExprStmt {
+    last: Option<TokenData>,
+    expression: Expr,
 }
 
 #[derive(PartialEq)]
@@ -665,13 +663,13 @@ enum Stmt {
 }
 
 impl Parser<'_> {
-    fn  get_parsing_context(&self) -> &CallStack {
-        return &self.cls[self.cls.len()-1];
+    fn get_parsing_context(&self) -> &CallStack {
+        return &self.cls[self.cls.len() - 1];
     }
 
-    fn  enter_function(&mut self, name: String) {
-        self.cls.push(CallStack{
-            function:  name,
+    fn enter_function(&mut self, name: String) {
+        self.cls.push(CallStack {
+            function: name,
             loop_count: 0,
         });
     }
@@ -680,38 +678,37 @@ impl Parser<'_> {
         return self.state.tokens[self.current];
     }
 
-    fn  is_at_end(&self) -> bool {
-        return self.peek().token == Token::EOF
+    fn is_at_end(&self) -> bool {
+        return self.peek().token == Token::EOF;
     }
 
-    fn  leave_function(&mut self, name: String) {
+    fn leave_function(&mut self, name: String) {
         let pc = self.get_parsing_context();
         if pc.function != name {
-            self.state.fatal_error(InterpreterError{
-                message:"Max number of parameters is 255".to_string(),
-                line:self.peek().line,
-                pos:0,
+            self.state.fatal_error(InterpreterError {
+                message: "Max number of parameters is 255".to_string(),
+                line: self.peek().line,
+                pos: 0,
             })
         }
         self.cls.pop();
     }
 
-    fn  enter_loop(&mut self)  {
+    fn enter_loop(&mut self) {
         let pc = self.get_parsing_context();
         pc.loop_count += 1;
     }
 
-    fn  leave_loop(&mut self) {
+    fn leave_loop(&mut self) {
         let pc = self.get_parsing_context();
         pc.loop_count -= 1;
     }
 
-    fn  inside_loop(&mut self) -> bool {
+    fn inside_loop(&mut self) -> bool {
         return self.get_parsing_context().loop_count != 0;
     }
 
-
-    fn  parse(&mut self)  {
+    fn parse(&mut self) {
         self.cls = vec![];
         self.enter_function("".to_string());
         while !self.is_at_end() {
@@ -726,7 +723,7 @@ impl Parser<'_> {
         self.leave_function("".to_string());
     }
 
-    fn  parse_stmt(&mut self) -> Option<Stmt> {
+    fn parse_stmt(&mut self) -> Option<Stmt> {
         /* defer func(&mut self) -> {
             if r = recover(); r != nil {
                 self.synchronize()
@@ -735,7 +732,7 @@ impl Parser<'_> {
         return self.declaration(true);
     }
 
-    fn  check(&mut self, token: Token) -> bool {
+    fn check(&mut self, token: Token) -> bool {
         let oldCurrent = self.current;
         while token != Token::Newline && !self.is_at_end() && self.peek().token == Token::Newline {
             self.current += 1;
@@ -744,18 +741,18 @@ impl Parser<'_> {
         if !matchs {
             self.current = oldCurrent
         }
-        return matchs
+        return matchs;
     }
 
-    fn  matches(&mut self, token: Token)-> bool {
+    fn matches(&mut self, token: Token) -> bool {
         if self.check(token) {
             self.current += 1;
             return true;
         }
-        return false
+        return false;
     }
 
-    fn  matches_many(&mut self, tokens: Vec<Token>) -> bool {
+    fn matches_many(&mut self, tokens: Vec<Token>) -> bool {
         for token in tokens {
             if self.check(token) {
                 self.current += 1;
@@ -765,42 +762,46 @@ impl Parser<'_> {
         return false;
     }
 
-    fn  consume(&mut self,token: Token, error_message: String)-> Option<TokenData> {
+    fn consume(&mut self, token: Token, error_message: String) -> Option<TokenData> {
         if self.check(token) {
             return Some(self.advance());
         }
 
-        self.state.set_error(InterpreterError { message: error_message, line: self.peek().line, pos: 0 });
+        self.state.set_error(InterpreterError {
+            message: error_message,
+            line: self.peek().line,
+            pos: 0,
+        });
         return None;
     }
 
-    fn  advance(&mut self) -> TokenData {
+    fn advance(&mut self) -> TokenData {
         if !self.is_at_end() {
             self.current += 1;
         }
         return self.previous();
     }
 
-    fn  previous(&mut self) -> TokenData {
+    fn previous(&mut self) -> TokenData {
         let mut i = 1;
-        while  i <= self.current {
-            if self.state.tokens[self.current-i].token != Token::Newline {
-                break
+        while i <= self.current {
+            if self.state.tokens[self.current - i].token != Token::Newline {
+                break;
             }
             i -= 1;
         }
-        return self.state.tokens[self.current-1];
+        return self.state.tokens[self.current - 1];
     }
 
-    fn  declaration(&mut self, expect_new_line: bool) -> Option<Stmt> {
+    fn declaration(&mut self, expect_new_line: bool) -> Option<Stmt> {
         let s = if self.matches(Token::Class) {
             self.class()
         } else if self.matches(Token::Fn) {
             Some(self.fn_stmt())
         } else if self.matches(Token::Let) {
-             Some(self.let_stmt())
+            Some(self.let_stmt())
         } else {
-             Some(self.statement())
+            Some(self.statement())
         };
         if expect_new_line {
             self.consume(Token::Newline, "Expected new line".to_string());
@@ -808,19 +809,20 @@ impl Parser<'_> {
         return s;
     }
 
-    fn  class(&mut self) -> Option<Stmt> {
+    fn class(&mut self) -> Option<Stmt> {
         let name = self.consume(Token::Identifier, "Expected variable name".to_string());
 
         let superclass: Option<VarExpr> = if self.matches(Token::Less) {
             let class = self.consume(Token::Identifier, "Expected variable name".to_string());
-            Some(VarExpr{
-                name: class,
-            })
+            Some(VarExpr { name: class })
         } else {
             None
         };
 
-        self.consume(Token::LeftCurlyBrace, "Expected '{' at this position".to_string());
+        self.consume(
+            Token::LeftCurlyBrace,
+            "Expected '{' at this position".to_string(),
+        );
 
         let mut methods: Vec<FnStmt> = vec![];
         let mut static_methods: Vec<FnStmt> = vec![];
@@ -840,30 +842,45 @@ impl Parser<'_> {
             }
         }
 
-        self.consume(Token::RightCurlyBrace, "Expected '}' at this position".to_string());
+        self.consume(
+            Token::RightCurlyBrace,
+            "Expected '}' at this position".to_string(),
+        );
 
-        return Some(Stmt::Class(ClassStmt{
-            name:          name,
-            methods:       methods,
+        return Some(Stmt::Class(ClassStmt {
+            name: name,
+            methods: methods,
             static_methods: static_methods,
-            superclass:    superclass,
+            superclass: superclass,
         }));
     }
 
-    fn  fn_stmt(&mut self) -> Stmt {
-        let name = self.consume(Token::Identifier, "Expected function name".to_string()).unwrap();
+    fn fn_stmt(&mut self) -> Stmt {
+        let name = self
+            .consume(Token::Identifier, "Expected function name".to_string())
+            .unwrap();
 
         self.enter_function(name.lexeme);
 
-        self.consume(Token::LeftParen, "Expect '(' after function name".to_string());
+        self.consume(
+            Token::LeftParen,
+            "Expect '(' after function name".to_string(),
+        );
 
         let mut params: Vec<TokenData> = vec![];
         if !self.check(Token::RightParen) {
             loop {
                 if params.len() > max_function_params {
-                    self.state.fatal_error(InterpreterError { message: "Max number of parameters is 255".to_string(), line:self.peek().line, pos:0});
+                    self.state.fatal_error(InterpreterError {
+                        message: "Max number of parameters is 255".to_string(),
+                        line: self.peek().line,
+                        pos: 0,
+                    });
                 }
-                params.push(self.consume(Token::Identifier, "Expected function parameter".to_string()).unwrap());
+                params.push(
+                    self.consume(Token::Identifier, "Expected function parameter".to_string())
+                        .unwrap(),
+                );
                 if !self.matches(Token::Comma) {
                     break;
                 }
@@ -880,15 +897,18 @@ impl Parser<'_> {
 
         self.leave_function(name.lexeme);
 
-        return Stmt::Fn(FnStmt{
-            name:   name,
+        return Stmt::Fn(FnStmt {
+            name: name,
             params: params,
-            body:   body,
+            body: body,
         });
     }
 
-    fn  fn_expr(&mut self) -> FnExpr {
-        self.consume(Token::LeftParen, "Expected '(' after function name".to_string());
+    fn fn_expr(&mut self) -> FnExpr {
+        self.consume(
+            Token::LeftParen,
+            "Expected '(' after function name".to_string(),
+        );
 
         let lambda_name = format!("lambda{}", self.cls.len());
         self.enter_function(lambda_name);
@@ -897,11 +917,18 @@ impl Parser<'_> {
         if !self.check(Token::RightParen) {
             loop {
                 if params.len() > max_function_params {
-                    self.state.fatal_error(InterpreterError { message: "Max number of parameters is 255".to_string(), line:self.peek().line, pos:0 });
+                    self.state.fatal_error(InterpreterError {
+                        message: "Max number of parameters is 255".to_string(),
+                        line: self.peek().line,
+                        pos: 0,
+                    });
                 }
-                params.push(self.consume(Token::Identifier, "Expect function parameter".to_string()).unwrap());
+                params.push(
+                    self.consume(Token::Identifier, "Expect function parameter".to_string())
+                        .unwrap(),
+                );
                 if !self.matches(Token::Comma) {
-                    break
+                    break;
                 }
             }
         }
@@ -916,11 +943,16 @@ impl Parser<'_> {
 
         self.leave_function(lambda_name);
 
-        return FnExpr { params:params, body:body };
+        return FnExpr {
+            params: params,
+            body: body,
+        };
     }
 
-    fn  let_stmt(&mut self) -> Stmt {
-        let name = self.consume(Token::Identifier, "Expected variable name".to_string()).unwrap();
+    fn let_stmt(&mut self) -> Stmt {
+        let name = self
+            .consume(Token::Identifier, "Expected variable name".to_string())
+            .unwrap();
 
         let init: Option<Expr> = if self.matches(Token::Equal) {
             Some(self.expression())
@@ -928,10 +960,13 @@ impl Parser<'_> {
             None
         };
 
-        return Stmt::Let(LetStmt{name:name, initializer:init});
+        return Stmt::Let(LetStmt {
+            name: name,
+            initializer: init,
+        });
     }
 
-    fn  statement(&mut self) -> Stmt {
+    fn statement(&mut self) -> Stmt {
         if self.matches(Token::For) {
             return self.for_loop();
         }
@@ -954,12 +989,14 @@ impl Parser<'_> {
             return self.while_stmt();
         }
         if self.matches(Token::LeftCurlyBrace) {
-            return Stmt::Block(BlockStmt{stmts: self.block()});
+            return Stmt::Block(BlockStmt {
+                stmts: self.block(),
+            });
         }
         return self.expression_stmt();
     }
 
-    fn  for_loop(&mut self) -> Stmt {
+    fn for_loop(&mut self) -> Stmt {
         let keyword = self.previous();
 
         self.enter_loop();
@@ -969,14 +1006,18 @@ impl Parser<'_> {
             return self.enhanced_for(keyword);
         }
         // Classic for
-        let init: Option<Box<Stmt>> =  if self.matches(Token::Semicolon) {
+        let init: Option<Box<Stmt>> = if self.matches(Token::Semicolon) {
             None
         } else if self.matches(Token::Let) {
             let aux = self.let_stmt();
             self.consume(Token::Semicolon, "Expected semicolon".to_string());
             Some(Box::new(aux))
         } else {
-            self.state.set_error(InterpreterError { message: "Empty expression or let was expected at this position".to_string(), line: self.peek().line, pos:0});
+            self.state.set_error(InterpreterError {
+                message: "Empty expression or let was expected at this position".to_string(),
+                line: self.peek().line,
+                pos: 0,
+            });
             None
         };
 
@@ -989,10 +1030,16 @@ impl Parser<'_> {
 
         self.leave_loop();
 
-        return Stmt::ClassicFor(ClassicForStmt { keyword: keyword, initializer: init, condition: cond, increment: inc, body: Box::new(body.unwrap()) });
+        return Stmt::ClassicFor(ClassicForStmt {
+            keyword: keyword,
+            initializer: init,
+            condition: cond,
+            increment: inc,
+            body: Box::new(body.unwrap()),
+        });
     }
 
-    fn  enhanced_for(&mut self, keyword: TokenData) -> Stmt {
+    fn enhanced_for(&mut self, keyword: TokenData) -> Stmt {
         let mut ids: Vec<TokenData> = vec![];
         while self.matches(Token::Identifier) {
             ids.push(self.previous());
@@ -1002,32 +1049,40 @@ impl Parser<'_> {
         let collection: Expr = self.expression();
         let body = self.declaration(false).unwrap();
         return Stmt::EnhancedFor(EnhancedForStmt {
-            keyword:     keyword,
+            keyword: keyword,
             identifiers: ids,
-            body:        Box::new(body),
-            collection:  collection,
+            body: Box::new(body),
+            collection: collection,
         });
     }
 
-    fn  try_catch(&mut self) -> Stmt {
+    fn try_catch(&mut self) -> Stmt {
         let try_body = self.declaration(false).unwrap();
-        self.consume(Token::Catch, "A catch block was expected at this position".to_string());
-        let name = self.consume(Token::Identifier, "Expected variable name".to_string()).unwrap();
+        self.consume(
+            Token::Catch,
+            "A catch block was expected at this position".to_string(),
+        );
+        let name = self
+            .consume(Token::Identifier, "Expected variable name".to_string())
+            .unwrap();
         let catch_body = self.declaration(false).unwrap();
 
         return Stmt::TryCatch(TryCatchStmt {
-            try_body:   Box::new(try_body),
-            name:      name,
-            catch_body: Box::new(catch_body), 
+            try_body: Box::new(try_body),
+            name: name,
+            catch_body: Box::new(catch_body),
         });
     }
 
-    fn  if_stmt(&mut self) -> Stmt {
+    fn if_stmt(&mut self) -> Stmt {
         let keyword = self.previous();
         let condition = self.expression();
 
-        self.consume(Token::LeftCurlyBrace, "Expected '{' at this position".to_string());
-        
+        self.consume(
+            Token::LeftCurlyBrace,
+            "Expected '{' at this position".to_string(),
+        );
+
         let mut then_branch: Vec<Stmt> = vec![];
         while !self.matches(Token::RightCurlyBrace) {
             then_branch.push(self.declaration(false).unwrap());
@@ -1036,12 +1091,15 @@ impl Parser<'_> {
         let mut elif_branches: Vec<ElifBranch> = vec![];
         while self.matches(Token::Elif) {
             let condition = self.expression();
-            self.consume(Token::LeftCurlyBrace, "Expected '{' at this position".to_string());
+            self.consume(
+                Token::LeftCurlyBrace,
+                "Expected '{' at this position".to_string(),
+            );
             let mut then_branch: Vec<Stmt> = vec![];
             while !self.matches(Token::RightCurlyBrace) {
                 then_branch.push(self.declaration(false).unwrap());
             }
-            let elif = ElifBranch{
+            let elif = ElifBranch {
                 condition: condition,
                 then_branch: then_branch,
             };
@@ -1050,14 +1108,20 @@ impl Parser<'_> {
 
         let mut else_branch: Vec<Stmt> = vec![];
         if self.matches(Token::Else) {
-            self.consume(Token::LeftCurlyBrace, "Expected '{' at this position".to_string());
+            self.consume(
+                Token::LeftCurlyBrace,
+                "Expected '{' at this position".to_string(),
+            );
             while !self.check(Token::RightCurlyBrace) {
                 else_branch.push(self.declaration(false).unwrap());
             }
-            self.consume(Token::RightCurlyBrace, "Expected '}' at this position".to_string());
+            self.consume(
+                Token::RightCurlyBrace,
+                "Expected '}' at this position".to_string(),
+            );
         }
 
-        let st = IfStmt{
+        let st = IfStmt {
             keyword: keyword,
             condition: condition,
             then_branch: then_branch,
@@ -1068,45 +1132,53 @@ impl Parser<'_> {
         return Stmt::If(st);
     }
 
-    fn  ret(&mut self) -> Stmt {
+    fn ret(&mut self) -> Stmt {
         let keyword = self.previous();
         let value = if !self.check(Token::Newline) {
             Some(self.expression())
         } else {
             None
         };
-        let rt = ReturnStmt{
+        let rt = ReturnStmt {
             keyword: keyword,
-            value:   value,
+            value: value,
         };
         return Stmt::Return(rt);
     }
 
-    fn  brk(&mut self) -> Stmt {
+    fn brk(&mut self) -> Stmt {
         let keyword = self.previous();
         if !self.inside_loop() {
-            self.state.set_error(InterpreterError { message: "Statement only allowed for use inside loop".to_string(), line: keyword.line, pos: 0 });
+            self.state.set_error(InterpreterError {
+                message: "Statement only allowed for use inside loop".to_string(),
+                line: keyword.line,
+                pos: 0,
+            });
         }
-        let brk_stmt = BreakStmt{keyword};
+        let brk_stmt = BreakStmt { keyword };
         return Stmt::Break(brk_stmt);
     }
 
-    fn  cont(&mut self) -> Stmt {
+    fn cont(&mut self) -> Stmt {
         let keyword = self.previous();
         if !self.inside_loop() {
-            self.state.set_error(InterpreterError { message: "Statement only allowed for use inside loop".to_string(), line: keyword.line, pos: 0 });
+            self.state.set_error(InterpreterError {
+                message: "Statement only allowed for use inside loop".to_string(),
+                line: keyword.line,
+                pos: 0,
+            });
         }
-        let continue_stmt = ContinueStmt{keyword};
+        let continue_stmt = ContinueStmt { keyword };
         return Stmt::Continue(continue_stmt);
     }
 
-    fn  while_stmt(&mut self) -> Stmt {
+    fn while_stmt(&mut self) -> Stmt {
         let keyword = self.previous();
         self.enter_loop();
         let condition = self.expression();
         let body = self.declaration(false).unwrap();
         self.leave_loop();
-        let while_stmt = WhileStmt{
+        let while_stmt = WhileStmt {
             keyword,
             condition,
             body: Box::new(body),
@@ -1114,7 +1186,7 @@ impl Parser<'_> {
         return Stmt::While(while_stmt);
     }
 
-    fn  block(&mut self) -> Vec<Stmt> {
+    fn block(&mut self) -> Vec<Stmt> {
         let mut stmts: Vec<Stmt> = vec![];
         while !self.matches(Token::RightCurlyBrace) {
             stmts.push(self.declaration(false).unwrap());
@@ -1122,17 +1194,17 @@ impl Parser<'_> {
         return stmts;
     }
 
-    fn  expression_stmt(&mut self) -> Stmt {
+    fn expression_stmt(&mut self) -> Stmt {
         let expr = self.expression();
         if expr != Expr::Empty {
-            let expr_stmt = ExprStmt{
-                last:       Some(self.previous()),
+            let expr_stmt = ExprStmt {
+                last: Some(self.previous()),
                 expression: expr,
             };
             return Stmt::Expr(expr_stmt);
         }
         // expr is empty when there are multiple empty lines
-        let expr_stmt = ExprStmt{
+        let expr_stmt = ExprStmt {
             expression: Expr::Empty,
             last: None,
         };
@@ -1143,18 +1215,25 @@ impl Parser<'_> {
         return self.assignment();
     }
 
-    fn  list(&mut self) -> Expr {
+    fn list(&mut self) -> Expr {
         let elements = self.arguments(Token::RightBrace);
-        let brace = self.consume(Token::RightBrace, "Expected ']' at end of list".to_string()).unwrap();
-        let list_expr = ListExpr{elements,brace};
+        let brace = self
+            .consume(Token::RightBrace, "Expected ']' at end of list".to_string())
+            .unwrap();
+        let list_expr = ListExpr { elements, brace };
         return Expr::List(list_expr);
     }
 
-    fn  dictionary(&mut self) -> Expr {
+    fn dictionary(&mut self) -> Expr {
         let elements = self.dict_elements();
-        let curly_brace = self.consume(Token::RightCurlyBrace, "Expected '}' at the end of dict".to_string()).unwrap();
-        let dict_expr =  DictionaryExpr{
-            elements:   elements,
+        let curly_brace = self
+            .consume(
+                Token::RightCurlyBrace,
+                "Expected '}' at the end of dict".to_string(),
+            )
+            .unwrap();
+        let dict_expr = DictionaryExpr {
+            elements: elements,
             curly_brace: curly_brace,
         };
         return Expr::Dictionary(dict_expr);
@@ -1162,7 +1241,7 @@ impl Parser<'_> {
 
     // dict_elements returns array of keys & values where keys
     // are stored in even positions and values in odd positions
-    fn  dict_elements(&mut self) -> Vec<Expr> {
+    fn dict_elements(&mut self) -> Vec<Expr> {
         let mut elements: Vec<Expr> = vec![];
         while !self.check(Token::RightCurlyBrace) {
             let key = self.expression();
@@ -1171,13 +1250,13 @@ impl Parser<'_> {
             elements.push(key);
             elements.push(value);
             if !self.matches(Token::Comma) {
-                break
+                break;
             }
         }
         return elements;
     }
 
-    fn  assignment(&mut self) -> Expr {
+    fn assignment(&mut self) -> Expr {
         let expr = self.or();
         if self.matches(Token::Equal) {
             let equal = self.previous();
@@ -1194,61 +1273,92 @@ impl Parser<'_> {
                         }
                     }
                     Some(Box::new(*object))
-                },
+                }
                 _ => None,
             };
 
             match expr {
                 Expr::Var(variable) => {
-                    let assign = AssignExpr{name:variable.name.unwrap(), value:Box::new(value), access:access};
+                    let assign = AssignExpr {
+                        name: variable.name.unwrap(),
+                        value: Box::new(value),
+                        access: access,
+                    };
                     return Expr::Assign(assign);
-                },
+                }
                 Expr::Get(get) => {
-                    let set = SetExpr{name:get.name, value:Box::new(value), access:access, object:get.object};
+                    let set = SetExpr {
+                        name: get.name,
+                        value: Box::new(value),
+                        access: access,
+                        object: get.object,
+                    };
                     return Expr::Set(set);
-                },
-                _ => self.state.fatal_error(InterpreterError { message:"Undefined statement".to_string(), line: equal.line, pos: 0 }),
+                }
+                _ => self.state.fatal_error(InterpreterError {
+                    message: "Undefined statement".to_string(),
+                    line: equal.line,
+                    pos: 0,
+                }),
             }
         }
-        return expr
+        return expr;
     }
 
-    fn  access(object: Expr) -> Expr {
-        let slice = AccessExpr{
+    fn access(&mut self, object: Expr) -> Expr {
+        let mut slice = AccessExpr {
+            first: Box::new(Expr::Empty),
+            first_colon: TokenData {
+                token: Token::Nil,
+                lexeme: "".to_string(),
+                literal: None,
+                line: 0,
+            },
             object: Box::new(object),
-            brace:  self.previous(),
-        }
-        self.slice(slice);
-        self.consume(Token::RightBrace, "Expected ']' at the end of slice".to_string());
-        return slice;
+            brace: self.previous(),
+            second: Box::new(Expr::Empty),
+            second_colon: TokenData {
+                token: Token::Nil,
+                lexeme: "".to_string(),
+                literal: None,
+                line: 0,
+            },
+            third: Box::new(Expr::Empty),
+        };
+        self.slice(&mut slice);
+        self.consume(
+            Token::RightBrace,
+            "Expected ']' at the end of slice".to_string(),
+        );
+        return Expr::Access(slice);
     }
 
-    fn  slice(&self,  slice: &mut AccessExpr) {
+    fn slice(&self, slice: &mut AccessExpr) {
         if self.matches(Token::Colon) {
-            slice.firstColon = self.previous()
+            slice.first_colon = self.previous();
             if self.matches(Token::Colon) {
-                slice.secondColon = self.previous()
-                slice.third = self.expression()
+                slice.second_colon = self.previous();
+                slice.third = Box::new(self.expression());
             } else {
-                slice.second = self.expression()
+                slice.second = Box::new(self.expression());
                 if self.matches(Token::Colon) {
-                    slice.secondColon = self.previous()
-                    slice.third = self.expression()
+                    slice.second_colon = self.previous();
+                    slice.third = Box::new(self.expression());
                 }
             }
         } else {
-            slice.first = self.expression()
+            slice.first = Box::new(self.expression());
             if self.matches(Token::Colon) {
-                slice.firstColon = self.previous()
+                slice.first_colon = self.previous();
                 if self.matches(Token::Colon) {
-                    slice.secondColon = self.previous()
-                    slice.third = self.expression()
-                } else if !self.check(Token::RightBrace) && !self.is_at_end(&mut self) -> {
-                    slice.second = self.expression()
+                    slice.second_colon = self.previous();
+                    slice.third = Box::new(self.expression());
+                } else if !self.check(Token::RightBrace) && !self.is_at_end() {
+                    slice.second = Box::new(self.expression());
                     if self.matches(Token::Colon) {
-                        slice.secondColon = self.previous()
-                        if !self.check(Token::RightBrace) && !self.is_at_end(&mut self) -> {
-                            slice.third = self.expression()
+                        slice.second_colon = self.previous();
+                        if !self.check(Token::RightBrace) && !self.is_at_end() {
+                            slice.third = Box::new(self.expression());
                         }
                     }
                 }
@@ -1256,253 +1366,297 @@ impl Parser<'_> {
         }
     }
 
-    fn  or(&mut self) -> Expr {
-        let expr = self.and();
+    fn or(&mut self) -> Expr {
+        let mut expr = self.and();
         while self.matches(Token::Or) {
-            operator = self.previous()
-            right = self.and()
-            expr = &logicalExpr[T]{
-                left:     expr,
+            let operator = self.previous();
+            let right = self.and();
+            let log_expr = LogicalExpr {
+                left: Box::new(expr),
                 operator: operator,
-                right:    right,
-            }
+                right: Box::new(right),
+            };
+            expr = Expr::Logical(log_expr);
         }
-        return expr
+        return expr;
     }
 
-    fn  and(&mut self) -> Expr {
-        let expr = self.equality();
+    fn and(&mut self) -> Expr {
+        let mut expr = self.equality();
         while self.matches(Token::And) {
-            operator = self.previous()
-            right = self.equality()
-            expr = &logicalExpr[T]{
-                left:     expr,
+            let operator = self.previous();
+            let right = self.equality();
+            let log_expr = LogicalExpr {
+                left: Box::new(expr),
                 operator: operator,
-                right:    right,
-            }
+                right: Box::new(right),
+            };
+            expr = Expr::Logical(log_expr);
         }
-        return expr
+        return expr;
     }
 
-    fn  equality(&mut self) -> Expr {
-        let expr = self.comparison();
-        while self.matches(Token::EqualEqual, Token::BangEqual) {
-            operator = self.previous()
-            right = self.comparison()
-            expr = &binaryExpr[T]{
-                left:     expr,
+    fn equality(&mut self) -> Expr {
+        let mut expr = self.comparison();
+        while self.matches_many(vec![Token::EqualEqual, Token::BangEqual]) {
+            let operator = self.previous();
+            let right = self.comparison();
+            let bin_expr = BinaryExpr {
+                left: Box::new(expr),
                 operator: operator,
-                right:    right,
-            }
+                right: Box::new(right),
+            };
+            expr = Expr::Binary(bin_expr);
         }
-        return expr
+        return expr;
     }
 
-    fn  comparison(&mut self) -> Expr {
-        let expr = self.addition();
-        while self.matches(Token::Greater, Token::GreaterEqual, Token::Less, Token::LessEqual) {
-            operator = self.previous()
-            right = self.addition()
-            expr = &binaryExpr[T]{
-                left:     expr,
+    fn comparison(&mut self) -> Expr {
+        let mut expr = self.addition();
+        while self.matches_many(vec![
+            Token::Greater,
+            Token::GreaterEqual,
+            Token::Less,
+            Token::LessEqual,
+        ]) {
+            let operator = self.previous();
+            let right = self.addition();
+            let bin_expr = BinaryExpr {
+                left: Box::new(expr),
                 operator: operator,
-                right:    right,
-            }
+                right: Box::new(right),
+            };
+            expr = Expr::Binary(bin_expr);
         }
-        return expr
+        return expr;
     }
 
-    fn  addition(&mut self) -> Expr {
-        let expr = self.multiplication();
-        while self.matches(Token::Plus, Token::Minus) {
-            operator = self.previous()
-            right = self.multiplication()
-            expr = &binaryExpr[T]{
-                left:     expr,
+    fn addition(&mut self) -> Expr {
+        let mut expr = self.multiplication();
+        while self.matches_many(vec![Token::Plus, Token::Minus]) {
+            let operator = self.previous();
+            let right = self.multiplication();
+            let bin_expr = BinaryExpr {
+                left: Box::new(expr),
                 operator: operator,
-                right:    right,
-            }
+                right: Box::new(right),
+            };
+            expr = Expr::Binary(bin_expr);
         }
-        return expr
+        return expr;
     }
 
-    fn  multiplication(&mut self) -> Expr {
-        let expr = self.power();
-        while self.matches(Token::Slash, Token::Mod, Token::Star) {
-            operator = self.previous()
-            right = self.power()
-            expr = &binaryExpr[T]{
-                left:     expr,
+    fn multiplication(&mut self) -> Expr {
+        let mut expr = self.power();
+        while self.matches_many(vec![Token::Slash, Token::Mod, Token::Star]) {
+            let operator = self.previous();
+            let right = self.power();
+            let bin_expr = BinaryExpr {
+                left: Box::new(expr),
                 operator: operator,
-                right:    right,
-            }
+                right: Box::new(right),
+            };
+            expr = Expr::Binary(bin_expr);
         }
-        return expr
+        return expr;
     }
 
-    fn  power(&mut self) -> Expr {
-        let expr = self.unary();
+    fn power(&mut self) -> Expr {
+        let mut expr = self.unary();
         while self.matches(Token::Power) {
-            operator = self.previous()
-            right = self.unary()
-            expr = &binaryExpr[T]{
-                left:     expr,
+            let operator = self.previous();
+            let right = self.unary();
+            let bin_expr = BinaryExpr {
+                left: Box::new(expr),
                 operator: operator,
-                right:    right,
-            }
+                right: Box::new(right),
+            };
+            expr = Expr::Binary(bin_expr);
         }
-        return expr
+        return expr;
     }
 
-    fn  unary(&mut self) -> Expr {
-        if self.matches(Token::Not, Token::Minus) {
-            operator = self.previous()
-            right = self.unary()
-            return &unaryExpr[T]{
+    fn unary(&mut self) -> Expr {
+        if self.matches_many(vec![Token::Not, Token::Minus]) {
+            let operator = self.previous();
+            let right = self.unary();
+            let unary_expr = UnaryExpr {
                 operator: operator,
-                right:    right,
-            }
+                right: Box::new(right),
+            };
+            return Expr::Unary(unary_expr);
         }
         return self.call();
     }
 
-    fn  call(&mut self) -> Expr {
-        let expr = self.primary();
+    fn call(&mut self) -> Expr {
+        let mut expr = self.primary();
         loop {
             if self.matches(Token::LeftParen) {
-                expr = self.finishCall(expr)
+                expr = self.finishCall(expr);
             } else if self.matches(Token::Dot) {
-                name = self.consume(Token::Identifier, errExpectedProp)
-                expr = &getExpr[T]{
-                    object: expr,
-                    name:   name,
-                }
+                let name = self
+                    .consume(
+                        Token::Identifier,
+                        "Expected property name after '.'".to_string(),
+                    )
+                    .unwrap();
+                let get_expr = GetExpr {
+                    object: Box::new(expr),
+                    name: name,
+                };
+                expr = Expr::Get(get_expr);
             } else if self.matches(Token::LeftBrace) {
-                expr = self.access(expr)
+                expr = self.access(expr);
             } else {
-                break
+                break;
             }
         }
-        return expr
+        return expr;
     }
 
-    fn  finishCall(&mut self,callee: Expr) -> Expr {
+    fn finishCall(&mut self, callee: Expr) -> Expr {
         let arguments = self.arguments(Token::RightParen);
-        let paren = self.consume(Token::RightParen, errors.New("Expect ')' after arguments"));
-        return &callExpr[T]{
-            callee:    callee,
+        let paren = self
+            .consume(Token::RightParen, "Expect ')' after arguments".to_string())
+            .unwrap();
+        let call_expr = CallExpr {
+            callee: Box::new(callee),
             arguments: arguments,
-            paren:     paren,
-        }
+            paren: paren,
+        };
+        return Expr::Call(call_expr);
     }
 
-    fn  arguments(&mut self,Token:: tokenType) Vec<Expr> {
-        arguments = make([]Expr, 0)
-        if !self.check(Token::) {
-            for {
-                if Token:: == Token::RightParen && len(arguments) >= max_function_params {
-                    self.state.fatalError(errMaxArguments, self.peek().line, 0)
+    fn arguments(&mut self, token_type: Token) -> Vec<Expr> {
+        let mut arguments: Vec<Expr> = vec![];
+        if !self.check(token_type) {
+            loop {
+                if token_type == Token::RightParen && arguments.len() >= max_function_params {
+                    self.state.fatal_error(InterpreterError {
+                        message: "Max number of arguments is 255".to_string(),
+                        line: self.peek().line,
+                        pos: 0,
+                    });
                 }
-                arguments = append(arguments, self.expression())
-                if !self.matches(Token::Comma) || self.check(Token::) {
-                    break
+                arguments.push(self.expression());
+                if !self.matches(Token::Comma) || self.check(token_type) {
+                    break;
                 }
             }
         }
-        return arguments
+        return arguments;
     }
 
-    fn  primary(&mut self) -> Expr {
-        if self.matches(Token::Number, Token::String) {
-            return &literalExpr[T]{value: self.previous().literal}
+    fn primary(&mut self) -> Expr {
+        if self.matches_many(vec![Token::Number, Token::String]) {
+            let lit_expr = LiteralExpr {
+                value: self.previous().literal.unwrap(),
+            };
+            return Expr::Literal(lit_expr);
         }
         if self.matches(Token::False) {
-            return &literalExpr[T]{value: grotskyBool(false)}
+            let lit_expr = LiteralExpr {
+                value: Literal::Boolean(false),
+            };
+            return Expr::Literal(lit_expr);
         }
         if self.matches(Token::True) {
-            return &literalExpr[T]{value: grotskyBool(true)}
+            let lit_expr = LiteralExpr {
+                value: Literal::Boolean(true),
+            };
+            return Expr::Literal(lit_expr);
         }
         if self.matches(Token::Nil) {
-            return &literalExpr[T]{value: nil}
+            let lit_expr = LiteralExpr {
+                value: Literal::Nil,
+            };
+            return Expr::Literal(lit_expr);
         }
         if self.matches(Token::Identifier) {
-            return &variableExpr[T]{name: self.previous()}
+            let var_expr = VarExpr {
+                name: Some(self.previous()),
+            };
+            return Expr::Var(var_expr);
         }
         if self.matches(Token::LeftParen) {
-            expr = self.expression()
-            self.consume(Token::RightParen, errUnclosedParen)
-            return &groupingExpr[T]{expression: expr}
+            let expr = self.expression();
+            self.consume(Token::RightParen, "Expect ')' after expression".to_string());
+            let group_expr = GroupingExpr {
+                expression: Box::new(expr),
+            };
+            return Expr::Grouping(group_expr);
         }
         if self.matches(Token::LeftBrace) {
-            return self.list()
+            return self.list();
         }
         if self.matches(Token::LeftCurlyBrace) {
-            return self.dictionary()
+            return self.dictionary();
         }
         if self.matches(Token::Fn) {
-            return self.fn_expr()
+            return Expr::Fn(self.fn_expr());
         }
         if self.matches(Token::This) {
-            return &thisExpr[T]{keyword: self.previous()}
+            let this_expr = ThisExpr {
+                keyword: self.previous(),
+            };
+            return Expr::This(this_expr);
         }
         if self.matches(Token::Super) {
-            return self.superExpr()
+            return self.super_expr();
         }
         if self.matches(Token::Newline) {
-            return nil
+            return Expr::Empty;
         }
 
-        self.state.fatalError(errUndefinedExpr, self.peek().line, 0)
-        return &literalExpr[T]{}
+        self.state.fatal_error(InterpreterError {
+            message: "Undefined expression".to_string(),
+            line: self.peek().line,
+            pos: 0,
+        });
+        return Expr::Empty;
     }
 
-    fn  superExpr(&mut self) -> Expr {
-        super = &superExpr[T]{
-            keyword: self.previous(),
-        }
+    fn super_expr(&mut self) -> Expr {
+        let keyword = self.previous();
+        let mut method: TokenData;
         if !self.check(Token::LeftParen) {
-            self.consume(Token::Dot, errExpectedDot)
-            super.method = self.consume(Token::Identifier, errExpectedIdentifier)
+            self.consume(
+                Token::Dot,
+                "Keyword 'super' is only valid for property accessing".to_string(),
+            );
+            method = self
+                .consume(Token::Identifier, "Expected variable name".to_string())
+                .unwrap();
         } else {
-            super.method = &token{
-                token:  Token::Identifier,
-                lexeme: "init",
-                line:   super.keyword.line,
-            }
+            method = TokenData {
+                token: Token::Identifier,
+                lexeme: "init".to_string(),
+                line: keyword.line,
+                literal: None,
+            };
         }
-        return super
+        let super_expr = SuperExpr {
+            keyword: keyword,
+            method: method,
+        };
+        return Expr::Super(super_expr);
     }
 
-
-    
-
-    
-
-
-    
-
-    fn  synchronize(&mut self) -> {
-        self.advance()
-        for !self.is_at_end(&mut self) -> {
-            switch self.peek().token {
-            case Token::Class:
-                return
-            case Token::Fn:
-                return
-            case Token::Let:
-                return
-            case Token::For:
-                return
-            case Token::If:
-                return
-            case Token::While:
-                return
-            case Token::Return:
-                return
-            default:
+    fn synchronize(&mut self) {
+        self.advance();
+        while !self.is_at_end() {
+            match self.peek().token {
+                Token::Class => return,
+                Token::Fn => return,
+                Token::Let => return,
+                Token::For => return,
+                Token::If => return,
+                Token::While => return,
+                Token::Return => return,
+                _ => (),
             }
-
-            self.advance()
+            self.advance();
         }
     }
 }

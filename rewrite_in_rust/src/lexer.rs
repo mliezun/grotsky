@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::collections::HashMap;
+use std::{collections::HashMap, vec};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Token {
@@ -65,13 +65,13 @@ enum Token {
     Catch,
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 enum Literal {
     String(String),
     Number(f64),
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 struct TokenData {
     token: Token,
     lexeme: String,
@@ -412,18 +412,22 @@ impl Lexer<'_> {
     }
 }
 
+#[derive(PartialEq)]
 struct FnExpr {
     params: Vec<TokenData>,
     body:   Vec<Stmt>,
 }
 
+#[derive(PartialEq)]
 struct VarExpr {
     name: Option<TokenData>,
 }
 
+#[derive(PartialEq)]
 enum Expr {
     Fn(FnExpr),
     Var(VarExpr),
+    Empty,
 }
 
 struct CallStack {
@@ -439,18 +443,82 @@ struct Parser<'a> {
 
 const max_function_params: usize = 255;
 
+#[derive(PartialEq)]
 struct LetStmt { 
     name:        TokenData,
     initializer: Option<Expr>,
 }
 
+#[derive(PartialEq)]
+struct ClassicForStmt {
+    keyword:TokenData,
+	initializer: Option<Box<Stmt>>,
+	condition: Expr,
+	increment: Expr,
+	body: Box<Stmt>,
+}
 
+#[derive(PartialEq)]
+struct EnhancedForStmt {
+    keyword: TokenData,
+	identifiers: Vec<TokenData>,
+	collection: Expr,
+	body: Box<Stmt>,
+}
+
+#[derive(PartialEq)]
+struct TryCatchStmt {
+    try_body: Box<Stmt>,
+    name: TokenData,
+    catch_body: Box<Stmt>,
+}
+
+#[derive(PartialEq)]
+struct WhileStmt {
+    keyword: TokenData,
+    condition: Expr,
+    body: Box<Stmt>,
+}
+
+#[derive(PartialEq)]
+struct ReturnStmt {
+    keyword: TokenData,
+    value: Option<Expr>,
+}
+
+#[derive(PartialEq)]
+struct BreakStmt {
+    keyword: TokenData,
+}
+
+#[derive(PartialEq)]
+struct ContinueStmt {
+    keyword: TokenData,
+}
+
+#[derive(PartialEq)]
+struct ElifBranch {
+    condition: Expr,
+    then_branch: Vec<Stmt>,
+}
+
+#[derive(PartialEq)]
+struct IfStmt {
+    keyword: TokenData,
+    condition: Expr,
+    then_branch: Vec<Stmt>,
+    elifs: Vec<ElifBranch>,
+    else_branch: Vec<Stmt>,
+}
+
+#[derive(PartialEq)]
 struct FnStmt {
     name: TokenData,
 	params: Vec<TokenData>,
 	body: Vec<Stmt>,
 }
 
+#[derive(PartialEq)]
 struct ClassStmt {
     name:          Option<TokenData>,
     methods:       Vec<FnStmt>,
@@ -458,15 +526,32 @@ struct ClassStmt {
     superclass:    Option<VarExpr>,
 }
 
+#[derive(PartialEq)]
 struct BlockStmt {
     stmts: Vec<Stmt>,
 }
 
+#[derive(PartialEq)]
+struct ExprStmt  {
+	last: Option<TokenData>,
+	expression: Expr,
+}
+
+#[derive(PartialEq)]
 enum Stmt {
     Fn(FnStmt),
     Let(LetStmt),
     Block(BlockStmt),
     Class(ClassStmt),
+    ClassicFor(ClassicForStmt),
+    EnhancedFor(EnhancedForStmt),
+    While(WhileStmt),
+    If(IfStmt),
+    Continue(ContinueStmt),
+    Return(ReturnStmt),
+    Break(BreakStmt),
+    TryCatch(TryCatchStmt),
+    Expr(ExprStmt),
 }
 
 impl Parser<'_> {
@@ -601,11 +686,11 @@ impl Parser<'_> {
         let s = if self.matches(Token::Class) {
             self.class()
         } else if self.matches(Token::Fn) {
-            self.fn_stmt()
+            Some(self.fn_stmt())
         } else if self.matches(Token::Let) {
-             self.let_stmt()
+             Some(self.let_stmt())
         } else {
-             self.statement()
+             Some(self.statement())
         };
         if expect_new_line {
             self.consume(Token::Newline, "Expected new line".to_string());
@@ -631,9 +716,17 @@ impl Parser<'_> {
         let mut static_methods: Vec<FnStmt> = vec![];
         while !self.check(Token::RightCurlyBrace) && !self.is_at_end() {
             if self.matches(Token::Class) {
-                static_methods.push(self.fn_stmt());
+                if let Stmt::Fn(fn_stmt) = self.fn_stmt() {
+                    static_methods.push(fn_stmt);
+                } else {
+                    panic!("Not a function");
+                }
             } else {
-                methods.push(self.fn_stmt());
+                if let Stmt::Fn(fn_stmt) = self.fn_stmt() {
+                    methods.push(fn_stmt);
+                } else {
+                    panic!("Not a function");
+                }
             }
         }
 
@@ -647,14 +740,14 @@ impl Parser<'_> {
         }));
     }
 
-    fn  fn_stmt(&mut self) -> FnStmt {
+    fn  fn_stmt(&mut self) -> Stmt {
         let name = self.consume(Token::Identifier, "Expected function name".to_string()).unwrap();
 
         self.enter_function(name.lexeme);
 
         self.consume(Token::LeftParen, "Expect '(' after function name".to_string());
 
-        let params: Vec<TokenData> = vec![];
+        let mut params: Vec<TokenData> = vec![];
         if !self.check(Token::RightParen) {
             loop {
                 if params.len() > max_function_params {
@@ -668,20 +761,20 @@ impl Parser<'_> {
         }
         self.consume(Token::RightParen, "Expect ')' after expression".to_string());
 
-        let body: Vec<Stmt> = vec![];
+        let mut body: Vec<Stmt> = vec![];
         if self.matches(Token::LeftCurlyBrace) {
-            body.append(self.block());
+            body.append(self.block().as_mut());
         } else {
             body.push(self.expression_stmt());
         }
 
         self.leave_function(name.lexeme);
 
-        return FnStmt{
+        return Stmt::Fn(FnStmt{
             name:   name,
             params: params,
             body:   body,
-        }
+        });
     }
 
     fn  fn_expr(&mut self) -> FnExpr {
@@ -690,7 +783,7 @@ impl Parser<'_> {
         let lambda_name = format!("lambda{}", self.cls.len());
         self.enter_function(lambda_name);
 
-        let params: Vec<TokenData> = vec![];
+        let mut params: Vec<TokenData> = vec![];
         if !self.check(Token::RightParen) {
             loop {
                 if params.len() > max_function_params {
@@ -704,11 +797,11 @@ impl Parser<'_> {
         }
         self.consume(Token::RightParen, "Expect ')' after expression".to_string());
 
-        let body: Vec<Stmt> = vec![];
+        let mut body: Vec<Stmt> = vec![];
         if self.matches(Token::LeftCurlyBrace) {
-            body.append(self.block());
+            body.append(self.block().as_mut());
         } else {
-            body.append(self.expression_stmt());
+            body.push(self.expression_stmt());
         }
 
         self.leave_function(lambda_name);
@@ -751,7 +844,7 @@ impl Parser<'_> {
             return self.while_stmt();
         }
         if self.matches(Token::LeftCurlyBrace) {
-            return BlockStmt{stmts: self.block()};
+            return Stmt::Block(BlockStmt{stmts: self.block()});
         }
         return self.expression_stmt();
     }
@@ -763,21 +856,22 @@ impl Parser<'_> {
 
         if self.check(Token::Identifier) {
             // Enhanced for
-            return self.enhancedFor(keyword)
+            return self.enhanced_for(keyword);
         }
         // Classic for
-        let init =  if self.matches(Token::Semicolon) {
-            init = nil;
+        let init: Option<Box<Stmt>> =  if self.matches(Token::Semicolon) {
+            None
         } else if self.matches(Token::Let) {
-            init = self.let_stmt();
-            self.consume(Token::Semicolon, errExpectedSemicolon)
+            let aux = self.let_stmt();
+            self.consume(Token::Semicolon, "Expected semicolon".to_string());
+            Some(Box::new(aux))
         } else {
-            self.state.setError(errExpectedInit, self.peek().line, 0);
+            self.state.set_error(InterpreterError { message: "Empty expression or let was expected at this position".to_string(), line: self.peek().line, pos:0});
             None
         };
 
         let cond = self.expression();
-        self.consume(Token::Semicolon, errExpectedSemicolon);
+        self.consume(Token::Semicolon, "Expected semicolon".to_string());
 
         let inc = self.expression();
 
@@ -785,149 +879,157 @@ impl Parser<'_> {
 
         self.leave_loop();
 
-        return &classicForStmt[T]{
-            keyword:     keyword,
-            initializer: init,
-            condition:   cond,
-            increment:   inc,
-            body:        body,
-        }
+        return Stmt::ClassicFor(ClassicForStmt { keyword: keyword, initializer: init, condition: cond, increment: inc, body: Box::new(body.unwrap()) });
     }
 
-    fn  enhancedFor(keyword *token) stmt[T] {
-        var ids []*token
-        for self.matches(Token::Identifier) {
-            ids = append(ids, self.previous())
-            self.matches(Token::Comma)
+    fn  enhanced_for(&mut self, keyword: TokenData) -> Stmt {
+        let mut ids: Vec<TokenData> = vec![];
+        while self.matches(Token::Identifier) {
+            ids.push(self.previous());
+            self.matches(Token::Comma);
         }
-        self.consume(Token::In, errExpectedIn)
-        collection = self.expression()
-        body = self.declaration(false)
-        return &enhancedForStmt[T]{
+        self.consume(Token::In, "Expected 'in'".to_string());
+        let collection: Expr = self.expression();
+        let body = self.declaration(false).unwrap();
+        return Stmt::EnhancedFor(EnhancedForStmt {
             keyword:     keyword,
             identifiers: ids,
-            body:        body,
+            body:        Box::new(body),
             collection:  collection,
-        }
+        });
     }
 
-    fn  try_catch(&mut self) -> stmt[T] {
-        tryBody = self.declaration(false)
-        self.consume(Token::Catch, errExpectedCatch)
-        name = self.consume(Token::Identifier, errExpectedIdentifier)
-        catchBody = self.declaration(false)
+    fn  try_catch(&mut self) -> Stmt {
+        let try_body = self.declaration(false).unwrap();
+        self.consume(Token::Catch, "A catch block was expected at this position".to_string());
+        let name = self.consume(Token::Identifier, "Expected variable name".to_string()).unwrap();
+        let catch_body = self.declaration(false).unwrap();
 
-        return &try_catchStmt[T]{
-            tryBody:   tryBody,
+        return Stmt::TryCatch(TryCatchStmt {
+            try_body:   Box::new(try_body),
             name:      name,
-            catchBody: catchBody,
-        }
+            catch_body: Box::new(catch_body), 
+        });
     }
 
-    fn  if_stmt(&mut self) -> stmt[T] {
-        st = &if_stmt[T]{
-            keyword: self.previous(),
+    fn  if_stmt(&mut self) -> Stmt {
+        let keyword = self.previous();
+        let condition = self.expression();
+
+        self.consume(Token::LeftCurlyBrace, "Expected '{' at this position".to_string());
+        
+        let mut then_branch: Vec<Stmt> = vec![];
+        while !self.matches(Token::RightCurlyBrace) {
+            then_branch.push(self.declaration(false).unwrap());
         }
 
-        st.condition = self.expression()
-
-        self.consume(Token::LeftCurlyBrace, errExpectedOpeningCurlyBrace)
-
-        for !self.matches(Token::RightCurlyBrace) {
-            st.thenBranch = append(st.thenBranch, self.declaration(false))
-        }
-
-        for self.matches(Token::Elif) {
-            elif = &struct {
-                condition  expr[T]
-                thenBranch []stmt[T]
-            }{
-                condition: self.expression(),
+        let mut elif_branches: Vec<ElifBranch> = vec![];
+        while self.matches(Token::Elif) {
+            let condition = self.expression();
+            self.consume(Token::LeftCurlyBrace, "Expected '{' at this position".to_string());
+            let mut then_branch: Vec<Stmt> = vec![];
+            while !self.matches(Token::RightCurlyBrace) {
+                then_branch.push(self.declaration(false).unwrap());
             }
-            self.consume(Token::LeftCurlyBrace, errExpectedOpeningCurlyBrace)
-            for !self.matches(Token::RightCurlyBrace) {
-                elif.thenBranch = append(elif.thenBranch, self.declaration(false))
-            }
-            st.elifs = append(st.elifs, elif)
+            let elif = ElifBranch{
+                condition: condition,
+                then_branch: then_branch,
+            };
+            elif_branches.push(elif);
         }
 
+        let mut else_branch: Vec<Stmt> = vec![];
         if self.matches(Token::Else) {
-            self.consume(Token::LeftCurlyBrace, errExpectedOpeningCurlyBrace)
-            for !self.check(Token::RightCurlyBrace) {
-                st.elseBranch = append(st.elseBranch, self.declaration(false))
+            self.consume(Token::LeftCurlyBrace, "Expected '{' at this position".to_string());
+            while !self.check(Token::RightCurlyBrace) {
+                else_branch.push(self.declaration(false).unwrap());
             }
-            self.consume(Token::RightCurlyBrace, errExpectedClosingCurlyBrace)
+            self.consume(Token::RightCurlyBrace, "Expected '}' at this position".to_string());
         }
 
-        return st
+        let st = IfStmt{
+            keyword: keyword,
+            condition: condition,
+            then_branch: then_branch,
+            elifs: elif_branches,
+            else_branch: else_branch,
+        };
+
+        return Stmt::If(st);
     }
 
-    fn  ret(&mut self) -> stmt[T] {
-        var value expr[T]
-        keyword = self.previous()
-        if !self.check(Token::Newline) {
-            value = self.expression()
-        }
-        return &returnStmt[T]{
+    fn  ret(&mut self) -> Stmt {
+        let keyword = self.previous();
+        let value = if !self.check(Token::Newline) {
+            Some(self.expression())
+        } else {
+            None
+        };
+        let rt = ReturnStmt{
             keyword: keyword,
             value:   value,
-        }
+        };
+        return Stmt::Return(rt);
     }
 
-    fn  brk(&mut self) -> stmt[T] {
-        keyword = self.previous()
-        if !self.inside_loop(&mut self) -> {
-            self.state.setError(errOnlyAllowedInsideLoop, keyword.line, 0)
+    fn  brk(&mut self) -> Stmt {
+        let keyword = self.previous();
+        if !self.inside_loop() {
+            self.state.set_error(InterpreterError { message: "Statement only allowed for use inside loop".to_string(), line: keyword.line, pos: 0 });
         }
-        return &breakStmt[T]{
-            keyword: keyword,
-        }
+        let brk_stmt = BreakStmt{keyword};
+        return Stmt::Break(brk_stmt);
     }
 
-    fn  cont(&mut self) -> stmt[T] {
-        keyword = self.previous()
-        if !self.inside_loop(&mut self) -> {
-            self.state.setError(errOnlyAllowedInsideLoop, keyword.line, 0)
+    fn  cont(&mut self) -> Stmt {
+        let keyword = self.previous();
+        if !self.inside_loop() {
+            self.state.set_error(InterpreterError { message: "Statement only allowed for use inside loop".to_string(), line: keyword.line, pos: 0 });
         }
-        return &continueStmt[T]{
-            keyword: keyword,
-        }
+        let continue_stmt = ContinueStmt{keyword};
+        return Stmt::Continue(continue_stmt);
     }
 
-    fn  while_stmt(&mut self) -> stmt[T] {
-        keyword = self.previous()
-        self.enter_loop()
-        defer self.leave_loop()
-        cond = self.expression()
-        body = self.declaration(false)
-        return &whileStmt[T]{
-            keyword:   keyword,
-            condition: cond,
-            body:      body,
-        }
+    fn  while_stmt(&mut self) -> Stmt {
+        let keyword = self.previous();
+        self.enter_loop();
+        let condition = self.expression();
+        let body = self.declaration(false).unwrap();
+        self.leave_loop();
+        let while_stmt = WhileStmt{
+            keyword,
+            condition,
+            body: Box::new(body),
+        };
+        return Stmt::While(while_stmt);
     }
 
     fn  block(&mut self) -> Vec<Stmt> {
-        let stmts: Vec<Stmt> = vec![];
+        let mut stmts: Vec<Stmt> = vec![];
         while !self.matches(Token::RightCurlyBrace) {
-            stmts.push(self.declaration(false));
+            stmts.push(self.declaration(false).unwrap());
         }
         return stmts;
     }
 
     fn  expression_stmt(&mut self) -> Stmt {
         let expr = self.expression();
-        if expr != nil {
-            return &exprStmt[T]{
-                last:       self.previous(),
+        if expr != Expr::Empty {
+            let expr_stmt = ExprStmt{
+                last:       Some(self.previous()),
                 expression: expr,
-            }
+            };
+            return Stmt::Expr(expr_stmt);
         }
-        // expr is nil when there are multiple empty lines
-        return nil
+        // expr is empty when there are multiple empty lines
+        let expr_stmt = ExprStmt{
+            expression: Expr::Empty,
+            last: None,
+        };
+        return Stmt::Expr(expr_stmt);
     }
 
-    fn  expression(&mut self) -> Expr] {
+    fn expression(&mut self) -> Expr {
         return self.assignment();
     }
 

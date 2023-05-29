@@ -412,7 +412,10 @@ impl Lexer<'_> {
     }
 }
 
-struct FnExpr {}
+struct FnExpr {
+    params: Vec<TokenData>,
+    body:   Vec<Stmt>,
+}
 
 struct VarExpr {
     name: Option<TokenData>,
@@ -434,8 +437,18 @@ struct Parser<'a> {
     state: &'a mut InterpreterState,
 }
 
-struct FnStmt {
+const max_function_params: usize = 255;
 
+struct LetStmt { 
+    name:        TokenData,
+    initializer: Option<Expr>,
+}
+
+
+struct FnStmt {
+    name: TokenData,
+	params: Vec<TokenData>,
+	body: Vec<Stmt>,
 }
 
 struct ClassStmt {
@@ -451,7 +464,7 @@ struct BlockStmt {
 
 enum Stmt {
     Fn(FnStmt),
-    Let,
+    Let(LetStmt),
     Block(BlockStmt),
     Class(ClassStmt),
 }
@@ -597,7 +610,7 @@ impl Parser<'_> {
         if expect_new_line {
             self.consume(Token::Newline, "Expected new line".to_string());
         }
-        return s
+        return s;
     }
 
     fn  class(&mut self) -> Option<Stmt> {
@@ -635,87 +648,84 @@ impl Parser<'_> {
     }
 
     fn  fn_stmt(&mut self) -> FnStmt {
-        name = self.consume(Token::Identifier, errExpectedFunctionName)
+        let name = self.consume(Token::Identifier, "Expected function name".to_string()).unwrap();
 
-        self.enter_function(name.lexeme)
-        defer self.leave_function(name.lexeme)
+        self.enter_function(name.lexeme);
 
-        self.consume(Token::LeftParen, errExpectedParen)
+        self.consume(Token::LeftParen, "Expect '(' after function name".to_string());
 
-        var params []*token
+        let params: Vec<TokenData> = vec![];
         if !self.check(Token::RightParen) {
-            for {
-                if len(params) > maxFunctionParams {
-                    self.state.fatalError(errMaxParameters, self.peek().line, 0)
+            loop {
+                if params.len() > max_function_params {
+                    self.state.fatal_error(InterpreterError { message: "Max number of parameters is 255".to_string(), line:self.peek().line, pos:0});
                 }
-                params = append(params, self.consume(Token::Identifier, errExpectedFunctionParam))
+                params.push(self.consume(Token::Identifier, "Expected function parameter".to_string()).unwrap());
                 if !self.matches(Token::Comma) {
-                    break
+                    break;
                 }
             }
         }
-        self.consume(Token::RightParen, errUnclosedParen)
+        self.consume(Token::RightParen, "Expect ')' after expression".to_string());
 
-        body = make([]stmt[T], 0)
+        let body: Vec<Stmt> = vec![];
         if self.matches(Token::LeftCurlyBrace) {
-            body = self.block()
+            body.append(self.block());
         } else {
-            body = append(body, self.expressionStmt())
+            body.push(self.expression_stmt());
         }
 
-        return &fn_stmt[T]{
+        self.leave_function(name.lexeme);
+
+        return FnStmt{
             name:   name,
             params: params,
             body:   body,
         }
     }
 
-    fn  fnExpr(&mut self) -> *functionExpr[T] {
-        self.consume(Token::LeftParen, errExpectedParen)
+    fn  fn_expr(&mut self) -> FnExpr {
+        self.consume(Token::LeftParen, "Expected '(' after function name".to_string());
 
-        lambdaName = fmt.Sprintf("lambda%d", len(self.cls))
-        self.enter_function(lambdaName)
-        defer self.leave_function(lambdaName)
+        let lambda_name = format!("lambda{}", self.cls.len());
+        self.enter_function(lambda_name);
 
-        var params []*token
+        let params: Vec<TokenData> = vec![];
         if !self.check(Token::RightParen) {
-            for {
-                if len(params) > maxFunctionParams {
-                    self.state.fatalError(errMaxParameters, self.peek().line, 0)
+            loop {
+                if params.len() > max_function_params {
+                    self.state.fatal_error(InterpreterError { message: "Max number of parameters is 255".to_string(), line:self.peek().line, pos:0 });
                 }
-                params = append(params, self.consume(Token::Identifier, errExpectedFunctionParam))
+                params.push(self.consume(Token::Identifier, "Expect function parameter".to_string()).unwrap());
                 if !self.matches(Token::Comma) {
                     break
                 }
             }
         }
-        self.consume(Token::RightParen, errUnclosedParen)
+        self.consume(Token::RightParen, "Expect ')' after expression".to_string());
 
-        body = make([]stmt[T], 0)
+        let body: Vec<Stmt> = vec![];
         if self.matches(Token::LeftCurlyBrace) {
-            body = self.block()
+            body.append(self.block());
         } else {
-            body = append(body, self.expressionStmt())
+            body.append(self.expression_stmt());
         }
 
-        return &functionExpr[T]{
-            params: params,
-            body:   body,
-        }
+        self.leave_function(lambda_name);
+
+        return FnExpr { params:params, body:body };
     }
 
     fn  let_stmt(&mut self) -> Stmt {
-        name = self.consume(Token::Identifier, errExpectedIdentifier)
+        let name = self.consume(Token::Identifier, "Expected variable name".to_string()).unwrap();
 
-        var init expr[T]
-        if self.matches(Token::Equal) {
-            init = self.expression()
-        }
+        let init: Option<Expr> = if self.matches(Token::Equal) {
+            Some(self.expression())
+        } else {
+            None
+        };
 
-        return &let_stmt[T]{
-            name:        name,
-            initializer: init,
-        }
+        return Stmt::Let(LetStmt{name:name, initializer:init});
     }
 
     fn  statement(&mut self) -> Stmt {
@@ -743,36 +753,37 @@ impl Parser<'_> {
         if self.matches(Token::LeftCurlyBrace) {
             return BlockStmt{stmts: self.block()};
         }
-        return self.expressionStmt();
+        return self.expression_stmt();
     }
 
-    fn  for_loop(&mut self) -> stmt[T] {
-        keyword = self.previous()
+    fn  for_loop(&mut self) -> Stmt {
+        let keyword = self.previous();
 
-        self.enter_loop()
-        defer self.leave_loop()
+        self.enter_loop();
 
         if self.check(Token::Identifier) {
             // Enhanced for
             return self.enhancedFor(keyword)
         }
         // Classic for
-        var init stmt[T]
-        if self.matches(Token::Semicolon) {
-            init = nil
+        let init =  if self.matches(Token::Semicolon) {
+            init = nil;
         } else if self.matches(Token::Let) {
-            init = self.let()
+            init = self.let_stmt();
             self.consume(Token::Semicolon, errExpectedSemicolon)
         } else {
-            self.state.setError(errExpectedInit, self.peek().line, 0)
-        }
+            self.state.setError(errExpectedInit, self.peek().line, 0);
+            None
+        };
 
-        cond = self.expression()
-        self.consume(Token::Semicolon, errExpectedSemicolon)
+        let cond = self.expression();
+        self.consume(Token::Semicolon, errExpectedSemicolon);
 
-        inc = self.expression()
+        let inc = self.expression();
 
-        body = self.declaration(false)
+        let body = self.declaration(false);
+
+        self.leave_loop();
 
         return &classicForStmt[T]{
             keyword:     keyword,
@@ -896,16 +907,16 @@ impl Parser<'_> {
         }
     }
 
-    fn  block(&mut self) -> []stmt[T] {
-        var stmts []stmt[T]
-        for !self.matches(Token::RightCurlyBrace) {
-            stmts = append(stmts, self.declaration(false))
+    fn  block(&mut self) -> Vec<Stmt> {
+        let stmts: Vec<Stmt> = vec![];
+        while !self.matches(Token::RightCurlyBrace) {
+            stmts.push(self.declaration(false));
         }
-        return stmts
+        return stmts;
     }
 
-    fn  expressionStmt(&mut self) -> stmt[T] {
-        expr = self.expression()
+    fn  expression_stmt(&mut self) -> Stmt {
+        let expr = self.expression();
         if expr != nil {
             return &exprStmt[T]{
                 last:       self.previous(),
@@ -916,8 +927,8 @@ impl Parser<'_> {
         return nil
     }
 
-    fn  expression(&mut self) -> expr[T] {
-        return self.assignment()
+    fn  expression(&mut self) -> Expr] {
+        return self.assignment();
     }
 
     fn  list(&mut self) -> expr[T] {
@@ -1186,7 +1197,7 @@ impl Parser<'_> {
         arguments = make([]expr[T], 0)
         if !self.check(Token::) {
             for {
-                if Token:: == Token::RightParen && len(arguments) >= maxFunctionParams {
+                if Token:: == Token::RightParen && len(arguments) >= max_function_params {
                     self.state.fatalError(errMaxArguments, self.peek().line, 0)
                 }
                 arguments = append(arguments, self.expression())
@@ -1226,7 +1237,7 @@ impl Parser<'_> {
             return self.dictionary()
         }
         if self.matches(Token::Fn) {
-            return self.fnExpr()
+            return self.fn_expr()
         }
         if self.matches(Token::This) {
             return &thisExpr[T]{keyword: self.previous()}

@@ -340,6 +340,7 @@ impl Lexer<'_> {
                 lit.push_str(&unescaped);
                 continue;
             }
+            lit.push(self.state.source.as_bytes()[self.current].into());
             self.advance();
         }
 
@@ -349,6 +350,7 @@ impl Lexer<'_> {
                 line: self.line,
                 pos: self.start,
             });
+            return;
         }
 
         // Consume ending "
@@ -1671,7 +1673,11 @@ impl Parser<'_> {
     }
 }
 
-enum Result {}
+#[derive(Debug)]
+enum Result {
+    Literal(Literal),
+    Empty,
+}
 
 trait StmtVisitor {
     fn visit_expr_stmt(&self, stmt: &ExprStmt) -> Result;
@@ -1752,6 +1758,115 @@ impl Stmt {
     }
 }
 
+struct Exec<'a> {
+    state: &'a InterpreterState,
+}
+
+impl StmtVisitor for Exec<'_> {
+    fn visit_expr_stmt(&self, stmt: &ExprStmt) -> Result {
+        stmt.expression.accept(self)
+    }
+    fn visit_try_catch_stmt(&self, stmt: &TryCatchStmt) -> Result {
+        return Result::Empty;
+    }
+    fn visit_classic_for_stmt(&self, stmt: &ClassicForStmt) -> Result {
+        return Result::Empty;
+    }
+    fn visit_enhanced_for_stmt(&self, stmt: &EnhancedForStmt) -> Result {
+        return Result::Empty;
+    }
+    fn visit_let_stmt(&self, stmt: &LetStmt) -> Result {
+        return Result::Empty;
+    }
+    fn visit_block_stmt(&self, stmt: &BlockStmt) -> Result {
+        return Result::Empty;
+    }
+    fn visit_while_stmt(&self, stmt: &WhileStmt) -> Result {
+        return Result::Empty;
+    }
+    fn visit_return_stmt(&self, stmt: &ReturnStmt) -> Result {
+        return Result::Empty;
+    }
+    fn visit_break_stmt(&self, stmt: &BreakStmt) -> Result {
+        return Result::Empty;
+    }
+    fn visit_continue_stmt(&self, stmt: &ContinueStmt) -> Result {
+        return Result::Empty;
+    }
+    fn visit_if_stmt(&self, stmt: &IfStmt) -> Result {
+        return Result::Empty;
+    }
+    fn visit_fn_stmt(&self, stmt: &FnStmt) -> Result {
+        return Result::Empty;
+    }
+    fn visit_class_stmt(&self, stmt: &ClassStmt) -> Result {
+        return Result::Empty;
+    }
+}
+
+impl ExprVisitor for Exec<'_> {
+    fn visit_function_expr(&self, expr: &FnExpr) -> Result {
+        return Result::Empty;
+    }
+    fn visit_variable_expr(&self, expr: &VarExpr) -> Result {
+        return Result::Empty;
+    }
+    fn visit_list_expr(&self, expr: &ListExpr) -> Result {
+        return Result::Empty;
+    }
+    fn visit_dictionary_expr(&self, expr: &DictionaryExpr) -> Result {
+        return Result::Empty;
+    }
+    fn visit_assign_expr(&self, expr: &AssignExpr) -> Result {
+        return Result::Empty;
+    }
+    fn visit_access_expr(&self, expr: &AccessExpr) -> Result {
+        return Result::Empty;
+    }
+    fn visit_binary_expr(&self, expr: &BinaryExpr) -> Result {
+        return Result::Empty;
+    }
+    fn visit_call_expr(&self, expr: &CallExpr) -> Result {
+        return Result::Empty;
+    }
+    fn visit_get_expr(&self, expr: &GetExpr) -> Result {
+        return Result::Empty;
+    }
+    fn visit_set_expr(&self, expr: &SetExpr) -> Result {
+        return Result::Empty;
+    }
+    fn visit_super_expr(&self, expr: &SuperExpr) -> Result {
+        return Result::Empty;
+    }
+    fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Result {
+        return Result::Empty;
+    }
+    fn visit_literal_expr(&self, expr: &LiteralExpr) -> Result {
+        Result::Literal(expr.value.clone())
+    }
+    fn visit_logical_expr(&self, expr: &LogicalExpr) -> Result {
+        return Result::Empty;
+    }
+    fn visit_this_expr(&self, expr: &ThisExpr) -> Result {
+        return Result::Empty;
+    }
+    fn visit_unary_expr(&self, expr: &UnaryExpr) -> Result {
+        return Result::Empty;
+    }
+}
+
+impl Exec<'_> {
+    fn new(state: &'_ InterpreterState) -> Exec<'_> {
+        return Exec { state: state };
+    }
+
+    fn interpret(&self) {
+        for s in &self.state.stmts {
+            println!("Executing {:#?}", s.accept(self));
+        }
+    }
+}
+
 pub fn scan(source: String) {
     let state = &mut InterpreterState::new(source);
     let mut lex = Lexer::new(state);
@@ -1760,4 +1875,6 @@ pub fn scan(source: String) {
     parser.parse();
     println!("{:#?}", state.tokens);
     println!("{:#?}", state.stmts);
+    let exec = Exec::new(state);
+    exec.interpret();
 }

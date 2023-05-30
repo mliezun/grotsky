@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use core::num::dec2flt::number::Number;
 use std::{collections::HashMap, vec};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -1673,49 +1674,224 @@ impl Parser<'_> {
     }
 }
 
+enum Operator {
+    Add,
+    Sub,
+    Div,
+    Mod,
+    Mul,
+}
+
+trait InstanceValue {
+    fn get(&self, name: TokenData) -> Value;
+    fn set(&mut self, name: TokenData, val: Value);
+    fn perform_operation(&mut self, op: Operator, val: Option<Value>) -> Value;
+}
+
 #[derive(Debug)]
-enum Result {
-    Literal(Literal),
+struct ObjectValue {}
+
+impl InstanceValue for ObjectValue {
+    fn get(&self, name: TokenData) -> Value {
+        Value::Empty
+    }
+    fn set(&mut self, name: TokenData, val: Value) {}
+    fn perform_operation(&mut self, op: Operator, val: Option<Value>) -> Value {
+        Value::Empty
+    }
+}
+
+#[derive(Debug)]
+struct NumberValue {
+    n: f64,
+}
+
+impl InstanceValue for NumberValue {
+    fn get(&self, name: TokenData) -> Value {
+        Value::Empty
+    }
+    fn set(&mut self, name: TokenData, val: Value) {}
+    fn perform_operation(&mut self, op: Operator, val: Option<Value>) -> Value {
+        Value::Empty
+    }
+}
+
+#[derive(Debug)]
+struct FnValue {}
+
+impl InstanceValue for FnValue {
+    fn get(&self, name: TokenData) -> Value {
+        Value::Empty
+    }
+    fn set(&mut self, name: TokenData, val: Value) {}
+    fn perform_operation(&mut self, op: Operator, val: Option<Value>) -> Value {
+        Value::Empty
+    }
+}
+
+#[derive(Debug)]
+struct StringValue {
+    s: String,
+}
+
+impl InstanceValue for StringValue {
+    fn get(&self, name: TokenData) -> Value {
+        Value::Empty
+    }
+    fn set(&mut self, name: TokenData, val: Value) {}
+    fn perform_operation(&mut self, op: Operator, val: Option<Value>) -> Value {
+        Value::Empty
+    }
+}
+
+#[derive(Debug)]
+struct BoolValue {
+    b: bool,
+}
+
+impl InstanceValue for BoolValue {
+    fn get(&self, name: TokenData) -> Value {
+        Value::Empty
+    }
+    fn set(&mut self, name: TokenData, val: Value) {}
+    fn perform_operation(&mut self, op: Operator, val: Option<Value>) -> Value {
+        Value::Empty
+    }
+}
+
+#[derive(Debug)]
+struct ClassValue {}
+
+impl InstanceValue for ClassValue {
+    fn get(&self, name: TokenData) -> Value {
+        Value::Empty
+    }
+    fn set(&mut self, name: TokenData, val: Value) {}
+    fn perform_operation(&mut self, op: Operator, val: Option<Value>) -> Value {
+        Value::Empty
+    }
+}
+
+#[derive(Debug)]
+struct DictValue {}
+
+impl InstanceValue for DictValue {
+    fn get(&self, name: TokenData) -> Value {
+        Value::Empty
+    }
+    fn set(&mut self, name: TokenData, val: Value) {}
+    fn perform_operation(&mut self, op: Operator, val: Option<Value>) -> Value {
+        Value::Empty
+    }
+}
+
+#[derive(Debug)]
+struct ListValue {}
+
+impl InstanceValue for ListValue {
+    fn get(&self, name: TokenData) -> Value {
+        Value::Empty
+    }
+    fn set(&mut self, name: TokenData, val: Value) {}
+    fn perform_operation(&mut self, op: Operator, val: Option<Value>) -> Value {
+        Value::Empty
+    }
+}
+
+#[derive(Debug)]
+struct NativeValue {}
+
+impl InstanceValue for NativeValue {
+    fn get(&self, name: TokenData) -> Value {
+        Value::Empty
+    }
+    fn set(&mut self, name: TokenData, val: Value) {}
+    fn perform_operation(&mut self, op: Operator, val: Option<Value>) -> Value {
+        Value::Empty
+    }
+}
+
+#[derive(Debug)]
+enum Value {
+    Object(ObjectValue),
+    Number(NumberValue),
+    Fn(FnValue),
+    String(StringValue),
+    Bool(BoolValue),
+    Class(ClassValue),
+    Dict(DictValue),
+    List(ListValue),
+    Native(NativeValue),
+    Nil,
     Empty,
 }
 
+impl Value {
+    fn get_variant_instance(&self) -> &dyn InstanceValue {
+        match self {
+            Value::Object(v) => v,
+            Value::Number(v) => v,
+            Value::Fn(v) => v,
+            Value::String(v) => v,
+            Value::Bool(v) => v,
+            Value::Class(v) => v,
+            Value::Dict(v) => v,
+            Value::List(v) => v,
+            Value::Native(v) => v,
+            _ => panic!("Not posible"),
+        }
+    }
+}
+
+impl InstanceValue for Value {
+    fn get(&self, name: TokenData) -> Value {
+        self.get_variant_instance().get(name)
+    }
+    fn set(&mut self, name: TokenData, val: Value) {
+        self.get_variant_instance().set(name, val)
+    }
+    fn perform_operation(&mut self, op: Operator, val: Option<Value>) -> Value {
+        self.get_variant_instance().perform_operation(op, val)
+    }
+}
+
 trait StmtVisitor {
-    fn visit_expr_stmt(&self, stmt: &ExprStmt) -> Result;
-    fn visit_try_catch_stmt(&self, stmt: &TryCatchStmt) -> Result;
-    fn visit_classic_for_stmt(&self, stmt: &ClassicForStmt) -> Result;
-    fn visit_enhanced_for_stmt(&self, stmt: &EnhancedForStmt) -> Result;
-    fn visit_let_stmt(&self, stmt: &LetStmt) -> Result;
-    fn visit_block_stmt(&self, stmt: &BlockStmt) -> Result;
-    fn visit_while_stmt(&self, stmt: &WhileStmt) -> Result;
-    fn visit_return_stmt(&self, stmt: &ReturnStmt) -> Result;
-    fn visit_break_stmt(&self, stmt: &BreakStmt) -> Result;
-    fn visit_continue_stmt(&self, stmt: &ContinueStmt) -> Result;
-    fn visit_if_stmt(&self, stmt: &IfStmt) -> Result;
-    fn visit_fn_stmt(&self, stmt: &FnStmt) -> Result;
-    fn visit_class_stmt(&self, stmt: &ClassStmt) -> Result;
+    fn visit_expr_stmt(&self, stmt: &ExprStmt) -> Value;
+    fn visit_try_catch_stmt(&self, stmt: &TryCatchStmt) -> Value;
+    fn visit_classic_for_stmt(&self, stmt: &ClassicForStmt) -> Value;
+    fn visit_enhanced_for_stmt(&self, stmt: &EnhancedForStmt) -> Value;
+    fn visit_let_stmt(&self, stmt: &LetStmt) -> Value;
+    fn visit_block_stmt(&self, stmt: &BlockStmt) -> Value;
+    fn visit_while_stmt(&self, stmt: &WhileStmt) -> Value;
+    fn visit_return_stmt(&self, stmt: &ReturnStmt) -> Value;
+    fn visit_break_stmt(&self, stmt: &BreakStmt) -> Value;
+    fn visit_continue_stmt(&self, stmt: &ContinueStmt) -> Value;
+    fn visit_if_stmt(&self, stmt: &IfStmt) -> Value;
+    fn visit_fn_stmt(&self, stmt: &FnStmt) -> Value;
+    fn visit_class_stmt(&self, stmt: &ClassStmt) -> Value;
 }
 
 trait ExprVisitor {
-    fn visit_function_expr(&self, expr: &FnExpr) -> Result;
-    fn visit_variable_expr(&self, expr: &VarExpr) -> Result;
-    fn visit_list_expr(&self, expr: &ListExpr) -> Result;
-    fn visit_dictionary_expr(&self, expr: &DictionaryExpr) -> Result;
-    fn visit_assign_expr(&self, expr: &AssignExpr) -> Result;
-    fn visit_access_expr(&self, expr: &AccessExpr) -> Result;
-    fn visit_binary_expr(&self, expr: &BinaryExpr) -> Result;
-    fn visit_call_expr(&self, expr: &CallExpr) -> Result;
-    fn visit_get_expr(&self, expr: &GetExpr) -> Result;
-    fn visit_set_expr(&self, expr: &SetExpr) -> Result;
-    fn visit_super_expr(&self, expr: &SuperExpr) -> Result;
-    fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Result;
-    fn visit_literal_expr(&self, expr: &LiteralExpr) -> Result;
-    fn visit_logical_expr(&self, expr: &LogicalExpr) -> Result;
-    fn visit_this_expr(&self, expr: &ThisExpr) -> Result;
-    fn visit_unary_expr(&self, expr: &UnaryExpr) -> Result;
+    fn visit_function_expr(&self, expr: &FnExpr) -> Value;
+    fn visit_variable_expr(&self, expr: &VarExpr) -> Value;
+    fn visit_list_expr(&self, expr: &ListExpr) -> Value;
+    fn visit_dictionary_expr(&self, expr: &DictionaryExpr) -> Value;
+    fn visit_assign_expr(&self, expr: &AssignExpr) -> Value;
+    fn visit_access_expr(&self, expr: &AccessExpr) -> Value;
+    fn visit_binary_expr(&self, expr: &BinaryExpr) -> Value;
+    fn visit_call_expr(&self, expr: &CallExpr) -> Value;
+    fn visit_get_expr(&self, expr: &GetExpr) -> Value;
+    fn visit_set_expr(&self, expr: &SetExpr) -> Value;
+    fn visit_super_expr(&self, expr: &SuperExpr) -> Value;
+    fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Value;
+    fn visit_literal_expr(&self, expr: &LiteralExpr) -> Value;
+    fn visit_logical_expr(&self, expr: &LogicalExpr) -> Value;
+    fn visit_this_expr(&self, expr: &ThisExpr) -> Value;
+    fn visit_unary_expr(&self, expr: &UnaryExpr) -> Value;
 }
 
 impl Expr {
-    fn accept(&self, visitor: &dyn ExprVisitor) -> Result {
+    fn accept(&self, visitor: &dyn ExprVisitor) -> Value {
         match self {
             Expr::Fn(expr) => visitor.visit_function_expr(&expr),
             Expr::Var(expr) => visitor.visit_variable_expr(&expr),
@@ -1739,7 +1915,7 @@ impl Expr {
 }
 
 impl Stmt {
-    fn accept(&self, visitor: &dyn StmtVisitor) -> Result {
+    fn accept(&self, visitor: &dyn StmtVisitor) -> Value {
         match self {
             Stmt::Fn(stmt) => visitor.visit_fn_stmt(&stmt),
             Stmt::Let(stmt) => visitor.visit_let_stmt(&stmt),
@@ -1758,100 +1934,126 @@ impl Stmt {
     }
 }
 
+struct Env {
+    enclosing: Box<Env>,
+    values: HashMap<String, Value>,
+}
+
 struct Exec<'a> {
+    globals: Box<Env>,
+    env: Box<Env>,
+
+    call_stack: Vec<CallStack>,
+
     state: &'a InterpreterState,
 }
 
 impl StmtVisitor for Exec<'_> {
-    fn visit_expr_stmt(&self, stmt: &ExprStmt) -> Result {
+    fn visit_expr_stmt(&self, stmt: &ExprStmt) -> Value {
         stmt.expression.accept(self)
     }
-    fn visit_try_catch_stmt(&self, stmt: &TryCatchStmt) -> Result {
-        return Result::Empty;
+    fn visit_try_catch_stmt(&self, stmt: &TryCatchStmt) -> Value {
+        return Value::Empty;
     }
-    fn visit_classic_for_stmt(&self, stmt: &ClassicForStmt) -> Result {
-        return Result::Empty;
+    fn visit_classic_for_stmt(&self, stmt: &ClassicForStmt) -> Value {
+        if let Some(init) = &stmt.initializer {
+            init.accept(self);
+        }
+        while self.truthy(stmt.condition.accept(self)) {
+            // TODO: implement break/continue
+            stmt.body.accept(self);
+            stmt.increment.accept(self);
+        }
+        // TODO: add enter/leave loop logic
+        return Value::Empty;
     }
-    fn visit_enhanced_for_stmt(&self, stmt: &EnhancedForStmt) -> Result {
-        return Result::Empty;
+    fn visit_enhanced_for_stmt(&self, stmt: &EnhancedForStmt) -> Value {
+        return Value::Empty;
     }
-    fn visit_let_stmt(&self, stmt: &LetStmt) -> Result {
-        return Result::Empty;
+    fn visit_let_stmt(&self, stmt: &LetStmt) -> Value {
+        return Value::Empty;
     }
-    fn visit_block_stmt(&self, stmt: &BlockStmt) -> Result {
-        return Result::Empty;
+    fn visit_block_stmt(&self, stmt: &BlockStmt) -> Value {
+        return Value::Empty;
     }
-    fn visit_while_stmt(&self, stmt: &WhileStmt) -> Result {
-        return Result::Empty;
+    fn visit_while_stmt(&self, stmt: &WhileStmt) -> Value {
+        return Value::Empty;
     }
-    fn visit_return_stmt(&self, stmt: &ReturnStmt) -> Result {
-        return Result::Empty;
+    fn visit_return_stmt(&self, stmt: &ReturnStmt) -> Value {
+        return Value::Empty;
     }
-    fn visit_break_stmt(&self, stmt: &BreakStmt) -> Result {
-        return Result::Empty;
+    fn visit_break_stmt(&self, stmt: &BreakStmt) -> Value {
+        return Value::Empty;
     }
-    fn visit_continue_stmt(&self, stmt: &ContinueStmt) -> Result {
-        return Result::Empty;
+    fn visit_continue_stmt(&self, stmt: &ContinueStmt) -> Value {
+        return Value::Empty;
     }
-    fn visit_if_stmt(&self, stmt: &IfStmt) -> Result {
-        return Result::Empty;
+    fn visit_if_stmt(&self, stmt: &IfStmt) -> Value {
+        return Value::Empty;
     }
-    fn visit_fn_stmt(&self, stmt: &FnStmt) -> Result {
-        return Result::Empty;
+    fn visit_fn_stmt(&self, stmt: &FnStmt) -> Value {
+        return Value::Empty;
     }
-    fn visit_class_stmt(&self, stmt: &ClassStmt) -> Result {
-        return Result::Empty;
+    fn visit_class_stmt(&self, stmt: &ClassStmt) -> Value {
+        return Value::Empty;
     }
 }
 
 impl ExprVisitor for Exec<'_> {
-    fn visit_function_expr(&self, expr: &FnExpr) -> Result {
-        return Result::Empty;
+    fn visit_function_expr(&self, expr: &FnExpr) -> Value {
+        return Value::Empty;
     }
-    fn visit_variable_expr(&self, expr: &VarExpr) -> Result {
-        return Result::Empty;
+    fn visit_variable_expr(&self, expr: &VarExpr) -> Value {
+        return Value::Empty;
     }
-    fn visit_list_expr(&self, expr: &ListExpr) -> Result {
-        return Result::Empty;
+    fn visit_list_expr(&self, expr: &ListExpr) -> Value {
+        return Value::Empty;
     }
-    fn visit_dictionary_expr(&self, expr: &DictionaryExpr) -> Result {
-        return Result::Empty;
+    fn visit_dictionary_expr(&self, expr: &DictionaryExpr) -> Value {
+        return Value::Empty;
     }
-    fn visit_assign_expr(&self, expr: &AssignExpr) -> Result {
-        return Result::Empty;
+    fn visit_assign_expr(&self, expr: &AssignExpr) -> Value {
+        return Value::Empty;
     }
-    fn visit_access_expr(&self, expr: &AccessExpr) -> Result {
-        return Result::Empty;
+    fn visit_access_expr(&self, expr: &AccessExpr) -> Value {
+        return Value::Empty;
     }
-    fn visit_binary_expr(&self, expr: &BinaryExpr) -> Result {
-        return Result::Empty;
+    fn visit_binary_expr(&self, expr: &BinaryExpr) -> Value {
+        expr.left
+            .accept(self)
+            .perform_operation(Operator::Add, Some(expr.left.accept(self)))
     }
-    fn visit_call_expr(&self, expr: &CallExpr) -> Result {
-        return Result::Empty;
+    fn visit_call_expr(&self, expr: &CallExpr) -> Value {
+        return Value::Empty;
     }
-    fn visit_get_expr(&self, expr: &GetExpr) -> Result {
-        return Result::Empty;
+    fn visit_get_expr(&self, expr: &GetExpr) -> Value {
+        return Value::Empty;
     }
-    fn visit_set_expr(&self, expr: &SetExpr) -> Result {
-        return Result::Empty;
+    fn visit_set_expr(&self, expr: &SetExpr) -> Value {
+        return Value::Empty;
     }
-    fn visit_super_expr(&self, expr: &SuperExpr) -> Result {
-        return Result::Empty;
+    fn visit_super_expr(&self, expr: &SuperExpr) -> Value {
+        return Value::Empty;
     }
-    fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Result {
-        return Result::Empty;
+    fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Value {
+        return Value::Empty;
     }
-    fn visit_literal_expr(&self, expr: &LiteralExpr) -> Result {
-        Result::Literal(expr.value.clone())
+    fn visit_literal_expr(&self, expr: &LiteralExpr) -> Value {
+        match expr.value.clone() {
+            Literal::Boolean(b) => Value::Bool(BoolValue { b }),
+            Literal::String(s) => Value::String(StringValue { s }),
+            Literal::Number(n) => Value::Number(NumberValue { n }),
+            Literal::Nil => Value::Nil,
+        }
     }
-    fn visit_logical_expr(&self, expr: &LogicalExpr) -> Result {
-        return Result::Empty;
+    fn visit_logical_expr(&self, expr: &LogicalExpr) -> Value {
+        return Value::Empty;
     }
-    fn visit_this_expr(&self, expr: &ThisExpr) -> Result {
-        return Result::Empty;
+    fn visit_this_expr(&self, expr: &ThisExpr) -> Value {
+        return Value::Empty;
     }
-    fn visit_unary_expr(&self, expr: &UnaryExpr) -> Result {
-        return Result::Empty;
+    fn visit_unary_expr(&self, expr: &UnaryExpr) -> Value {
+        return Value::Empty;
     }
 }
 
@@ -1863,6 +2065,16 @@ impl Exec<'_> {
     fn interpret(&self) {
         for s in &self.state.stmts {
             println!("Executing {:#?}", s.accept(self));
+        }
+    }
+
+    fn truthy(&self, val: Value) -> bool {
+        match val {
+            Value::String(v) => v.s.len() > 0,
+            Value::Number(v) => v.n != 0.0,
+            Value::Bool(v) => v.b,
+            Value::Nil => false,
+            _ => true,
         }
     }
 }

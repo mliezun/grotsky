@@ -1680,6 +1680,7 @@ enum Operator {
     Div,
     Mod,
     Mul,
+    Neg,
 }
 
 trait InstanceValue {
@@ -1717,7 +1718,11 @@ impl InstanceValue for NumberValue {
 }
 
 #[derive(Debug)]
-struct FnValue {}
+struct FnValue {
+    declaration: FnStmt,
+    closure: Env,
+    is_initializer: bool,
+}
 
 impl InstanceValue for FnValue {
     fn get(&self, name: TokenData) -> Value {
@@ -1934,9 +1939,16 @@ impl Stmt {
     }
 }
 
+#[derive(Debug)]
 struct Env {
-    enclosing: Box<Env>,
+    enclosing: Option<Box<Env>>,
     values: HashMap<String, Value>,
+}
+
+impl Env {
+    fn define(&mut self, name: String, val: Value) {
+        self.values.insert(name, val);
+    }
 }
 
 struct Exec<'a> {
@@ -1970,9 +1982,18 @@ impl StmtVisitor for Exec<'_> {
     fn visit_enhanced_for_stmt(&self, stmt: &EnhancedForStmt) -> Value {
         return Value::Empty;
     }
+
     fn visit_let_stmt(&self, stmt: &LetStmt) -> Value {
-        return Value::Empty;
+        let val: Value;
+        if let Some(initializer) = stmt.initializer {
+            val = initializer.accept(self);
+        } else {
+            val = Value::Nil;
+        }
+        self.env.define(stmt.name.lexeme, val);
+        return val;
     }
+
     fn visit_block_stmt(&self, stmt: &BlockStmt) -> Value {
         return Value::Empty;
     }
@@ -1992,6 +2013,14 @@ impl StmtVisitor for Exec<'_> {
         return Value::Empty;
     }
     fn visit_fn_stmt(&self, stmt: &FnStmt) -> Value {
+        self.env.define(
+            stmt.name.lexeme,
+            Value::Fn(FnValue {
+                declaration: *stmt,
+                closure: self.env,
+                is_initializer: false,
+            }),
+        );
         return Value::Empty;
     }
     fn visit_class_stmt(&self, stmt: &ClassStmt) -> Value {
@@ -2035,9 +2064,11 @@ impl ExprVisitor for Exec<'_> {
     fn visit_super_expr(&self, expr: &SuperExpr) -> Value {
         return Value::Empty;
     }
+
     fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Value {
-        return Value::Empty;
+        expr.expression.accept(self)
     }
+
     fn visit_literal_expr(&self, expr: &LiteralExpr) -> Value {
         match expr.value.clone() {
             Literal::Boolean(b) => Value::Bool(BoolValue { b }),
@@ -2046,20 +2077,87 @@ impl ExprVisitor for Exec<'_> {
             Literal::Nil => Value::Nil,
         }
     }
+
     fn visit_logical_expr(&self, expr: &LogicalExpr) -> Value {
-        return Value::Empty;
+        let left = self.truthy(expr.left.accept(self));
+        if expr.operator.token == Token::Or {
+            if left {
+                return Value::Bool(BoolValue { b: true });
+            }
+            let right = self.truthy(expr.right.accept(self));
+            return Value::Bool(BoolValue { b: left || right });
+        }
+        // expr.operator.token = AND
+        if !left {
+            return Value::Bool(BoolValue { b: false });
+        }
+        let right = self.truthy(expr.right.accept(self));
+        return Value::Bool(BoolValue { b: left && right });
     }
+
     fn visit_this_expr(&self, expr: &ThisExpr) -> Value {
         return Value::Empty;
     }
+
     fn visit_unary_expr(&self, expr: &UnaryExpr) -> Value {
-        return Value::Empty;
+        let mut value = expr.right.accept(self);
+        match expr.operator.token {
+            Token::Not => Value::Bool(BoolValue {
+                b: self.truthy(value),
+            }),
+            Token::Minus => self.operate_unary(Operator::Neg, &mut value),
+            _ => unreachable!(),
+        }
     }
 }
 
 impl Exec<'_> {
     fn new(state: &'_ InterpreterState) -> Exec<'_> {
-        return Exec { state: state };
+        return Exec {
+            call_stack: vec![],
+            state: state,
+            globals: Box::new(Env {
+                enclosing: None,
+                values: HashMap::new(),
+            }),
+            env: Box::new(Env {
+                enclosing: None,
+                values: HashMap::new(),
+            }),
+        };
+    }
+
+    fn get_exec_context(&mut self) -> CallStack {
+        self.call_stack[self.call_stack.len() - 1]
+    }
+
+    fn enter_function(&mut self, name: String) {
+        self.call_stack.push(CallStack {
+            function: name,
+            loop_count: 0,
+        });
+    }
+
+    fn leave_function(&mut self, name: String) {
+        let pc = self.get_exec_context();
+        if pc.function != name {
+            panic!("Leaving function doesn't match with top stack");
+        }
+        self.call_stack.pop();
+    }
+
+    fn enter_loop(&mut self) {
+        let mut pc = self.get_exec_context();
+        pc.loop_count += 1;
+    }
+
+    fn leaveLoop(&mut self) {
+        let mut pc = self.get_exec_context();
+        pc.loop_count -= 1;
+    }
+
+    fn inside_loop(&mut self) -> bool {
+        return self.get_exec_context().loop_count != 0;
     }
 
     fn interpret(&self) {
@@ -2076,6 +2174,10 @@ impl Exec<'_> {
             Value::Nil => false,
             _ => true,
         }
+    }
+
+    fn operate_unary(&self, op: Operator, val: &mut Value) -> Value {
+        val.perform_operation(op, None)
     }
 }
 

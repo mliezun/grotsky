@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
-use std::{collections::HashMap, mem::swap, vec};
+use fnv::FnvHashMap;
+use std::{collections::HashMap, vec};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Token {
@@ -76,7 +77,7 @@ enum Literal {
 #[derive(Debug, Clone, PartialEq)]
 struct TokenData {
     token: Token,
-    lexeme: String,
+    lexeme: &'static str,
     literal: Option<Literal>,
     line: i32,
 }
@@ -203,7 +204,7 @@ impl Lexer<'_> {
                 .to_string();
         self.state.tokens.push(TokenData {
             token: token,
-            lexeme: lexeme,
+            lexeme: string_to_static_str(lexeme),
             literal: l,
             line: self.line,
         })
@@ -220,14 +221,14 @@ impl Lexer<'_> {
         {
             self.state.tokens.push(TokenData {
                 token: Token::Newline,
-                lexeme: "".to_string(),
+                lexeme: string_to_static_str("".to_string()),
                 literal: None,
                 line: self.line,
             })
         }
         self.state.tokens.push(TokenData {
             token: Token::EOF,
-            lexeme: "".to_string(),
+            lexeme: string_to_static_str("".to_string()),
             literal: None,
             line: self.line,
         })
@@ -679,7 +680,7 @@ impl Parser<'_> {
         return &mut self.cls[len - 1];
     }
 
-    fn enter_function(&mut self, name: &String) {
+    fn enter_function(&mut self, name: &'static str) {
         self.cls.push(CallStack {
             function: name.to_string(),
             loop_count: 0,
@@ -694,7 +695,7 @@ impl Parser<'_> {
         return self.peek().token == Token::EOF;
     }
 
-    fn leave_function(&mut self, name: &String) {
+    fn leave_function(&mut self, name: &'static str) {
         let pc = self.get_parsing_context();
         if pc.function != name.to_string() {
             self.state.fatal_error(InterpreterError {
@@ -722,7 +723,7 @@ impl Parser<'_> {
 
     fn parse(&mut self) {
         self.cls = vec![];
-        self.enter_function(&"".to_string());
+        self.enter_function(string_to_static_str("".to_string()));
         while !self.is_at_end() {
             // When multiple empty lines are encountered after a statement
             // the parser founds nil statements, we should avoid them to not
@@ -732,7 +733,7 @@ impl Parser<'_> {
                 Some(st) => self.state.stmts.push(st),
             }
         }
-        self.leave_function(&"".to_string());
+        self.leave_function(string_to_static_str("".to_string()));
     }
 
     fn parse_stmt(&mut self) -> Option<Stmt> {
@@ -872,7 +873,7 @@ impl Parser<'_> {
             .consume(Token::Identifier, "Expected function name".to_string())
             .unwrap();
 
-        self.enter_function(&name.lexeme);
+        self.enter_function(name.lexeme);
 
         self.consume(
             Token::LeftParen,
@@ -907,7 +908,7 @@ impl Parser<'_> {
             body.push(self.expression_stmt());
         }
 
-        self.leave_function(&name.lexeme);
+        self.leave_function(name.lexeme);
 
         return Stmt::Fn(FnStmt {
             name: name,
@@ -922,7 +923,7 @@ impl Parser<'_> {
             "Expected '(' after function name".to_string(),
         );
 
-        let lambda_name: &String = &format!("lambda{}", self.cls.len());
+        let lambda_name: &'static str = string_to_static_str(format!("lambda{}", self.cls.len()));
         self.enter_function(lambda_name);
 
         let mut params: Vec<TokenData> = vec![];
@@ -1325,7 +1326,7 @@ impl Parser<'_> {
             first: Box::new(Expr::Empty),
             first_colon: TokenData {
                 token: Token::Nil,
-                lexeme: "".to_string(),
+                lexeme: string_to_static_str("".to_string()),
                 literal: None,
                 line: 0,
             },
@@ -1334,7 +1335,7 @@ impl Parser<'_> {
             second: Box::new(Expr::Empty),
             second_colon: TokenData {
                 token: Token::Nil,
-                lexeme: "".to_string(),
+                lexeme: string_to_static_str("".to_string()),
                 literal: None,
                 line: 0,
             },
@@ -1646,7 +1647,7 @@ impl Parser<'_> {
         } else {
             method = TokenData {
                 token: Token::Identifier,
-                lexeme: "init".to_string(),
+                lexeme: string_to_static_str("init".to_string()),
                 line: keyword.line,
                 literal: None,
             };
@@ -1723,30 +1724,32 @@ impl InstanceValue for NumberValue {
     }
     fn set(&mut self, name: TokenData, val: Value) {}
     fn perform_operation(&mut self, op: Operator, val: Option<Value>) -> Value {
-        match op {
-            Operator::Add => {
-                if let Value::Number(nv) = val.unwrap() {
-                    Value::Number(NumberValue { n: self.n + nv.n })
-                } else {
-                    panic!("Wrong type passed")
-                }
-            }
-            Operator::Sub => {
-                if let Value::Number(nv) = val.unwrap() {
-                    Value::Number(NumberValue { n: self.n - nv.n })
-                } else {
-                    panic!("Wrong type passed")
-                }
-            }
-            Operator::Lt => {
-                if let Value::Number(nv) = val.unwrap() {
-                    Value::Bool(BoolValue { b: self.n < nv.n })
-                } else {
-                    panic!("Wrong type passed")
-                }
-            }
-            _ => unreachable!(),
+        if let Some(Value::Number(nv)) = val {
+            return match op {
+                Operator::Add => Value::Number(NumberValue { n: self.n + nv.n }),
+                Operator::Sub => Value::Number(NumberValue { n: self.n - nv.n }),
+                Operator::Pow => Value::Number(NumberValue {
+                    n: self.n.powf(nv.n),
+                }),
+                Operator::Mul => Value::Number(NumberValue { n: self.n * nv.n }),
+                Operator::Mod => Value::Number(NumberValue {
+                    n: unsafe {
+                        self.n.round().to_int_unchecked::<i64>()
+                            % self.n.round().to_int_unchecked::<i64>()
+                    } as f64,
+                }),
+                Operator::Div => Value::Number(NumberValue { n: self.n / nv.n }),
+                Operator::Lt => Value::Bool(BoolValue { b: self.n < nv.n }),
+                Operator::Lte => Value::Bool(BoolValue { b: self.n <= nv.n }),
+                Operator::Gt => Value::Bool(BoolValue { b: self.n > nv.n }),
+                Operator::Gte => Value::Bool(BoolValue { b: self.n >= nv.n }),
+                Operator::Eq => Value::Bool(BoolValue { b: self.n == nv.n }),
+                Operator::Neq => Value::Bool(BoolValue { b: self.n != nv.n }),
+                _ => unreachable!(),
+            };
         }
+        // op == Operator::Neg
+        return Value::Number(NumberValue { n: -self.n });
     }
 }
 
@@ -1860,6 +1863,9 @@ enum Value {
     List(ListValue),
     Native(NativeValue),
     Nil,
+    Continue,
+    Break,
+    Return,
     Empty,
 }
 
@@ -1971,33 +1977,39 @@ impl Stmt {
     }
 }
 
+fn string_to_static_str(s: String) -> &'static str {
+    Box::leak(s.into_boxed_str())
+}
+
 #[derive(Debug)]
 struct Env {
-    values: Vec<HashMap<String, Value>>,
+    values: Vec<FnvHashMap<&'static str, Value>>,
 }
 
 impl Env {
     fn new() -> Self {
         Self {
-            values: vec![HashMap::new()],
+            values: vec![FnvHashMap::default()],
         }
     }
 
-    fn define(&mut self, name: String, val: Value) {
+    fn define(&mut self, name: &'static str, val: Value) {
         self.values.last_mut().unwrap().insert(name, val);
     }
-    fn get(&self, name: String) -> Value {
+
+    fn get(&self, name: &'static str) -> Value {
         for vals in self.values.iter().rev() {
-            if vals.contains_key(&name) {
-                return vals.get(&name).unwrap().clone();
+            if vals.contains_key(name) {
+                return vals.get(name).unwrap().clone();
             }
         }
         panic!("Undefined var");
     }
-    fn assign(&mut self, name: String, val: Value) {
+
+    fn assign(&mut self, name: &'static str, val: Value) {
         for vals in self.values.iter_mut().rev() {
-            if vals.contains_key(&name) {
-                vals.insert(name, val).unwrap().clone();
+            if vals.contains_key(name) {
+                vals.insert(name, val);
                 return;
             }
         }
@@ -2044,7 +2056,7 @@ impl StmtVisitor for Exec {
             val = Value::Nil;
         }
         let val_copy = val.clone();
-        self.env.define(stmt.name.lexeme.clone(), val);
+        self.env.define(stmt.name.lexeme, val);
         return val_copy;
     }
 
@@ -2077,7 +2089,7 @@ impl StmtVisitor for Exec {
     }
     fn visit_fn_stmt(&mut self, stmt: &FnStmt) -> Value {
         self.env.define(
-            stmt.name.lexeme.clone(),
+            &stmt.name.lexeme,
             Value::Fn(FnValue {
                 declaration: stmt.clone(),
                 // TODO: implement closure
@@ -2110,7 +2122,7 @@ impl ExprVisitor for Exec {
         let val = expr.value.accept(self);
         // TODO: implement assignment for dict and list
         let val_copy = val.clone();
-        self.env.assign(expr.name.lexeme.clone(), val);
+        self.env.assign(&expr.name.lexeme, val);
         return val_copy;
     }
 
@@ -2237,13 +2249,13 @@ impl Exec {
     fn interpret(&mut self, stmts: &mut Vec<Stmt>) {
         self.enter_function("".to_string());
         for s in stmts {
-            let val = s.accept(self);
-            // println!("Executing {:#?}", val);
+            let _val = s.accept(self);
+            // println!("Executing {:#?}", _val);
         }
     }
 
     fn execute_block(&mut self, stmts: &Vec<Stmt>) -> Value {
-        self.env.values.push(HashMap::new());
+        self.env.values.push(FnvHashMap::default());
         for s in stmts {
             s.accept(self);
             // TODO: handle continue,break and return

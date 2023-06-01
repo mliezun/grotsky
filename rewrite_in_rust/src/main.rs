@@ -1,10 +1,10 @@
 mod lexer;
 
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 const SOURCE: &str = "
 let a = 1
-while a < 100000000 {
+while a < 10000000 {
     a = a + 1
 }
 ";

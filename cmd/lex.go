@@ -10,7 +10,7 @@ import (
 
 var source string = `
 let a = 1
-while a < 100000000 {
+while a < 10000000 {
     a = a + 1
 }
 `

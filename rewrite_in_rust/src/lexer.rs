@@ -1999,8 +1999,8 @@ impl Env {
 
     fn get(&self, name: &'static str) -> Value {
         for vals in self.values.iter().rev() {
-            if vals.contains_key(name) {
-                return vals.get(name).unwrap().clone();
+            if let Some(val) = vals.get(name) {
+                return val.clone();
             }
         }
         panic!("Undefined var");
@@ -2108,8 +2108,8 @@ impl ExprVisitor for Exec {
         return Value::Empty;
     }
     fn visit_variable_expr(&mut self, expr: &VarExpr) -> Value {
-        let name = expr.name.clone();
-        return self.env.get(name.unwrap().lexeme);
+        let name = expr.name.as_ref().unwrap().lexeme;
+        return self.env.get(name);
     }
     fn visit_list_expr(&mut self, expr: &ListExpr) -> Value {
         return Value::Empty;
@@ -2121,9 +2121,8 @@ impl ExprVisitor for Exec {
     fn visit_assign_expr(&mut self, expr: &AssignExpr) -> Value {
         let val = expr.value.accept(self);
         // TODO: implement assignment for dict and list
-        let val_copy = val.clone();
         self.env.assign(&expr.name.lexeme, val);
-        return val_copy;
+        return Value::Empty;
     }
 
     fn visit_access_expr(&mut self, expr: &AccessExpr) -> Value {
@@ -2169,10 +2168,10 @@ impl ExprVisitor for Exec {
     }
 
     fn visit_literal_expr(&mut self, expr: &LiteralExpr) -> Value {
-        match expr.value.clone() {
-            Literal::Boolean(b) => Value::Bool(BoolValue { b }),
-            Literal::String(s) => Value::String(StringValue { s }),
-            Literal::Number(n) => Value::Number(NumberValue { n }),
+        match &expr.value {
+            Literal::Boolean(b) => Value::Bool(BoolValue { b: *b }),
+            Literal::String(s) => Value::String(StringValue { s: s.clone() }),
+            Literal::Number(n) => Value::Number(NumberValue { n: *n }),
             Literal::Nil => Value::Nil,
         }
     }

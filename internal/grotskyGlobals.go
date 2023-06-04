@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type nativeFn struct {
@@ -293,6 +294,17 @@ func defineIo(e *env, p IPrinter) {
 		return out, nil
 	}
 
+	var clock nativeFn
+	clock.callFn = func(arguments []interface{}) (interface{}, error) {
+		// exec.mx.Unlock()
+		// defer exec.mx.Lock()
+		if len(arguments) != 0 {
+			return nil, errInvalidNumberArguments
+		}
+		result := grotskyNumber(grotskyNumber(time.Now().UnixNano()) / grotskyNumber(1000000000))
+		return result, nil
+	}
+
 	e.define("io", &nativeObj{
 		methods: map[string]*nativeFn{
 			"println":    &println,
@@ -301,6 +313,7 @@ func defineIo(e *env, p IPrinter) {
 			"listDir":    &listDir,
 			"fileExists": &fileExists,
 			"mkdirAll":   &mkdirAll,
+			"clock":      &clock,
 		},
 	})
 }

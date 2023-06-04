@@ -13,5 +13,5 @@ fn main() {
     let start = Instant::now();
     lexer::scan(String::from(SOURCE));
     let duration = start.elapsed();
-    println!("Time elapsed is: {:?}", duration);
+    println!("{:?}", duration.as_secs_f64());
 }

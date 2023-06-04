@@ -1,0 +1,6 @@
+let start = io.clock()
+let a = 1
+while a < 10000000 {
+    a = a + 1
+}
+io.println(io.clock() - start)

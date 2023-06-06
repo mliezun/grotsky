@@ -8,11 +8,11 @@ clean:
 benchmark: grotsky grotsky-rs
 	python tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs loop 
 
-test_grotsky:
+test_grotsky: grotsky
 	@ go test -v ./... -interpreter Go
 
-test_grotsky-rs:
-	@ go test -v ./... -interpreter Rust -failfast
+test_grotsky-rs: grotsky-rs
+	@ RUST_BACKTRACE=1 go test -v ./... -interpreter Rust -failfast
 
 test:
 	@ go test -v ./...

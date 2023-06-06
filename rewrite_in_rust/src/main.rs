@@ -21,8 +21,8 @@ fn main() {
     } else {
         source = SOURCE;
     }
-    let start = Instant::now();
+    //let start = Instant::now();
     lexer::scan(String::from(source));
-    let duration = start.elapsed();
-    println!("{:?}", duration.as_secs_f64());
+    //let duration = start.elapsed();
+    // println!("{:?}", duration.as_secs_f64());
 }

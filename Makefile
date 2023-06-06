@@ -9,13 +9,13 @@ benchmark: grotsky grotsky-rs
 	python tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs loop 
 
 test_grotsky:
-	@ python tool/test.py go
+	@ go test -v ./... -interpreter Go
 
 test_grotsky-rs:
-	@ python tool/test.py rust
+	@ go test -v ./... -interpreter Rust -failfast
 
-test_all:
-	@ python tool/test.py all
+test:
+	@ go test -v ./...
 
 grotsky:
 	@ go build cmd/grotsky/main.go

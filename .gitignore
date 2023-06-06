@@ -3,3 +3,4 @@ profile
 examples/
 target/
 build/
+__pycache__

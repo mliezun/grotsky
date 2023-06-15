@@ -1757,6 +1757,32 @@ impl InstanceValue for NumberValue {
 struct FnValue {
     declaration: FnStmt,
     is_initializer: bool,
+    closure: *mut Env,
+}
+
+impl FnValue {
+    fn call(&mut self, exec: &mut Exec, arguments: Vec<Value>) -> Result<Value, InterpreterError> {
+        if arguments.len() != self.declaration.params.len() {
+            return Err(InterpreterError {
+                message: "Invalid number of arguments".to_string(),
+                line: self.declaration.name.line,
+                pos: 0,
+            });
+        }
+
+        let mut env = Env {
+            enclosing: Some(self.closure),
+            values: FnvHashMap::default(),
+        };
+
+        for i in 0..self.declaration.params.len() {
+            env.define(self.declaration.params[i].lexeme, arguments[i].clone());
+        }
+
+        let result = exec.execute_block(&self.declaration.body, core::ptr::addr_of_mut!(env));
+
+        return Ok(result);
+    }
 }
 
 impl InstanceValue for FnValue {
@@ -2069,7 +2095,11 @@ impl StmtVisitor for Exec {
     }
 
     fn visit_block_stmt(&mut self, stmt: &BlockStmt) -> Value {
-        self.execute_block(&stmt.stmts);
+        let mut env = Env {
+            enclosing: Some(self.env),
+            values: FnvHashMap::default(),
+        };
+        self.execute_block(&stmt.stmts, core::ptr::addr_of_mut!(env));
         return Value::Empty;
     }
 
@@ -2103,6 +2133,7 @@ impl StmtVisitor for Exec {
                     declaration: stmt.clone(),
                     // TODO: implement closure
                     is_initializer: false,
+                    closure: self.env,
                 }),
             )
         };
@@ -2262,21 +2293,14 @@ impl Exec {
         }
     }
 
-    fn execute_block(&mut self, stmts: &Vec<Stmt>) -> Value {
-        let mut tmp_env = Env {
-            enclosing: Some(self.env),
-            values: FnvHashMap::default(),
-        };
-        self.env = core::ptr::addr_of_mut!(tmp_env);
+    fn execute_block(&mut self, stmts: &Vec<Stmt>, env: *mut Env) -> Value {
+        let previous = self.env;
+        self.env = env;
         for s in stmts {
             s.accept(self);
             // TODO: handle continue,break and return
         }
-        unsafe {
-            if let Some(enclosed) = (*self.env).enclosing {
-                self.env = enclosed;
-            }
-        }
+        self.env = previous;
         return Value::Empty;
     }
 

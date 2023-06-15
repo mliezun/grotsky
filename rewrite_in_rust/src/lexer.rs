@@ -1983,35 +1983,44 @@ fn string_to_static_str(s: String) -> &'static str {
 
 #[derive(Debug)]
 struct Env {
-    values: Vec<FnvHashMap<&'static str, Value>>,
+    enclosing: Option<*mut Env>,
+    values: FnvHashMap<&'static str, Value>,
 }
 
 impl Env {
     fn new() -> Self {
         Self {
-            values: vec![FnvHashMap::default()],
+            enclosing: None,
+            values: FnvHashMap::default(),
         }
     }
 
     fn define(&mut self, name: &'static str, val: Value) {
-        self.values.last_mut().unwrap().insert(name, val);
+        self.values.insert(name, val);
     }
 
     fn get(&self, name: &'static str) -> Value {
-        for vals in self.values.iter().rev() {
-            if let Some(val) = vals.get(name) {
-                return val.clone();
+        if let Some(val) = self.values.get(name) {
+            return val.clone();
+        }
+        if let Some(enclosed) = self.enclosing {
+            unsafe {
+                return (*enclosed).get(name);
             }
         }
         panic!("Undefined var");
     }
 
     fn assign(&mut self, name: &'static str, val: Value) {
-        for vals in self.values.iter_mut().rev() {
-            if vals.contains_key(name) {
-                vals.insert(name, val);
-                return;
+        if self.values.contains_key(name) {
+            self.values.insert(name, val);
+            return;
+        }
+        if let Some(enclosed) = self.enclosing {
+            unsafe {
+                (*enclosed).assign(name, val);
             }
+            return;
         }
         panic!("Undefined var");
     }
@@ -2019,8 +2028,7 @@ impl Env {
 
 #[derive(Debug)]
 struct Exec {
-    globals: Box<Env>,
-    env: Box<Env>,
+    env: *mut Env,
 
     call_stack: Vec<CallStack>,
 }
@@ -2056,7 +2064,7 @@ impl StmtVisitor for Exec {
             val = Value::Nil;
         }
         let val_copy = val.clone();
-        self.env.define(stmt.name.lexeme, val);
+        unsafe { (*self.env).define(stmt.name.lexeme, val) };
         return val_copy;
     }
 
@@ -2088,14 +2096,16 @@ impl StmtVisitor for Exec {
         return Value::Empty;
     }
     fn visit_fn_stmt(&mut self, stmt: &FnStmt) -> Value {
-        self.env.define(
-            &stmt.name.lexeme,
-            Value::Fn(FnValue {
-                declaration: stmt.clone(),
-                // TODO: implement closure
-                is_initializer: false,
-            }),
-        );
+        unsafe {
+            (*self.env).define(
+                &stmt.name.lexeme,
+                Value::Fn(FnValue {
+                    declaration: stmt.clone(),
+                    // TODO: implement closure
+                    is_initializer: false,
+                }),
+            )
+        };
         return Value::Empty;
     }
     fn visit_class_stmt(&mut self, stmt: &ClassStmt) -> Value {
@@ -2109,7 +2119,7 @@ impl ExprVisitor for Exec {
     }
     fn visit_variable_expr(&mut self, expr: &VarExpr) -> Value {
         let name = expr.name.as_ref().unwrap().lexeme;
-        return self.env.get(name);
+        return unsafe { (*self.env).get(name) };
     }
     fn visit_list_expr(&mut self, expr: &ListExpr) -> Value {
         return Value::Empty;
@@ -2121,7 +2131,7 @@ impl ExprVisitor for Exec {
     fn visit_assign_expr(&mut self, expr: &AssignExpr) -> Value {
         let val = expr.value.accept(self);
         // TODO: implement assignment for dict and list
-        self.env.assign(&expr.name.lexeme, val);
+        unsafe { (*self.env).assign(&expr.name.lexeme, val) };
         return Value::Empty;
     }
 
@@ -2208,11 +2218,10 @@ impl ExprVisitor for Exec {
 }
 
 impl Exec {
-    fn new() -> Exec {
+    fn new(env: *mut Env) -> Exec {
         return Exec {
             call_stack: vec![],
-            globals: Box::new(Env::new()),
-            env: Box::new(Env::new()),
+            env: env,
         };
     }
 
@@ -2254,12 +2263,20 @@ impl Exec {
     }
 
     fn execute_block(&mut self, stmts: &Vec<Stmt>) -> Value {
-        self.env.values.push(FnvHashMap::default());
+        let mut tmp_env = Env {
+            enclosing: Some(self.env),
+            values: FnvHashMap::default(),
+        };
+        self.env = core::ptr::addr_of_mut!(tmp_env);
         for s in stmts {
             s.accept(self);
             // TODO: handle continue,break and return
         }
-        self.env.values.pop();
+        unsafe {
+            if let Some(enclosed) = (*self.env).enclosing {
+                self.env = enclosed;
+            }
+        }
         return Value::Empty;
     }
 
@@ -2286,6 +2303,10 @@ pub fn scan(source: String) {
     parser.parse();
     // println!("{:#?}", state.tokens);
     // println!("{:#?}", state.stmts);
-    let mut exec = Exec::new();
+    let mut env = Env {
+        enclosing: None,
+        values: FnvHashMap::default(),
+    };
+    let mut exec = Exec::new(core::ptr::addr_of_mut!(env));
     exec.interpret(&mut state.stmts);
 }

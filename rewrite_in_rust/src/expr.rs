@@ -141,3 +141,7 @@ pub trait ExprVisitor<T> {
     fn visit_this_expr(&mut self, expr: &ThisExpr) -> T;
     fn visit_unary_expr(&mut self, expr: &UnaryExpr) -> T;
 }
+
+pub trait ExprAcceptor<T> {
+    fn accept(&self, visitor: &mut dyn ExprVisitor<T>) -> T;
+}

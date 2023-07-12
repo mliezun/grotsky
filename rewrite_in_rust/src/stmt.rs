@@ -127,3 +127,7 @@ pub trait StmtVisitor<T> {
     fn visit_fn_stmt(&mut self, stmt: &FnStmt) -> T;
     fn visit_class_stmt(&mut self, stmt: &ClassStmt) -> T;
 }
+
+pub trait StmtAcceptor<T> {
+    fn accept(&self, visitor: &mut dyn StmtVisitor<T>) -> T;
+}

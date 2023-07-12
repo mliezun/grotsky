@@ -235,7 +235,7 @@ impl InstanceValue for Value {
     }
 }
 
-impl Expr {
+impl ExprAcceptor<Value> for Expr {
     fn accept(&self, visitor: &mut dyn ExprVisitor<Value>) -> Value {
         match self {
             Expr::Fn(expr) => visitor.visit_function_expr(&expr),
@@ -259,7 +259,7 @@ impl Expr {
     }
 }
 
-impl Stmt {
+impl StmtAcceptor<Value> for Stmt {
     fn accept(&self, visitor: &mut dyn StmtVisitor<Value>) -> Value {
         match self {
             Stmt::Fn(stmt) => visitor.visit_fn_stmt(&stmt),

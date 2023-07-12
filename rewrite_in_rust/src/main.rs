@@ -1,3 +1,4 @@
+mod compiler;
 mod expr;
 mod instruction;
 mod lexer;
@@ -17,7 +18,7 @@ use std::time::Instant;
 
 const SOURCE: &str = "
 let a = 1
-while a < 10000000 {
+while a < 1000000 {
     a = a + 1
 }
 ";

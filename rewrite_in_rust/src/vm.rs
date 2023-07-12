@@ -180,7 +180,7 @@ pub fn test_vm_execution() {
         activation_records: vec![
             Value::Number(NumberValue { n: 0.0 }),
             Value::Number(NumberValue { n: 1.0 }),
-            Value::Number(NumberValue { n: 10000000.0 }),
+            Value::Number(NumberValue { n: 1000000.0 }),
             Value::Number(NumberValue { n: 3.0 }),
             Value::Number(NumberValue { n: 4.0 }),
             Value::Number(NumberValue { n: 5.0 }),

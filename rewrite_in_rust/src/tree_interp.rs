@@ -2,7 +2,7 @@ use crate::expr::*;
 use crate::parser::*;
 use crate::state::*;
 use crate::stmt::*;
-use crate::tokens::*;
+use crate::token::*;
 use fnv::FnvHashMap;
 
 trait InstanceValue {
@@ -235,43 +235,8 @@ impl InstanceValue for Value {
     }
 }
 
-trait StmtVisitor {
-    fn visit_expr_stmt(&mut self, stmt: &ExprStmt) -> Value;
-    fn visit_try_catch_stmt(&mut self, stmt: &TryCatchStmt) -> Value;
-    fn visit_classic_for_stmt(&mut self, stmt: &ClassicForStmt) -> Value;
-    fn visit_enhanced_for_stmt(&mut self, stmt: &EnhancedForStmt) -> Value;
-    fn visit_let_stmt(&mut self, stmt: &LetStmt) -> Value;
-    fn visit_block_stmt(&mut self, stmt: &BlockStmt) -> Value;
-    fn visit_while_stmt(&mut self, stmt: &WhileStmt) -> Value;
-    fn visit_return_stmt(&mut self, stmt: &ReturnStmt) -> Value;
-    fn visit_break_stmt(&mut self, stmt: &BreakStmt) -> Value;
-    fn visit_continue_stmt(&mut self, stmt: &ContinueStmt) -> Value;
-    fn visit_if_stmt(&mut self, stmt: &IfStmt) -> Value;
-    fn visit_fn_stmt(&mut self, stmt: &FnStmt) -> Value;
-    fn visit_class_stmt(&mut self, stmt: &ClassStmt) -> Value;
-}
-
-trait ExprVisitor {
-    fn visit_function_expr(&mut self, expr: &FnExpr) -> Value;
-    fn visit_variable_expr(&mut self, expr: &VarExpr) -> Value;
-    fn visit_list_expr(&mut self, expr: &ListExpr) -> Value;
-    fn visit_dictionary_expr(&mut self, expr: &DictionaryExpr) -> Value;
-    fn visit_assign_expr(&mut self, expr: &AssignExpr) -> Value;
-    fn visit_access_expr(&mut self, expr: &AccessExpr) -> Value;
-    fn visit_binary_expr(&mut self, expr: &BinaryExpr) -> Value;
-    fn visit_call_expr(&mut self, expr: &CallExpr) -> Value;
-    fn visit_get_expr(&mut self, expr: &GetExpr) -> Value;
-    fn visit_set_expr(&mut self, expr: &SetExpr) -> Value;
-    fn visit_super_expr(&mut self, expr: &SuperExpr) -> Value;
-    fn visit_grouping_expr(&mut self, expr: &GroupingExpr) -> Value;
-    fn visit_literal_expr(&mut self, expr: &LiteralExpr) -> Value;
-    fn visit_logical_expr(&mut self, expr: &LogicalExpr) -> Value;
-    fn visit_this_expr(&mut self, expr: &ThisExpr) -> Value;
-    fn visit_unary_expr(&mut self, expr: &UnaryExpr) -> Value;
-}
-
 impl Expr {
-    fn accept(&self, visitor: &mut dyn ExprVisitor) -> Value {
+    fn accept(&self, visitor: &mut dyn ExprVisitor<Value>) -> Value {
         match self {
             Expr::Fn(expr) => visitor.visit_function_expr(&expr),
             Expr::Var(expr) => visitor.visit_variable_expr(&expr),
@@ -295,7 +260,7 @@ impl Expr {
 }
 
 impl Stmt {
-    fn accept(&self, visitor: &mut dyn StmtVisitor) -> Value {
+    fn accept(&self, visitor: &mut dyn StmtVisitor<Value>) -> Value {
         match self {
             Stmt::Fn(stmt) => visitor.visit_fn_stmt(&stmt),
             Stmt::Let(stmt) => visitor.visit_let_stmt(&stmt),
@@ -366,7 +331,7 @@ pub struct Exec {
     call_stack: Vec<CallStack>,
 }
 
-impl StmtVisitor for Exec {
+impl StmtVisitor<Value> for Exec {
     fn visit_expr_stmt(&mut self, stmt: &ExprStmt) -> Value {
         stmt.expression.accept(self)
     }
@@ -451,7 +416,7 @@ impl StmtVisitor for Exec {
     }
 }
 
-impl ExprVisitor for Exec {
+impl ExprVisitor<Value> for Exec {
     fn visit_function_expr(&mut self, expr: &FnExpr) -> Value {
         return Value::Empty;
     }

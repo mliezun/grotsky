@@ -1,5 +1,5 @@
 use crate::expr::*;
-use crate::tokens::*;
+use crate::token::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct LetStmt {
@@ -110,4 +110,20 @@ pub enum Stmt {
     Break(BreakStmt),
     TryCatch(TryCatchStmt),
     Expr(ExprStmt),
+}
+
+pub trait StmtVisitor<T> {
+    fn visit_expr_stmt(&mut self, stmt: &ExprStmt) -> T;
+    fn visit_try_catch_stmt(&mut self, stmt: &TryCatchStmt) -> T;
+    fn visit_classic_for_stmt(&mut self, stmt: &ClassicForStmt) -> T;
+    fn visit_enhanced_for_stmt(&mut self, stmt: &EnhancedForStmt) -> T;
+    fn visit_let_stmt(&mut self, stmt: &LetStmt) -> T;
+    fn visit_block_stmt(&mut self, stmt: &BlockStmt) -> T;
+    fn visit_while_stmt(&mut self, stmt: &WhileStmt) -> T;
+    fn visit_return_stmt(&mut self, stmt: &ReturnStmt) -> T;
+    fn visit_break_stmt(&mut self, stmt: &BreakStmt) -> T;
+    fn visit_continue_stmt(&mut self, stmt: &ContinueStmt) -> T;
+    fn visit_if_stmt(&mut self, stmt: &IfStmt) -> T;
+    fn visit_fn_stmt(&mut self, stmt: &FnStmt) -> T;
+    fn visit_class_stmt(&mut self, stmt: &ClassStmt) -> T;
 }

@@ -1,11 +1,14 @@
 mod expr;
+mod instruction;
 mod lexer;
 mod parser;
 mod state;
 mod stmt;
-mod tokens;
+mod token;
 mod tree_interp;
+mod value;
 mod vm;
+
 use fnv::FnvHashMap;
 
 use std::env;

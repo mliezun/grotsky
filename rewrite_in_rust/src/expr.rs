@@ -1,5 +1,5 @@
 use crate::stmt::*;
-use crate::tokens::*;
+use crate::token::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FnExpr {
@@ -121,4 +121,23 @@ pub enum Expr {
     This(ThisExpr),
     Unary(UnaryExpr),
     Empty,
+}
+
+pub trait ExprVisitor<T> {
+    fn visit_function_expr(&mut self, expr: &FnExpr) -> T;
+    fn visit_variable_expr(&mut self, expr: &VarExpr) -> T;
+    fn visit_list_expr(&mut self, expr: &ListExpr) -> T;
+    fn visit_dictionary_expr(&mut self, expr: &DictionaryExpr) -> T;
+    fn visit_assign_expr(&mut self, expr: &AssignExpr) -> T;
+    fn visit_access_expr(&mut self, expr: &AccessExpr) -> T;
+    fn visit_binary_expr(&mut self, expr: &BinaryExpr) -> T;
+    fn visit_call_expr(&mut self, expr: &CallExpr) -> T;
+    fn visit_get_expr(&mut self, expr: &GetExpr) -> T;
+    fn visit_set_expr(&mut self, expr: &SetExpr) -> T;
+    fn visit_super_expr(&mut self, expr: &SuperExpr) -> T;
+    fn visit_grouping_expr(&mut self, expr: &GroupingExpr) -> T;
+    fn visit_literal_expr(&mut self, expr: &LiteralExpr) -> T;
+    fn visit_logical_expr(&mut self, expr: &LogicalExpr) -> T;
+    fn visit_this_expr(&mut self, expr: &ThisExpr) -> T;
+    fn visit_unary_expr(&mut self, expr: &UnaryExpr) -> T;
 }

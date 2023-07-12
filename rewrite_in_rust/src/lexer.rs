@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::state::*;
-use crate::tokens::*;
+use crate::token::*;
 use fnv::FnvHashMap;
 use std::collections::HashMap;
 use std::time::Instant;

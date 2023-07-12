@@ -1,5 +1,5 @@
 use crate::stmt::*;
-use crate::tokens::*;
+use crate::token::*;
 
 #[derive(Debug)]
 pub struct InterpreterError {

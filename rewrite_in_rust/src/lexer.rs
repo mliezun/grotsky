@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use fnv::FnvHashMap;
+use std::time::Instant;
 use std::{collections::HashMap, vec};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -2332,5 +2333,8 @@ pub fn scan(source: String) {
         values: FnvHashMap::default(),
     };
     let mut exec = Exec::new(core::ptr::addr_of_mut!(env));
+    let start = Instant::now();
     exec.interpret(&mut state.stmts);
+    let duration = start.elapsed();
+    println!("Duration tree: {:?}", duration.as_secs_f64());
 }

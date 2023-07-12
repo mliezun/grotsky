@@ -1,4 +1,5 @@
 mod lexer;
+mod vm;
 
 use std::env;
 use std::fs::read_to_string;
@@ -21,8 +22,9 @@ fn main() {
     } else {
         source = SOURCE;
     }
-    //let start = Instant::now();
+    let start = Instant::now();
+    vm::test_vm_execution();
+    let duration = start.elapsed();
+    println!("Duration bytecode: {:?}", duration.as_secs_f64());
     lexer::scan(String::from(source));
-    //let duration = start.elapsed();
-    // println!("{:?}", duration.as_secs_f64());
 }

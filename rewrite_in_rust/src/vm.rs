@@ -101,16 +101,7 @@ impl VM {
                 }
                 OpCode::Jmp => {
                     // println!("{:#?}", pc);
-                    let sbx = inst.sbx();
-                    if sbx < 0 {
-                        if (sbx.abs() as usize) < pc {
-                            pc -= sbx.abs() as usize;
-                        } else {
-                            pc = 0;
-                        }
-                    } else {
-                        pc += inst.sbx() as usize;
-                    }
+                    pc = pc.wrapping_add(inst.sbx() as usize);
                 }
                 OpCode::Lt => {
                     let mut val_b = self
@@ -122,8 +113,17 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    let result = val_b.lt(val_c);
-                    if truthy(&result) {
+                    self.activation_records[sp + inst.a as usize] = val_b.lt(val_c);
+                    pc += 1;
+                }
+                OpCode::Test => {
+                    let val_b = self.activation_records.get(sp + inst.b as usize).unwrap();
+                    let imm_c = &Value::Number(NumberValue {
+                        n: inst.c as i32 as f64,
+                    });
+                    if truthy(val_b) == truthy(imm_c) {
+                        self.activation_records[sp + inst.a as usize] = val_b.clone();
+                    } else {
                         pc += 1;
                     }
                     pc += 1;
@@ -145,9 +145,15 @@ pub fn test_vm_execution() {
         instructions: vec![
             Instruction {
                 opcode: OpCode::Lt,
-                a: 0,
+                a: 3,
                 b: 0,
                 c: 2,
+            },
+            Instruction {
+                opcode: OpCode::Test,
+                a: 3,
+                b: 3,
+                c: 0,
             },
             Instruction {
                 opcode: OpCode::Jmp,
@@ -166,7 +172,7 @@ pub fn test_vm_execution() {
                 a: 0,
                 // -3
                 b: 255,
-                c: 253,
+                c: 252,
             },
         ],
         prototypes: vec![],

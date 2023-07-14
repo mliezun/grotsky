@@ -38,4 +38,5 @@ pub enum OpCode {
     Add,
     Lt,
     Jmp,
+    Test,
 }

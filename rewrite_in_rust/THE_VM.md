@@ -228,3 +228,17 @@ struct ClassValue {
   classmethods: Vec<MutValue<FnValue>>,
 }
 ```
+
+
+### Our Opcodes
+
+```
+Move (A, B) R(A) := R(B)
+Closure (A, Bx) R(A) := closure(KPROTO[Bx], R(A), ... ,R(A+n))
+Call (A, B, C) R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1))
+Return (A, B) return R(A), ... ,R(A+B-2)
+Add (A, B, C) R(A) := R(B) + R(C)
+Jmp (sBx) PC += sBx
+Lt (A, B, C) R(A) = R(B) < R(C)
+Test (A, B, C) if (R(B) <=> C) then R(A) := R(B) else PC++
+```

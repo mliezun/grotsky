@@ -23,6 +23,10 @@ while a < 1000000 {
 }
 ";
 
+const SOURCE_LITERAL: &str = "
+10 + 20
+";
+
 fn tree_interpreter(source: String) {
     let state = &mut state::InterpreterState::new(source);
     let mut lex = lexer::Lexer::new(state);
@@ -42,6 +46,24 @@ fn tree_interpreter(source: String) {
     println!("Duration tree: {:?}", duration.as_secs_f64());
 }
 
+fn test_bytecode_compiler(source: String) {
+    let state = &mut state::InterpreterState::new(source);
+    let mut lex = lexer::Lexer::new(state);
+    lex.scan();
+    let mut parser = parser::Parser::new(state);
+    parser.parse();
+    let mut compiler = compiler::Compiler {
+        constants: vec![],
+        chunks: vec![],
+        register_count: 0,
+    };
+    let start = Instant::now();
+    compiler.compile(state.stmts.clone());
+    let duration = start.elapsed();
+    println!("Duration compilation: {:?}", duration.as_secs_f64());
+    println!("{:#?}", compiler);
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     let content: String;
@@ -57,4 +79,5 @@ fn main() {
     let duration = start.elapsed();
     println!("Duration bytecode: {:?}", duration.as_secs_f64());
     tree_interpreter(String::from(source));
+    test_bytecode_compiler(String::from(SOURCE_LITERAL));
 }

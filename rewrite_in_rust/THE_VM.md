@@ -237,8 +237,20 @@ Move (A, B) R(A) := R(B)
 Closure (A, Bx) R(A) := closure(KPROTO[Bx], R(A), ... ,R(A+n))
 Call (A, B, C) R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1))
 Return (A, B) return R(A), ... ,R(A+B-2)
-Add (A, B, C) R(A) := R(B) + R(C)
-Jmp (sBx) PC += sBx
-Lt (A, B, C) R(A) = R(B) < R(C)
 Test (A, B, C) if (R(B) <=> C) then R(A) := R(B) else PC++
+Jmp (sBx) PC += sBx
+Add (A, B, C) R(A) := R(B) + R(C)
+Sub (A, B, C) R(A) := R(B) - R(C)
+Div (A, B, C) R(A) := R(B) / R(C)
+Mod (A, B, C) R(A) := R(B) % R(C)
+Mul (A, B, C) R(A) := R(B) * R(C)
+Pow (A, B, C) R(A) := R(B) ^ R(C)
+Lt (A, B, C) R(A) = R(B) < R(C)
+Lte (A, B, C) R(A) = R(B) <= R(C)
+Gt (A, B, C) R(A) = R(B) > R(C)
+Gte (A, B, C) R(A) = R(B) >= R(C)
+Eq (A, B) R(A) := R(B) == R(C)
+Neq (A, B) R(A) := R(B) != R(C)
+Not (A, B) R(A) := !R(B)
+Neg (A, B) R(A) := -R(B)
 ```

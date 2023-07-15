@@ -58,16 +58,20 @@ fn test_bytecode_compiler(source: String) {
     parser.parse();
     let mut compiler = compiler::Compiler {
         constants: vec![],
-        chunks: vec![],
-        register_count: 0,
-        register_allocation: HashMap::new(),
+        contexts: vec![compiler::FnContext {
+            chunks: vec![],
+            register_count: 0,
+            register_allocation: HashMap::new(),
+        }],
     };
     let start = Instant::now();
     compiler.compile(state.stmts.clone());
     let mut my_mv = vm::VM {
         instructions: compiler
-            .chunks
+            .contexts
             .iter()
+            .map(|c| c.chunks.iter())
+            .flatten()
             .map(|c| c.instructions.clone())
             .flatten()
             .collect(),
@@ -79,7 +83,7 @@ fn test_bytecode_compiler(source: String) {
             pc: 0,
             sp: 0,
         }],
-        activation_records: (0..compiler.register_count)
+        activation_records: (0..compiler.contexts.last().unwrap().register_count)
             .map(|_| value::Value::Nil)
             .collect(),
         pc: 0,

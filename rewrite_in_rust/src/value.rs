@@ -20,8 +20,8 @@ pub enum Value {
     Fn(MutValue<FnValue>),
     // Native(NativeValue),
     Number(NumberValue),
-    // String(StringValue),
-    //Bool(BoolValue),
+    String(StringValue),
+    Bool(BoolValue),
     Nil,
 }
 
@@ -31,6 +31,56 @@ impl Value {
             if let Value::Number(other_val) = other {
                 return Value::Number(NumberValue {
                     n: num_val.n + other_val.n,
+                });
+            }
+        }
+        panic!("Not implemented");
+    }
+    pub fn sub(&mut self, other: &mut Value) -> Value {
+        if let Value::Number(num_val) = self {
+            if let Value::Number(other_val) = other {
+                return Value::Number(NumberValue {
+                    n: num_val.n - other_val.n,
+                });
+            }
+        }
+        panic!("Not implemented");
+    }
+    pub fn mul(&mut self, other: &mut Value) -> Value {
+        if let Value::Number(num_val) = self {
+            if let Value::Number(other_val) = other {
+                return Value::Number(NumberValue {
+                    n: num_val.n * other_val.n,
+                });
+            }
+        }
+        panic!("Not implemented");
+    }
+    pub fn div(&mut self, other: &mut Value) -> Value {
+        if let Value::Number(num_val) = self {
+            if let Value::Number(other_val) = other {
+                return Value::Number(NumberValue {
+                    n: num_val.n / other_val.n,
+                });
+            }
+        }
+        panic!("Not implemented");
+    }
+    pub fn pow(&mut self, other: &mut Value) -> Value {
+        if let Value::Number(num_val) = self {
+            if let Value::Number(other_val) = other {
+                return Value::Number(NumberValue {
+                    n: num_val.n.powf(other_val.n),
+                });
+            }
+        }
+        panic!("Not implemented");
+    }
+    pub fn modulo(&mut self, other: &mut Value) -> Value {
+        if let Value::Number(num_val) = self {
+            if let Value::Number(other_val) = other {
+                return Value::Number(NumberValue {
+                    n: num_val.n % other_val.n,
                 });
             }
         }
@@ -61,10 +111,20 @@ pub struct NumberValue {
 }
 
 #[derive(Debug, Clone)]
+pub struct BoolValue {
+    pub b: bool,
+}
+
+#[derive(Debug, Clone)]
 pub struct FnValue {
     pub prototype: u16,
     pub upvalues: HashMap<String, Upvalue>,
     pub constants: Vec<Value>,
+}
+
+#[derive(Debug, Clone)]
+pub struct StringValue {
+    pub s: String,
 }
 
 #[derive(Debug, Clone)]

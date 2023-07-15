@@ -104,6 +104,71 @@ impl VM {
                     self.activation_records[sp + inst.a as usize] = val_b.add(val_c);
                     pc += 1;
                 }
+                OpCode::Sub => {
+                    let mut val_b = self
+                        .activation_records
+                        .get_mut(sp + inst.b as usize)
+                        .unwrap()
+                        .clone();
+                    let val_c = self
+                        .activation_records
+                        .get_mut(sp + inst.c as usize)
+                        .unwrap();
+                    self.activation_records[sp + inst.a as usize] = val_b.sub(val_c);
+                    pc += 1;
+                }
+                OpCode::Mul => {
+                    let mut val_b = self
+                        .activation_records
+                        .get_mut(sp + inst.b as usize)
+                        .unwrap()
+                        .clone();
+                    let val_c = self
+                        .activation_records
+                        .get_mut(sp + inst.c as usize)
+                        .unwrap();
+                    self.activation_records[sp + inst.a as usize] = val_b.mul(val_c);
+                    pc += 1;
+                }
+                OpCode::Pow => {
+                    let mut val_b = self
+                        .activation_records
+                        .get_mut(sp + inst.b as usize)
+                        .unwrap()
+                        .clone();
+                    let val_c = self
+                        .activation_records
+                        .get_mut(sp + inst.c as usize)
+                        .unwrap();
+                    self.activation_records[sp + inst.a as usize] = val_b.pow(val_c);
+                    pc += 1;
+                }
+                OpCode::Div => {
+                    let mut val_b = self
+                        .activation_records
+                        .get_mut(sp + inst.b as usize)
+                        .unwrap()
+                        .clone();
+                    let val_c = self
+                        .activation_records
+                        .get_mut(sp + inst.c as usize)
+                        .unwrap();
+                    self.activation_records[sp + inst.a as usize] = val_b.div(val_c);
+                    pc += 1;
+                }
+                OpCode::Mod => {
+                    let mut val_b = self
+                        .activation_records
+                        .get_mut(sp + inst.b as usize)
+                        .unwrap()
+                        .clone();
+                    let val_c = self
+                        .activation_records
+                        .get_mut(sp + inst.c as usize)
+                        .unwrap();
+                    self.activation_records[sp + inst.a as usize] = val_b.modulo(val_c);
+                    pc += 1;
+                }
                 OpCode::Jmp => {
                     // println!("{:#?}", pc);
                     pc = pc.wrapping_add(inst.sbx() as usize);

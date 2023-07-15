@@ -2,31 +2,63 @@ use std::collections::HashMap;
 
 use crate::expr::*;
 use crate::instruction::*;
-use crate::parser::*;
 use crate::stmt::*;
-use crate::token::Literal;
-use crate::token::Token;
+use crate::token::*;
 use crate::value::*;
 
 #[derive(Debug)]
 pub struct Compiler {
     // call_stack: Vec<CallStack>,
     pub constants: Vec<Value>,
-    pub register_count: u8,
-    pub chunks: Vec<Chunk>,
-    pub register_allocation: HashMap<String, u8>,
+    pub contexts: Vec<FnContext>,
 }
 
 impl Compiler {
+    fn add_chunk(&mut self, chunk: Chunk) {
+        let current_context = self.contexts.last_mut().unwrap();
+        current_context.chunks.push(chunk);
+    }
+
+    fn allocate_register(&mut self, var_name: String, reg: u8) {
+        let current_context = self.contexts.last_mut().unwrap();
+        current_context.register_allocation.insert(var_name, reg);
+    }
+
+    fn next_register(&mut self) -> u8 {
+        let current_context = self.contexts.last_mut().unwrap();
+        let reg = current_context.register_count;
+        current_context.register_count += 1;
+        return reg;
+    }
+
+    fn result_register(&self) -> u8 {
+        let current_context = self.contexts.last().unwrap();
+        return current_context.chunks.last().unwrap().result_register;
+    }
+
+    fn get_var_register(&self, var_name: String) -> Option<u8> {
+        let current_context = self.contexts.last().unwrap();
+        if let Some(reg) = current_context.register_allocation.get(&var_name) {
+            return Some(*reg);
+        } else {
+            return None;
+        }
+    }
+
     pub fn compile(&mut self, stmts: Vec<Stmt>) {
         for stmt in stmts {
             let chunk = stmt.accept(self);
-            self.chunks.push(chunk);
+            self.add_chunk(chunk);
         }
     }
 }
 
-struct FnContext {}
+#[derive(Debug)]
+pub struct FnContext {
+    pub register_count: u8,
+    pub chunks: Vec<Chunk>,
+    pub register_allocation: HashMap<String, u8>,
+}
 
 #[derive(Debug)]
 pub struct Chunk {
@@ -54,14 +86,11 @@ impl StmtVisitor<Chunk> for Compiler {
     fn visit_let_stmt(&mut self, stmt: &LetStmt) -> Chunk {
         if let Some(init) = &stmt.initializer {
             let chunk = init.accept(self);
-            self.register_allocation
-                .insert(stmt.name.lexeme.to_string(), chunk.result_register);
+            self.allocate_register(stmt.name.lexeme.to_string(), chunk.result_register);
             return chunk;
         } else {
-            let reg = self.register_count;
-            self.register_count += 1;
-            self.register_allocation
-                .insert(stmt.name.lexeme.to_string(), reg);
+            let reg = self.next_register();
+            self.allocate_register(stmt.name.lexeme.to_string(), reg);
             return Chunk {
                 instructions: vec![],
                 result_register: reg,
@@ -77,7 +106,7 @@ impl StmtVisitor<Chunk> for Compiler {
                 .map(|s| s.accept(self).instructions)
                 .flatten()
                 .collect(),
-            result_register: self.register_count,
+            result_register: self.result_register(),
         };
     }
 
@@ -107,6 +136,11 @@ impl StmtVisitor<Chunk> for Compiler {
         chunk
             .instructions
             .append(&mut body_chunk.instructions.clone());
+        // CAUTION
+        // Here im adding +1, but I think it should be +2. It still works for the examples
+        // that I've tried. But I remain suspicious.
+        // Having a +1 here makes the loop faster, because it has to execute 1 instruction less.
+        // If there are any issues regarding while loops then change to +2.
         let loop_size =
             -((body_chunk.instructions.len() + cond_chunk.instructions.len() + 1) as i16);
         chunk.instructions.push(Instruction {
@@ -151,9 +185,8 @@ impl ExprVisitor<Chunk> for Compiler {
     fn visit_variable_expr(&mut self, expr: &VarExpr) -> Chunk {
         return Chunk {
             instructions: vec![],
-            result_register: *self
-                .register_allocation
-                .get(&expr.name.as_ref().unwrap().lexeme.to_string())
+            result_register: self
+                .get_var_register(expr.name.clone().unwrap().lexeme.to_string())
                 .unwrap(),
         };
     }
@@ -167,13 +200,12 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_assign_expr(&mut self, expr: &AssignExpr) -> Chunk {
-        if let Some(reg) = self.register_allocation.get(&expr.name.lexeme.to_string()) {
-            let result_register = *reg;
+        if let Some(reg) = self.get_var_register(expr.name.lexeme.to_string()) {
             let mut chunk = expr.value.accept(self);
             if !chunk.instructions.is_empty() {
-                chunk.instructions.last_mut().unwrap().a = result_register;
+                chunk.instructions.last_mut().unwrap().a = reg;
             }
-            chunk.result_register = result_register;
+            chunk.result_register = reg;
             return chunk;
         }
         panic!("Var doesn't exist!");
@@ -189,10 +221,19 @@ impl ExprVisitor<Chunk> for Compiler {
         let opcode = match expr.operator.token {
             Token::Plus => OpCode::Add,
             Token::Less => OpCode::Lt,
-            _ => todo!(),
+            Token::EqualEqual => OpCode::Eq,
+            Token::BangEqual => OpCode::Neq,
+            Token::Greater => OpCode::Gt,
+            Token::GreaterEqual => OpCode::Gte,
+            Token::LessEqual => OpCode::Lte,
+            Token::Minus => OpCode::Sub,
+            Token::Slash => OpCode::Div,
+            Token::Mod => OpCode::Mod,
+            Token::Star => OpCode::Mul,
+            Token::Power => OpCode::Pow,
+            _ => unreachable!(),
         };
-        let result_register = self.register_count;
-        self.register_count += 1;
+        let result_register = self.next_register();
         let mut chunk = Chunk {
             instructions: vec![],
             result_register: result_register,
@@ -229,24 +270,25 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_grouping_expr(&mut self, expr: &GroupingExpr) -> Chunk {
-        todo!()
+        expr.expression.accept(self)
     }
 
     fn visit_literal_expr(&mut self, expr: &LiteralExpr) -> Chunk {
-        let val = match expr.value {
+        let val = match expr.value.clone() {
             Literal::Number(n) => Value::Number(NumberValue { n: n }),
-            _ => todo!(),
+            Literal::String(s) => Value::String(StringValue { s: s }),
+            Literal::Boolean(b) => Value::Bool(BoolValue { b: b }),
+            Literal::Nil => Value::Nil,
         };
-        let result_register = self.register_count;
-        self.register_count += 1;
+        let result_register = self.next_register();
+        let constant_ix = self.constants.len() as u16;
         self.constants.push(val);
-        let len_constants = self.constants.len() as u16 - 1;
         let chunk = Chunk {
             instructions: vec![Instruction {
                 opcode: OpCode::LoadK,
                 a: result_register,
-                b: (len_constants >> 8) as u8,
-                c: len_constants as u8,
+                b: (constant_ix >> 8) as u8,
+                c: constant_ix as u8,
             }],
             result_register: result_register,
         };
@@ -254,7 +296,63 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_logical_expr(&mut self, expr: &LogicalExpr) -> Chunk {
-        todo!()
+        let left_chunk = expr.left.accept(self);
+        let right_chunk = expr.right.accept(self);
+        let mut chunk = Chunk {
+            instructions: vec![],
+            result_register: left_chunk.result_register,
+        };
+        chunk
+            .instructions
+            .append(&mut left_chunk.instructions.clone());
+        if expr.operator.token == Token::Or {
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Test,
+                a: left_chunk.result_register,
+                b: left_chunk.result_register,
+                c: 1,
+            });
+            let jump_size = (right_chunk.instructions.len() + 1) as u16;
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Jmp,
+                a: 0,
+                b: (jump_size >> 8) as u8,
+                c: jump_size as u8,
+            });
+            chunk
+                .instructions
+                .append(&mut right_chunk.instructions.clone());
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Move,
+                a: chunk.result_register,
+                b: right_chunk.result_register,
+                c: 0,
+            });
+        } else {
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Test,
+                a: left_chunk.result_register,
+                b: left_chunk.result_register,
+                c: 0,
+            });
+            let jump_size = (right_chunk.instructions.len() + 1) as u16;
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Jmp,
+                a: 0,
+                b: (jump_size >> 8) as u8,
+                c: jump_size as u8,
+            });
+            chunk
+                .instructions
+                .append(&mut right_chunk.instructions.clone());
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Move,
+                a: chunk.result_register,
+                b: right_chunk.result_register,
+                c: 0,
+            });
+        }
+        return chunk;
     }
 
     fn visit_this_expr(&mut self, expr: &ThisExpr) -> Chunk {
@@ -262,7 +360,24 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_unary_expr(&mut self, expr: &UnaryExpr) -> Chunk {
-        todo!()
+        let mut chunk = expr.right.accept(self);
+        let inst = match expr.operator.token {
+            Token::Not => Instruction {
+                opcode: OpCode::Not,
+                a: chunk.result_register,
+                b: chunk.result_register,
+                c: 0,
+            },
+            Token::Minus => Instruction {
+                opcode: OpCode::Neg,
+                a: chunk.result_register,
+                b: chunk.result_register,
+                c: 0,
+            },
+            _ => unreachable!(),
+        };
+        chunk.instructions.push(inst);
+        return chunk;
     }
 }
 

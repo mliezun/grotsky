@@ -28,6 +28,7 @@ const SOURCE_LITERAL: &str = "
 fn add(a, b) {
     a + b
 }
+add(13, 25)
 ";
 
 fn tree_interpreter(source: String) {
@@ -92,11 +93,11 @@ fn test_bytecode_compiler(source: String) {
     };
     my_mv.interpret();
     let duration = start.elapsed();
+    println!("{:#?}", my_mv);
     println!(
         "Duration compilation+execution: {:?}",
         duration.as_secs_f64()
     );
-    println!("{:#?}", my_mv);
 }
 
 fn main() {

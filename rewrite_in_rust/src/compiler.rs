@@ -59,13 +59,20 @@ impl Compiler {
     fn leave_function(&mut self) -> u16 {
         let current_context = self.contexts.pop().unwrap();
         let prototype_ix = self.prototypes.len();
+        let mut instructions: Vec<Instruction> = current_context
+            .chunks
+            .iter()
+            .map(|c| c.instructions.clone())
+            .flatten()
+            .collect();
+        instructions.push(Instruction {
+            opcode: OpCode::Return,
+            a: 0,
+            b: 0,
+            c: 0,
+        });
         self.prototypes.push(FnPrototype {
-            instructions: current_context
-                .chunks
-                .iter()
-                .map(|c| c.instructions.clone())
-                .flatten()
-                .collect(),
+            instructions: instructions,
             register_count: current_context.register_count,
         });
         return prototype_ix as u16;
@@ -85,6 +92,10 @@ impl Compiler {
             .flatten()
             .rev()
             .find_map(|l| {
+                println!(
+                    "Comparing locals: l({:#?}) == {:#?} | reg({})",
+                    l.var_name, var_name, l.reg
+                );
                 if l.var_name.eq(&var_name) {
                     Some(l.reg)
                 } else {
@@ -239,8 +250,8 @@ impl StmtVisitor<Chunk> for Compiler {
     }
 
     fn visit_fn_stmt(&mut self, stmt: &FnStmt) -> Chunk {
-        let reg = self.next_register();
-        self.allocate_register(stmt.name.lexeme.to_string(), reg);
+        let result_register: u8 = self.next_register();
+        self.allocate_register(stmt.name.lexeme.to_string(), result_register);
         self.enter_function(stmt.name.lexeme.to_string());
         for p in stmt.params.iter() {
             let reg = self.next_register();
@@ -253,7 +264,6 @@ impl StmtVisitor<Chunk> for Compiler {
         }
         self.leave_block();
         let prototype_ix = self.leave_function();
-        let result_register = self.next_register();
         return Chunk {
             instructions: vec![Instruction {
                 opcode: OpCode::Closure,
@@ -276,6 +286,7 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_variable_expr(&mut self, expr: &VarExpr) -> Chunk {
+        println!("Get var: {:#?}", expr.name);
         return Chunk {
             instructions: vec![],
             result_register: self
@@ -347,7 +358,37 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_call_expr(&mut self, expr: &CallExpr) -> Chunk {
-        todo!()
+        let mut chunk = expr.callee.accept(self);
+        let result_register = self.next_register();
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::Move,
+            a: result_register,
+            b: chunk.result_register,
+            c: 0,
+        });
+        let start_reg = self.next_register();
+        for _ in 1..(expr.arguments.len()) {
+            self.next_register();
+        }
+        for (i, expr) in (&expr.arguments).iter().enumerate() {
+            let arg_chunk = expr.accept(self);
+            chunk
+                .instructions
+                .append(&mut arg_chunk.instructions.clone());
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Move,
+                a: start_reg + i as u8,
+                b: arg_chunk.result_register,
+                c: 0,
+            });
+        }
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::Call,
+            a: result_register,
+            b: result_register + expr.arguments.len() as u8,
+            c: 0, // TODO: this handles results?
+        });
+        return chunk;
     }
 
     fn visit_get_expr(&mut self, expr: &GetExpr) -> Chunk {

@@ -34,6 +34,7 @@ impl Value {
                 });
             }
         }
+        println!("{:#?} + {:#?}", self, other);
         panic!("Not implemented");
     }
     pub fn sub(&mut self, other: &mut Value) -> Value {

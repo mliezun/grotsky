@@ -56,13 +56,22 @@ impl VM {
                         let stack = StackEntry {
                             function: Some(fn_value.clone()),
                             pc: pc + 1,
-                            sp: self.activation_records.len(),
+                            sp: sp,
                         };
-                        instructions =
-                            &self.prototypes[fn_value.0.borrow().prototype as usize].instructions;
+                        let previous_sp = sp;
+                        sp = self.activation_records.len();
                         self.stack.push(stack);
+                        let prototype = &self.prototypes[fn_value.0.borrow().prototype as usize];
+                        self.activation_records.append(
+                            &mut (0..prototype.register_count).map(|_| Value::Nil).collect(),
+                        );
+                        for (i, reg) in ((inst.a + 1)..(inst.a + inst.b)).enumerate() {
+                            self.activation_records[sp + i] =
+                                self.activation_records[previous_sp + reg as usize].clone();
+                        }
+                        println!("{:#?}", self.activation_records);
+                        instructions = &prototype.instructions;
                         pc = 0;
-                        // sp +=
                     }
                 }
                 OpCode::Return => {

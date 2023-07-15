@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::expr::*;
 use crate::instruction::*;
 use crate::parser::*;
@@ -12,6 +14,7 @@ pub struct Compiler {
     pub constants: Vec<Value>,
     pub register_count: u8,
     pub chunks: Vec<Chunk>,
+    pub register_allocation: HashMap<String, u8>,
 }
 
 impl Compiler {
@@ -49,7 +52,21 @@ impl StmtVisitor<Chunk> for Compiler {
     }
 
     fn visit_let_stmt(&mut self, stmt: &LetStmt) -> Chunk {
-        todo!()
+        if let Some(init) = &stmt.initializer {
+            let chunk = init.accept(self);
+            self.register_allocation
+                .insert(stmt.name.lexeme.to_string(), chunk.result_register);
+            return chunk;
+        } else {
+            let reg = self.register_count;
+            self.register_count += 1;
+            self.register_allocation
+                .insert(stmt.name.lexeme.to_string(), reg);
+            return Chunk {
+                instructions: vec![],
+                result_register: reg,
+            };
+        }
     }
 
     fn visit_block_stmt(&mut self, stmt: &BlockStmt) -> Chunk {
@@ -132,7 +149,13 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_variable_expr(&mut self, expr: &VarExpr) -> Chunk {
-        todo!()
+        return Chunk {
+            instructions: vec![],
+            result_register: *self
+                .register_allocation
+                .get(&expr.name.as_ref().unwrap().lexeme.to_string())
+                .unwrap(),
+        };
     }
 
     fn visit_list_expr(&mut self, expr: &ListExpr) -> Chunk {
@@ -144,7 +167,18 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_assign_expr(&mut self, expr: &AssignExpr) -> Chunk {
-        todo!()
+        if let Some(reg) = self.register_allocation.get(&expr.name.lexeme.to_string()) {
+            let result_register = *reg;
+            let mut chunk = expr.value.accept(self);
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Move,
+                a: result_register,
+                b: chunk.result_register,
+                c: 0,
+            });
+            return chunk;
+        }
+        panic!("Var doesn't exist!");
     }
 
     fn visit_access_expr(&mut self, expr: &AccessExpr) -> Chunk {
@@ -156,6 +190,7 @@ impl ExprVisitor<Chunk> for Compiler {
         let right_chunk = expr.right.accept(self);
         let opcode = match expr.operator.token {
             Token::Plus => OpCode::Add,
+            Token::Less => OpCode::Lt,
             _ => todo!(),
         };
         let result_register = self.register_count;

@@ -25,7 +25,10 @@ while a < 1000000 {
 ";
 
 const SOURCE_LITERAL: &str = "
-while 10 + 20 {}
+let a = 1
+while a < 1000000 {
+    a = a + 1
+}
 ";
 
 fn tree_interpreter(source: String) {
@@ -57,10 +60,10 @@ fn test_bytecode_compiler(source: String) {
         constants: vec![],
         chunks: vec![],
         register_count: 0,
+        register_allocation: HashMap::new(),
     };
     let start = Instant::now();
     compiler.compile(state.stmts.clone());
-    let duration = start.elapsed();
     let mut my_mv = vm::VM {
         instructions: compiler
             .chunks
@@ -81,7 +84,8 @@ fn test_bytecode_compiler(source: String) {
             .collect(),
         pc: 0,
     };
-    // my_mv.interpret();
+    my_mv.interpret();
+    let duration = start.elapsed();
     println!(
         "Duration compilation+execution: {:?}",
         duration.as_secs_f64()

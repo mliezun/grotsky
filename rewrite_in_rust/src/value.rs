@@ -89,8 +89,58 @@ impl Value {
     pub fn lt(&mut self, other: &mut Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
-                return Value::Number(NumberValue {
-                    n: (num_val.n < other_val.n) as i32 as f64,
+                return Value::Bool(BoolValue {
+                    b: num_val.n < other_val.n,
+                });
+            }
+        }
+        panic!("Not implemented");
+    }
+    pub fn lte(&mut self, other: &mut Value) -> Value {
+        if let Value::Number(num_val) = self {
+            if let Value::Number(other_val) = other {
+                return Value::Bool(BoolValue {
+                    b: num_val.n <= other_val.n,
+                });
+            }
+        }
+        panic!("Not implemented");
+    }
+    pub fn gt(&mut self, other: &mut Value) -> Value {
+        if let Value::Number(num_val) = self {
+            if let Value::Number(other_val) = other {
+                return Value::Bool(BoolValue {
+                    b: num_val.n > other_val.n,
+                });
+            }
+        }
+        panic!("Not implemented");
+    }
+    pub fn gte(&mut self, other: &mut Value) -> Value {
+        if let Value::Number(num_val) = self {
+            if let Value::Number(other_val) = other {
+                return Value::Bool(BoolValue {
+                    b: num_val.n >= other_val.n,
+                });
+            }
+        }
+        panic!("Not implemented");
+    }
+    pub fn eq(&mut self, other: &mut Value) -> Value {
+        if let Value::Number(num_val) = self {
+            if let Value::Number(other_val) = other {
+                return Value::Bool(BoolValue {
+                    b: num_val.n == other_val.n,
+                });
+            }
+        }
+        panic!("Not implemented");
+    }
+    pub fn neq(&mut self, other: &mut Value) -> Value {
+        if let Value::Number(num_val) = self {
+            if let Value::Number(other_val) = other {
+                return Value::Bool(BoolValue {
+                    b: num_val.n != other_val.n,
                 });
             }
         }
@@ -99,10 +149,13 @@ impl Value {
 }
 
 pub fn truthy(val: &Value) -> bool {
-    if let Value::Number(num_val) = val {
-        return num_val.n != 0.0;
+    match val {
+        Value::Number(val) => val.n != 0.0,
+        Value::Bool(val) => val.b,
+        Value::String(val) => !val.s.is_empty(),
+        Value::Nil => false,
+        _ => true,
     }
-    return false;
 }
 
 #[derive(Debug, Clone)]

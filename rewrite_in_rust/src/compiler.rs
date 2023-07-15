@@ -108,7 +108,7 @@ impl StmtVisitor<Chunk> for Compiler {
             .instructions
             .append(&mut body_chunk.instructions.clone());
         let loop_size =
-            -((body_chunk.instructions.len() + cond_chunk.instructions.len() + 2) as i16);
+            -((body_chunk.instructions.len() + cond_chunk.instructions.len() + 1) as i16);
         chunk.instructions.push(Instruction {
             opcode: OpCode::Jmp,
             a: 0,
@@ -170,12 +170,10 @@ impl ExprVisitor<Chunk> for Compiler {
         if let Some(reg) = self.register_allocation.get(&expr.name.lexeme.to_string()) {
             let result_register = *reg;
             let mut chunk = expr.value.accept(self);
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::Move,
-                a: result_register,
-                b: chunk.result_register,
-                c: 0,
-            });
+            if !chunk.instructions.is_empty() {
+                chunk.instructions.last_mut().unwrap().a = result_register;
+            }
+            chunk.result_register = result_register;
             return chunk;
         }
         panic!("Var doesn't exist!");

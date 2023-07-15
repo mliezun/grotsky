@@ -53,11 +53,52 @@ impl StmtVisitor<Chunk> for Compiler {
     }
 
     fn visit_block_stmt(&mut self, stmt: &BlockStmt) -> Chunk {
-        todo!()
+        return Chunk {
+            instructions: stmt
+                .stmts
+                .iter()
+                .map(|s| s.accept(self).instructions)
+                .flatten()
+                .collect(),
+            result_register: self.register_count,
+        };
     }
 
     fn visit_while_stmt(&mut self, stmt: &WhileStmt) -> Chunk {
-        todo!()
+        let cond_chunk = stmt.condition.accept(self);
+        let body_chunk = stmt.body.accept(self);
+        let mut chunk = Chunk {
+            instructions: vec![],
+            result_register: cond_chunk.result_register,
+        };
+        chunk
+            .instructions
+            .append(&mut cond_chunk.instructions.clone());
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::Test,
+            a: cond_chunk.result_register,
+            b: cond_chunk.result_register,
+            c: 0,
+        });
+        let jump_size = (body_chunk.instructions.len() + 2) as i16;
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::Jmp,
+            a: 0,
+            b: (jump_size >> 8) as u8,
+            c: jump_size as u8,
+        });
+        chunk
+            .instructions
+            .append(&mut body_chunk.instructions.clone());
+        let loop_size =
+            -((body_chunk.instructions.len() + cond_chunk.instructions.len() + 2) as i16);
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::Jmp,
+            a: 0,
+            b: (loop_size >> 8) as u8,
+            c: loop_size as u8,
+        });
+        return chunk;
     }
 
     fn visit_return_stmt(&mut self, stmt: &ReturnStmt) -> Chunk {

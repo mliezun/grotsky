@@ -25,7 +25,7 @@ while a < 1000000 {
 ";
 
 const SOURCE_LITERAL: &str = "
-10 + 20
+while 10 + 20 {}
 ";
 
 fn tree_interpreter(source: String) {
@@ -81,7 +81,7 @@ fn test_bytecode_compiler(source: String) {
             .collect(),
         pc: 0,
     };
-    my_mv.interpret();
+    // my_mv.interpret();
     println!(
         "Duration compilation+execution: {:?}",
         duration.as_secs_f64()

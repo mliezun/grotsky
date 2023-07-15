@@ -11,6 +11,7 @@ mod value;
 mod vm;
 
 use fnv::FnvHashMap;
+use std::collections::HashMap;
 
 use std::env;
 use std::fs::read_to_string;
@@ -60,8 +61,32 @@ fn test_bytecode_compiler(source: String) {
     let start = Instant::now();
     compiler.compile(state.stmts.clone());
     let duration = start.elapsed();
-    println!("Duration compilation: {:?}", duration.as_secs_f64());
-    println!("{:#?}", compiler);
+    let mut my_mv = vm::VM {
+        instructions: compiler
+            .chunks
+            .iter()
+            .map(|c| c.instructions.clone())
+            .flatten()
+            .collect(),
+        prototypes: vec![],
+        constants: compiler.constants,
+        globals: HashMap::new(),
+        stack: vec![vm::StackEntry {
+            function: None,
+            pc: 0,
+            sp: 0,
+        }],
+        activation_records: (0..compiler.register_count)
+            .map(|_| value::Value::Nil)
+            .collect(),
+        pc: 0,
+    };
+    my_mv.interpret();
+    println!(
+        "Duration compilation+execution: {:?}",
+        duration.as_secs_f64()
+    );
+    println!("{:#?}", my_mv);
 }
 
 fn main() {

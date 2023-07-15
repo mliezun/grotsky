@@ -5,31 +5,31 @@ use crate::value::*;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
-struct StackEntry {
-    function: Option<MutValue<FnValue>>, // Empty when main function
-    pc: usize,                           // Return location
-    sp: usize,                           // Stack pointer inside activation record
+pub struct StackEntry {
+    pub function: Option<MutValue<FnValue>>, // Empty when main function
+    pub pc: usize,                           // Return location
+    pub sp: usize,                           // Stack pointer inside activation record
 }
 
 #[derive(Debug, Clone)]
-struct FnPrototype {
-    instructions: Vec<Instruction>,
-    nlocals: u8,
+pub struct FnPrototype {
+    pub instructions: Vec<Instruction>,
+    pub nlocals: u8,
 }
 
 #[derive(Debug)]
-struct VM {
-    instructions: Vec<Instruction>,
-    prototypes: Vec<FnPrototype>,
-    constants: Vec<Value>,
-    globals: HashMap<String, Value>,
-    stack: Vec<StackEntry>,
-    activation_records: Vec<Value>,
-    pc: usize,
+pub struct VM {
+    pub instructions: Vec<Instruction>,
+    pub prototypes: Vec<FnPrototype>,
+    pub constants: Vec<Value>,
+    pub globals: HashMap<String, Value>,
+    pub stack: Vec<StackEntry>,
+    pub activation_records: Vec<Value>,
+    pub pc: usize,
 }
 
 impl VM {
-    fn interpret(&mut self) {
+    pub fn interpret(&mut self) {
         let mut instructions = &self.instructions;
         let mut pc = self.pc;
         let mut sp = self.stack[self.stack.len() - 1].sp;
@@ -37,6 +37,11 @@ impl VM {
             let inst = &instructions[pc];
             // println!("Executing {:#?}", inst);
             match inst.opcode {
+                OpCode::LoadK => {
+                    self.activation_records[sp + inst.a as usize] =
+                        self.constants[inst.bx() as usize].clone();
+                    pc += 1;
+                }
                 OpCode::Move => {
                     self.activation_records
                         .swap(sp + inst.a as usize, sp + inst.b as usize);
@@ -128,7 +133,7 @@ impl VM {
                     }
                     pc += 1;
                 }
-                _ => unimplemented!(),
+                _ => todo!(),
             }
         }
     }

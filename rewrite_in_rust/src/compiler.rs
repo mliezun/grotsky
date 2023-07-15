@@ -27,8 +27,8 @@ struct FnContext {}
 
 #[derive(Debug)]
 pub struct Chunk {
-    instructions: Vec<Instruction>,
-    result_register: u8,
+    pub instructions: Vec<Instruction>,
+    pub result_register: u8,
 }
 
 impl StmtVisitor<Chunk> for Compiler {

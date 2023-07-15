@@ -25,9 +25,8 @@ while a < 1000000 {
 ";
 
 const SOURCE_LITERAL: &str = "
-let a = 1
-while a < 1000000 {
-    a = a + 1
+fn add(a, b) {
+    a + b
 }
 ";
 
@@ -61,8 +60,11 @@ fn test_bytecode_compiler(source: String) {
         contexts: vec![compiler::FnContext {
             chunks: vec![],
             register_count: 0,
-            register_allocation: HashMap::new(),
+            name: "".to_string(),
+            loop_count: 0,
+            blocks: vec![compiler::Block { locals: vec![] }],
         }],
+        prototypes: vec![],
     };
     let start = Instant::now();
     compiler.compile(state.stmts.clone());
@@ -75,7 +77,7 @@ fn test_bytecode_compiler(source: String) {
             .map(|c| c.instructions.clone())
             .flatten()
             .collect(),
-        prototypes: vec![],
+        prototypes: compiler.prototypes,
         constants: compiler.constants,
         globals: HashMap::new(),
         stack: vec![vm::StackEntry {

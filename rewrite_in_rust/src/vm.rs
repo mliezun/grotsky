@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use crate::compiler::FnPrototype;
 use crate::instruction::*;
 use crate::value::*;
 use std::collections::HashMap;
@@ -9,12 +10,6 @@ pub struct StackEntry {
     pub function: Option<MutValue<FnValue>>, // Empty when main function
     pub pc: usize,                           // Return location
     pub sp: usize,                           // Stack pointer inside activation record
-}
-
-#[derive(Debug, Clone)]
-pub struct FnPrototype {
-    pub instructions: Vec<Instruction>,
-    pub nlocals: u8,
 }
 
 #[derive(Debug)]

@@ -11,6 +11,7 @@ pub struct Compiler {
     // call_stack: Vec<CallStack>,
     pub constants: Vec<Value>,
     pub contexts: Vec<FnContext>,
+    pub prototypes: Vec<FnPrototype>,
 }
 
 impl Compiler {
@@ -21,7 +22,11 @@ impl Compiler {
 
     fn allocate_register(&mut self, var_name: String, reg: u8) {
         let current_context = self.contexts.last_mut().unwrap();
-        current_context.register_allocation.insert(var_name, reg);
+        let current_block = current_context.blocks.last_mut().unwrap();
+        current_block.locals.push(Local {
+            var_name: var_name,
+            reg: reg,
+        });
     }
 
     fn next_register(&mut self) -> u8 {
@@ -31,6 +36,41 @@ impl Compiler {
         return reg;
     }
 
+    fn enter_block(&mut self) {
+        let current_context = self.contexts.last_mut().unwrap();
+        current_context.blocks.push(Block { locals: vec![] });
+    }
+
+    fn leave_block(&mut self) {
+        let current_context = self.contexts.last_mut().unwrap();
+        current_context.blocks.pop();
+    }
+
+    fn enter_function(&mut self, name: String) {
+        self.contexts.push(FnContext {
+            name: name,
+            loop_count: 0,
+            register_count: 0,
+            chunks: vec![],
+            blocks: vec![Block { locals: vec![] }],
+        });
+    }
+
+    fn leave_function(&mut self) -> u16 {
+        let current_context = self.contexts.pop().unwrap();
+        let prototype_ix = self.prototypes.len();
+        self.prototypes.push(FnPrototype {
+            instructions: current_context
+                .chunks
+                .iter()
+                .map(|c| c.instructions.clone())
+                .flatten()
+                .collect(),
+            register_count: current_context.register_count,
+        });
+        return prototype_ix as u16;
+    }
+
     fn result_register(&self) -> u8 {
         let current_context = self.contexts.last().unwrap();
         return current_context.chunks.last().unwrap().result_register;
@@ -38,11 +78,19 @@ impl Compiler {
 
     fn get_var_register(&self, var_name: String) -> Option<u8> {
         let current_context = self.contexts.last().unwrap();
-        if let Some(reg) = current_context.register_allocation.get(&var_name) {
-            return Some(*reg);
-        } else {
-            return None;
-        }
+        current_context
+            .blocks
+            .iter()
+            .map(|b| b.locals.clone())
+            .flatten()
+            .rev()
+            .find_map(|l| {
+                if l.var_name.eq(&var_name) {
+                    Some(l.reg)
+                } else {
+                    None
+                }
+            })
     }
 
     pub fn compile(&mut self, stmts: Vec<Stmt>) {
@@ -53,11 +101,30 @@ impl Compiler {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct FnPrototype {
+    pub instructions: Vec<Instruction>,
+    pub register_count: u8,
+}
+
 #[derive(Debug)]
 pub struct FnContext {
+    pub name: String,
+    pub loop_count: u8,
     pub register_count: u8,
     pub chunks: Vec<Chunk>,
-    pub register_allocation: HashMap<String, u8>,
+    pub blocks: Vec<Block>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Block {
+    pub locals: Vec<Local>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Local {
+    var_name: String,
+    reg: u8,
 }
 
 #[derive(Debug)]
@@ -99,7 +166,8 @@ impl StmtVisitor<Chunk> for Compiler {
     }
 
     fn visit_block_stmt(&mut self, stmt: &BlockStmt) -> Chunk {
-        return Chunk {
+        self.enter_block();
+        let chunk = Chunk {
             instructions: stmt
                 .stmts
                 .iter()
@@ -108,6 +176,8 @@ impl StmtVisitor<Chunk> for Compiler {
                 .collect(),
             result_register: self.result_register(),
         };
+        self.leave_block();
+        return chunk;
     }
 
     fn visit_while_stmt(&mut self, stmt: &WhileStmt) -> Chunk {
@@ -169,7 +239,30 @@ impl StmtVisitor<Chunk> for Compiler {
     }
 
     fn visit_fn_stmt(&mut self, stmt: &FnStmt) -> Chunk {
-        todo!()
+        let reg = self.next_register();
+        self.allocate_register(stmt.name.lexeme.to_string(), reg);
+        self.enter_function(stmt.name.lexeme.to_string());
+        for p in stmt.params.iter() {
+            let reg = self.next_register();
+            self.allocate_register(p.lexeme.to_string(), reg);
+        }
+        self.enter_block();
+        for s in &stmt.body {
+            let chunk = s.accept(self);
+            self.add_chunk(chunk);
+        }
+        self.leave_block();
+        let prototype_ix = self.leave_function();
+        let result_register = self.next_register();
+        return Chunk {
+            instructions: vec![Instruction {
+                opcode: OpCode::Closure,
+                a: result_register,
+                b: (prototype_ix >> 8) as u8,
+                c: prototype_ix as u8,
+            }],
+            result_register: result_register,
+        };
     }
 
     fn visit_class_stmt(&mut self, stmt: &ClassStmt) -> Chunk {

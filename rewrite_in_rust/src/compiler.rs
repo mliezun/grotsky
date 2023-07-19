@@ -333,7 +333,7 @@ impl StmtVisitor<Chunk> for Compiler {
             c: jmp_offset as u8,
         });
         chunk.instructions.append(&mut if_body);
-        jmp_offset = (total_body_size - chunk.instructions.len() + 2) as u16;
+        jmp_offset = (total_body_size - chunk.instructions.len() + 1) as u16;
         chunk.instructions.push(Instruction {
             opcode: OpCode::Jmp,
             a: 0,
@@ -346,8 +346,8 @@ impl StmtVisitor<Chunk> for Compiler {
                 .append(&mut elif_cond_chunk.instructions.clone());
             chunk.instructions.push(Instruction {
                 opcode: OpCode::Test,
-                a: if_cond_chunk.result_register,
-                b: if_cond_chunk.result_register,
+                a: elif_cond_chunk.result_register,
+                b: elif_cond_chunk.result_register,
                 c: 0,
             });
             let elif_body = &elifs_body[i];
@@ -359,7 +359,7 @@ impl StmtVisitor<Chunk> for Compiler {
                 c: jmp_offset as u8,
             });
             chunk.instructions.append(&mut elif_body.clone());
-            jmp_offset = (total_body_size - chunk.instructions.len() + 2) as u16;
+            jmp_offset = (total_body_size - chunk.instructions.len() + 1) as u16;
             chunk.instructions.push(Instruction {
                 opcode: OpCode::Jmp,
                 a: 0,

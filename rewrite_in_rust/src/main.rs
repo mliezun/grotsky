@@ -25,13 +25,13 @@ while a < 1000000 {
 ";
 
 const SOURCE_LITERAL: &str = "
-let a = 1
+let a = 10
 if a < 10 {
     a = a + 1
-} elif a < 4 {
-    a = a * 2
+} elif a == 10 {
+    a = 42
 } else {
-    a = 10
+    a = 1000
 }
 ";
 

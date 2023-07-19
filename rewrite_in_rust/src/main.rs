@@ -25,10 +25,14 @@ while a < 1000000 {
 ";
 
 const SOURCE_LITERAL: &str = "
-fn add(a, b) {
-    a + b
+let a = 1
+if a < 10 {
+    a = a + 1
+} elif a < 4 {
+    a = a * 2
+} else {
+    a = 10
 }
-add(13, 25)
 ";
 
 fn tree_interpreter(source: String) {

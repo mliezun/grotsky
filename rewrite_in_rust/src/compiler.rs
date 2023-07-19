@@ -230,6 +230,21 @@ impl StmtVisitor<Chunk> for Compiler {
             b: (loop_size >> 8) as u8,
             c: loop_size as u8,
         });
+        // Patch continue and break
+        let chunk_size = chunk.instructions.len();
+        for (i, inst) in chunk.instructions.iter_mut().enumerate() {
+            if inst.is_continue() {
+                let jump_offset = -(i as i64);
+                inst.a = 0;
+                inst.b = (jump_offset >> 8) as u8;
+                inst.c = jump_offset as u8;
+            } else if inst.is_break() {
+                let jump_offset = chunk_size - i;
+                inst.a = 0;
+                inst.b = (jump_offset >> 8) as u8;
+                inst.c = jump_offset as u8;
+            }
+        }
         return chunk;
     }
 
@@ -238,15 +253,122 @@ impl StmtVisitor<Chunk> for Compiler {
     }
 
     fn visit_break_stmt(&mut self, stmt: &BreakStmt) -> Chunk {
-        todo!()
+        return Chunk {
+            instructions: vec![Instruction {
+                opcode: OpCode::Jmp,
+                a: JMP_BREAK,
+                b: 0,
+                c: 0,
+            }],
+            result_register: 0,
+        };
     }
 
     fn visit_continue_stmt(&mut self, stmt: &ContinueStmt) -> Chunk {
-        todo!()
+        return Chunk {
+            instructions: vec![Instruction {
+                opcode: OpCode::Jmp,
+                a: JMP_CONTINUE,
+                b: 0,
+                c: 0,
+            }],
+            result_register: 0,
+        };
     }
 
     fn visit_if_stmt(&mut self, stmt: &IfStmt) -> Chunk {
-        todo!()
+        let extra_jmp_insts: usize = 3;
+        let mut total_body_size: usize = 0;
+        let mut if_cond_chunk = stmt.condition.accept(self);
+        let mut if_body: Vec<Instruction> = stmt
+            .then_branch
+            .iter()
+            .map(|c| c.accept(self).instructions)
+            .flatten()
+            .collect();
+        total_body_size += if_cond_chunk.instructions.len();
+        total_body_size += if_body.len();
+        total_body_size += extra_jmp_insts;
+        let mut elifs_cond_chunks: Vec<Chunk> = vec![];
+        let mut elifs_body: Vec<Vec<Instruction>> = vec![];
+        for e in &stmt.elifs {
+            let elif_cond_chunk = e.condition.accept(self);
+            let elif_body: Vec<Instruction> = e
+                .then_branch
+                .iter()
+                .map(|c| c.accept(self).instructions)
+                .flatten()
+                .collect();
+            total_body_size += elif_cond_chunk.instructions.len();
+            total_body_size += elifs_body.len();
+            total_body_size += extra_jmp_insts;
+            elifs_cond_chunks.push(elif_cond_chunk);
+            elifs_body.push(elif_body);
+        }
+        let else_body: Vec<Instruction> = stmt
+            .else_branch
+            .iter()
+            .map(|c| c.accept(self).instructions)
+            .flatten()
+            .collect();
+        total_body_size += else_body.len();
+
+        // Add Test and Jump instructions
+        let mut chunk = Chunk {
+            instructions: vec![],
+            result_register: 0,
+        };
+        chunk.instructions.append(&mut if_cond_chunk.instructions);
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::Test,
+            a: if_cond_chunk.result_register,
+            b: if_cond_chunk.result_register,
+            c: 0,
+        });
+        let mut jmp_offset = (if_body.len() + 2) as u16;
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::Jmp,
+            a: 0,
+            b: (jmp_offset >> 8) as u8,
+            c: jmp_offset as u8,
+        });
+        chunk.instructions.append(&mut if_body);
+        jmp_offset = (total_body_size - chunk.instructions.len() + 2) as u16;
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::Jmp,
+            a: 0,
+            b: (jmp_offset >> 8) as u8,
+            c: jmp_offset as u8,
+        });
+        for (i, elif_cond_chunk) in elifs_cond_chunks.iter().enumerate() {
+            chunk
+                .instructions
+                .append(&mut elif_cond_chunk.instructions.clone());
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Test,
+                a: if_cond_chunk.result_register,
+                b: if_cond_chunk.result_register,
+                c: 0,
+            });
+            let elif_body = &elifs_body[i];
+            jmp_offset = (elif_body.len() + 2) as u16;
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Jmp,
+                a: 0,
+                b: (jmp_offset >> 8) as u8,
+                c: jmp_offset as u8,
+            });
+            chunk.instructions.append(&mut elif_body.clone());
+            jmp_offset = (total_body_size - chunk.instructions.len() + 2) as u16;
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Jmp,
+                a: 0,
+                b: (jmp_offset >> 8) as u8,
+                c: jmp_offset as u8,
+            });
+        }
+        chunk.instructions.append(&mut else_body.clone());
+        return chunk;
     }
 
     fn visit_fn_stmt(&mut self, stmt: &FnStmt) -> Chunk {

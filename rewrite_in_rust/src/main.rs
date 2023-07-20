@@ -25,14 +25,12 @@ while a < 1000000 {
 ";
 
 const SOURCE_LITERAL: &str = "
-let a = 10
-if a < 10 {
-    a = a + 1
-} elif a == 10 {
-    a = 42
-} else {
-    a = 1000
+fn inc(a) {
+    return a + 1
 }
+let b = inc(10)
+let c = inc(inc(b + 1))
+let d = inc(c)
 ";
 
 fn tree_interpreter(source: String) {
@@ -89,12 +87,14 @@ fn test_bytecode_compiler(source: String) {
             function: None,
             pc: 0,
             sp: 0,
+            result_register: 0,
         }],
         activation_records: (0..compiler.contexts.last().unwrap().register_count)
             .map(|_| value::Value::Nil)
             .collect(),
         pc: 0,
     };
+    println!("{:#?}", my_mv);
     my_mv.interpret();
     let duration = start.elapsed();
     println!("{:#?}", my_mv);
@@ -115,7 +115,7 @@ fn main() {
         source = SOURCE;
     }
     let start = Instant::now();
-    vm::test_vm_execution();
+    //vm::test_vm_execution();
     let duration = start.elapsed();
     println!("Duration bytecode: {:?}", duration.as_secs_f64());
     tree_interpreter(String::from(source));

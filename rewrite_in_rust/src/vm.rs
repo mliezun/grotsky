@@ -10,6 +10,7 @@ pub struct StackEntry {
     pub function: Option<MutValue<FnValue>>, // Empty when main function
     pub pc: usize,                           // Return location
     pub sp: usize,                           // Stack pointer inside activation record
+    pub result_register: u8,
 }
 
 #[derive(Debug)]
@@ -38,8 +39,8 @@ impl VM {
                     pc += 1;
                 }
                 OpCode::Move => {
-                    self.activation_records
-                        .swap(sp + inst.a as usize, sp + inst.b as usize);
+                    self.activation_records[sp + inst.a as usize] =
+                        self.activation_records[sp + inst.b as usize].clone();
                     pc += 1;
                 }
                 OpCode::Closure => {
@@ -49,6 +50,7 @@ impl VM {
                             upvalues: HashMap::new(),
                             constants: vec![],
                         }));
+                    // println!("Records={:#?}", self.activation_records);
                     pc += 1;
                 }
                 OpCode::Call => {
@@ -57,6 +59,7 @@ impl VM {
                             function: Some(fn_value.clone()),
                             pc: pc + 1,
                             sp: sp,
+                            result_register: inst.c,
                         };
                         let previous_sp = sp;
                         sp = self.activation_records.len();
@@ -69,9 +72,13 @@ impl VM {
                             self.activation_records[sp + i] =
                                 self.activation_records[previous_sp + reg as usize].clone();
                         }
-                        println!("{:#?}", self.activation_records);
+                        // println!("{:#?}", self.activation_records);
                         instructions = &prototype.instructions;
                         pc = 0;
+                    } else {
+                        println!("sp={}, inst.a={}", sp, inst.a);
+                        println!("Registers={:#?}", self.activation_records);
+                        panic!("Not a function");
                     }
                 }
                 OpCode::Return => {
@@ -79,8 +86,20 @@ impl VM {
                         // println!("Finishing program");
                         return;
                     }
-                    // println!("Popping stack: {}", self.stack.len());
                     let stack = self.stack.pop().unwrap();
+                    // println!("Popping stack: {:#?}", stack);
+                    // println!("Executing inst: {:#?}", inst);
+                    if inst.b == inst.a + 2 && stack.result_register > 0 {
+                        // println!(
+                        //     "Storing result result_register={}, stack.sp={}",
+                        //     stack.result_register - 1,
+                        //     stack.sp,
+                        // );
+                        self.activation_records[stack.sp + (stack.result_register - 1) as usize] =
+                            self.activation_records[sp + inst.a as usize].clone();
+                    }
+                    self.activation_records
+                        .drain(sp..self.activation_records.len());
                     pc = stack.pc;
                     sp = stack.sp;
                     if let Some(func) = &self.stack.last().unwrap().function {
@@ -320,6 +339,7 @@ pub fn test_vm_execution() {
             function: None,
             pc: 0,
             sp: 0,
+            result_register: 0,
         }],
         activation_records: vec![
             Value::Number(NumberValue { n: 0.0 }),

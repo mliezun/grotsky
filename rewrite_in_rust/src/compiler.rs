@@ -249,7 +249,30 @@ impl StmtVisitor<Chunk> for Compiler {
     }
 
     fn visit_return_stmt(&mut self, stmt: &ReturnStmt) -> Chunk {
-        todo!()
+        let mut chunk = Chunk {
+            instructions: vec![],
+            result_register: 0,
+        };
+        if let Some(val) = &stmt.value {
+            let val_chunk: Chunk = val.accept(self);
+            chunk
+                .instructions
+                .append(&mut val_chunk.instructions.clone());
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Return,
+                a: val_chunk.result_register,
+                b: val_chunk.result_register + 2,
+                c: 0,
+            });
+        } else {
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Return,
+                a: 0,
+                b: 0,
+                c: 0,
+            });
+        }
+        return chunk;
     }
 
     fn visit_break_stmt(&mut self, stmt: &BreakStmt) -> Chunk {
@@ -504,11 +527,12 @@ impl ExprVisitor<Chunk> for Compiler {
                 c: 0,
             });
         }
+        chunk.result_register = self.next_register();
         chunk.instructions.push(Instruction {
             opcode: OpCode::Call,
             a: result_register,
-            b: result_register + expr.arguments.len() as u8,
-            c: 0, // TODO: this handles results?
+            b: expr.arguments.len() as u8 + 1,
+            c: chunk.result_register + 1,
         });
         return chunk;
     }

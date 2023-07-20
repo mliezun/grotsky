@@ -427,7 +427,28 @@ impl StmtVisitor<Chunk> for Compiler {
 
 impl ExprVisitor<Chunk> for Compiler {
     fn visit_function_expr(&mut self, expr: &FnExpr) -> Chunk {
-        todo!()
+        let result_register: u8 = self.next_register();
+        self.enter_function("".to_string());
+        for p in expr.params.iter() {
+            let reg = self.next_register();
+            self.allocate_register(p.lexeme.to_string(), reg);
+        }
+        self.enter_block();
+        for s in &expr.body {
+            let chunk = s.accept(self);
+            self.add_chunk(chunk);
+        }
+        self.leave_block();
+        let prototype_ix = self.leave_function();
+        return Chunk {
+            instructions: vec![Instruction {
+                opcode: OpCode::Closure,
+                a: result_register,
+                b: (prototype_ix >> 8) as u8,
+                c: prototype_ix as u8,
+            }],
+            result_register: result_register,
+        };
     }
 
     fn visit_variable_expr(&mut self, expr: &VarExpr) -> Chunk {

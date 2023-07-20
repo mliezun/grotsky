@@ -25,12 +25,12 @@ while a < 1000000 {
 ";
 
 const SOURCE_LITERAL: &str = "
-fn inc(k) {
+let inc = fn (k) {
     return k + 1
 }
 let a = 1
-while a < 10000000 {
-    a = a + 1
+while a < 1000000 {
+    a = inc(a)
 }
 ";
 

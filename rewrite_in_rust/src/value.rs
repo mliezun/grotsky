@@ -16,7 +16,7 @@ pub enum Value {
     Class(MutValue<ClassValue>),
     // Object(MutValue<ObjectValue>),
     // Dict(MutValue<DictValue>),
-    // List(MutValue<ListValue>),
+    List(MutValue<ListValue>),
     Fn(MutValue<FnValue>),
     // Native(NativeValue),
     Number(NumberValue),
@@ -183,10 +183,15 @@ pub struct StringValue {
 
 #[derive(Debug, Clone)]
 pub struct ClassValue {
-    name: String,
-    superclass: Option<MutValue<ClassValue>>,
-    methods: Vec<MutValue<FnValue>>,
-    classmethods: Vec<MutValue<FnValue>>,
+    pub name: String,
+    pub superclass: Option<MutValue<ClassValue>>,
+    pub methods: Vec<MutValue<FnValue>>,
+    pub classmethods: Vec<MutValue<FnValue>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ListValue {
+    pub elements: Vec<Value>,
 }
 
 #[derive(Debug, Clone)]

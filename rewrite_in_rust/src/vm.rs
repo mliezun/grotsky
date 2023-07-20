@@ -76,8 +76,8 @@ impl VM {
                         instructions = &prototype.instructions;
                         pc = 0;
                     } else {
-                        println!("sp={}, inst.a={}", sp, inst.a);
-                        println!("Registers={:#?}", self.activation_records);
+                        // println!("sp={}, inst.a={}", sp, inst.a);
+                        // println!("Registers={:#?}", self.activation_records);
                         panic!("Not a function");
                     }
                 }

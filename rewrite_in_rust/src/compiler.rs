@@ -92,10 +92,10 @@ impl Compiler {
             .flatten()
             .rev()
             .find_map(|l| {
-                println!(
-                    "Comparing locals: l({:#?}) == {:#?} | reg({})",
-                    l.var_name, var_name, l.reg
-                );
+                // println!(
+                //     "Comparing locals: l({:#?}) == {:#?} | reg({})",
+                //     l.var_name, var_name, l.reg
+                // );
                 if l.var_name.eq(&var_name) {
                     Some(l.reg)
                 } else {
@@ -431,7 +431,7 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_variable_expr(&mut self, expr: &VarExpr) -> Chunk {
-        println!("Get var: {:#?}", expr.name);
+        // println!("Get var: {:#?}", expr.name);
         return Chunk {
             instructions: vec![],
             result_register: self
@@ -452,7 +452,12 @@ impl ExprVisitor<Chunk> for Compiler {
         if let Some(reg) = self.get_var_register(expr.name.lexeme.to_string()) {
             let mut chunk = expr.value.accept(self);
             if !chunk.instructions.is_empty() {
-                chunk.instructions.last_mut().unwrap().a = reg;
+                let inst = chunk.instructions.last_mut().unwrap();
+                if inst.opcode == OpCode::Call {
+                    inst.c = reg + 1;
+                } else {
+                    inst.a = reg;
+                }
             }
             chunk.result_register = reg;
             return chunk;
@@ -504,10 +509,12 @@ impl ExprVisitor<Chunk> for Compiler {
 
     fn visit_call_expr(&mut self, expr: &CallExpr) -> Chunk {
         let mut chunk = expr.callee.accept(self);
-        let result_register = self.next_register();
+        // println!("Callee: {:#?}", chunk);
+        let fn_register = self.next_register();
+        // println!("fn_register: {:#?}", fn_register);
         chunk.instructions.push(Instruction {
             opcode: OpCode::Move,
-            a: result_register,
+            a: fn_register,
             b: chunk.result_register,
             c: 0,
         });
@@ -530,10 +537,11 @@ impl ExprVisitor<Chunk> for Compiler {
         chunk.result_register = self.next_register();
         chunk.instructions.push(Instruction {
             opcode: OpCode::Call,
-            a: result_register,
+            a: fn_register,
             b: expr.arguments.len() as u8 + 1,
             c: chunk.result_register + 1,
         });
+        // println!("Call chunk: {:#?}", chunk);
         return chunk;
     }
 

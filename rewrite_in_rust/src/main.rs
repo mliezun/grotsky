@@ -25,12 +25,13 @@ while a < 1000000 {
 ";
 
 const SOURCE_LITERAL: &str = "
-fn inc(a) {
-    return a + 1
+fn inc(k) {
+    return k + 1
 }
-let b = inc(10)
-let c = inc(inc(b + 1))
-let d = inc(c)
+let a = 1
+while a < 10000000 {
+    a = a + 1
+}
 ";
 
 fn tree_interpreter(source: String) {
@@ -94,7 +95,7 @@ fn test_bytecode_compiler(source: String) {
             .collect(),
         pc: 0,
     };
-    println!("{:#?}", my_mv);
+    // println!("{:#?}", my_mv);
     my_mv.interpret();
     let duration = start.elapsed();
     println!("{:#?}", my_mv);

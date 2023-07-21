@@ -25,12 +25,10 @@ while a < 1000000 {
 ";
 
 const SOURCE_LITERAL: &str = "
-let inc = fn (k) {
-    return k + 1
-}
-let a = 1
-while a < 1000000 {
-    a = inc(a)
+fn add_n(n) {
+    return fn (k) {
+        return k + n
+    }
 }
 ";
 
@@ -67,6 +65,7 @@ fn test_bytecode_compiler(source: String) {
             name: "".to_string(),
             loop_count: 0,
             blocks: vec![compiler::Block { locals: vec![] }],
+            upvalues: vec![],
         }],
         prototypes: vec![],
     };

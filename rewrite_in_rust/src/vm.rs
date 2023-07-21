@@ -29,6 +29,7 @@ impl VM {
         let mut instructions = &self.instructions;
         let mut pc = self.pc;
         let mut sp = self.stack[self.stack.len() - 1].sp;
+        let mut upvalue_stack: Vec<Vec<Value>> = vec![];
         while pc < instructions.len() {
             let inst = &instructions[pc];
             // println!("Executing {:#?}", inst);
@@ -44,17 +45,29 @@ impl VM {
                     pc += 1;
                 }
                 OpCode::Closure => {
+                    let prototype = &self.prototypes[inst.bx() as usize];
+                    let fn_upvalues = prototype
+                        .upvalues
+                        .iter()
+                        .map(|u| {
+                            let ix = self.stack.len() - 1 - u.depth as usize;
+                            let stack = &self.stack[ix];
+                            self.activation_records[stack.sp + u.register as usize].clone()
+                        })
+                        .collect();
                     self.activation_records[sp + inst.a as usize] =
                         Value::Fn(MutValue::new(FnValue {
                             prototype: inst.bx(),
-                            upvalues: HashMap::new(),
+                            upvalues: fn_upvalues,
                             constants: vec![],
                         }));
                     // println!("Records={:#?}", self.activation_records);
                     pc += 1;
                 }
                 OpCode::Call => {
-                    if let Value::Fn(fn_value) = &self.activation_records[sp + inst.a as usize] {
+                    if let Value::Fn(fn_value) =
+                        self.activation_records[sp + inst.a as usize].clone()
+                    {
                         let stack = StackEntry {
                             function: Some(fn_value.clone()),
                             pc: pc + 1,
@@ -74,6 +87,7 @@ impl VM {
                         }
                         // println!("{:#?}", self.activation_records);
                         instructions = &prototype.instructions;
+                        upvalue_stack.push(fn_value.0.borrow().upvalues.clone());
                         pc = 0;
                     } else {
                         // println!("sp={}, inst.a={}", sp, inst.a);
@@ -87,6 +101,7 @@ impl VM {
                         return;
                     }
                     let stack = self.stack.pop().unwrap();
+                    upvalue_stack.pop();
                     // println!("Popping stack: {:#?}", stack);
                     // println!("Executing inst: {:#?}", inst);
                     if inst.b == inst.a + 2 && stack.result_register > 0 {
@@ -285,6 +300,11 @@ impl VM {
                     self.activation_records[sp + inst.a as usize] = val_b.neq(val_c);
                     pc += 1;
                 }
+                OpCode::GetUpval => {
+                    self.activation_records[sp + inst.a as usize] =
+                        upvalue_stack.last_mut().unwrap()[inst.b as usize].clone();
+                    pc += 1;
+                }
                 _ => todo!(),
             }
         }
@@ -295,7 +315,7 @@ pub fn test_vm_execution() {
     // println!("{:#b}", -3);
     let dummy_fn = FnValue {
         prototype: 1,
-        upvalues: HashMap::new(),
+        upvalues: vec![],
         constants: vec![],
     };
     let mut vm = VM {

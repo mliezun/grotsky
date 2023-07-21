@@ -253,4 +253,6 @@ Eq (A, B) R(A) := R(B) == R(C)
 Neq (A, B) R(A) := R(B) != R(C)
 Not (A, B) R(A) := !R(B)
 Neg (A, B) R(A) := -R(B)
+GetUpval (A, B) R(A) := U[B]
+SetUpval (A, B) U[B] := R(A)
 ```

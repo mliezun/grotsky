@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::expr::*;
 use crate::instruction::*;
 use crate::stmt::*;
@@ -53,6 +51,7 @@ impl Compiler {
             register_count: 0,
             chunks: vec![],
             blocks: vec![Block { locals: vec![] }],
+            upvalues: vec![],
         });
     }
 
@@ -74,6 +73,7 @@ impl Compiler {
         self.prototypes.push(FnPrototype {
             instructions: instructions,
             register_count: current_context.register_count,
+            upvalues: current_context.upvalues,
         });
         return prototype_ix as u16;
     }
@@ -83,9 +83,8 @@ impl Compiler {
         return current_context.chunks.last().unwrap().result_register;
     }
 
-    fn get_var_register(&self, var_name: String) -> Option<u8> {
-        let current_context = self.contexts.last().unwrap();
-        current_context
+    fn get_var_register_by_context(&self, context: &FnContext, var_name: &String) -> Option<u8> {
+        context
             .blocks
             .iter()
             .map(|b| b.locals.clone())
@@ -96,12 +95,33 @@ impl Compiler {
                 //     "Comparing locals: l({:#?}) == {:#?} | reg({})",
                 //     l.var_name, var_name, l.reg
                 // );
-                if l.var_name.eq(&var_name) {
+                if l.var_name.eq(var_name) {
                     Some(l.reg)
                 } else {
                     None
                 }
             })
+    }
+
+    fn get_var_register(&self, var_name: &String) -> Option<u8> {
+        self.get_var_register_by_context(self.contexts.last().unwrap(), var_name)
+    }
+
+    fn get_upvalue(&self, var_name: &String) -> Option<UpvalueRef> {
+        for (depth, context) in self.contexts.iter().rev().skip(1).enumerate() {
+            if let Some(reg) = self.get_var_register_by_context(context, var_name) {
+                return Some(UpvalueRef {
+                    depth: depth as u8,
+                    register: reg,
+                });
+            }
+        }
+        return None;
+    }
+
+    pub fn add_upvalue(&mut self, up_ref: UpvalueRef) -> u8 {
+        self.contexts.last_mut().unwrap().upvalues.push(up_ref);
+        return (self.contexts.last().unwrap().upvalues.len() - 1) as u8;
     }
 
     pub fn compile(&mut self, stmts: Vec<Stmt>) {
@@ -113,9 +133,16 @@ impl Compiler {
 }
 
 #[derive(Debug, Clone)]
+pub struct UpvalueRef {
+    pub depth: u8,
+    pub register: u8,
+}
+
+#[derive(Debug, Clone)]
 pub struct FnPrototype {
     pub instructions: Vec<Instruction>,
     pub register_count: u8,
+    pub upvalues: Vec<UpvalueRef>,
 }
 
 #[derive(Debug)]
@@ -125,6 +152,7 @@ pub struct FnContext {
     pub register_count: u8,
     pub chunks: Vec<Chunk>,
     pub blocks: Vec<Block>,
+    pub upvalues: Vec<UpvalueRef>,
 }
 
 #[derive(Clone, Debug)]
@@ -452,13 +480,26 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_variable_expr(&mut self, expr: &VarExpr) -> Chunk {
-        // println!("Get var: {:#?}", expr.name);
-        return Chunk {
-            instructions: vec![],
-            result_register: self
-                .get_var_register(expr.name.clone().unwrap().lexeme.to_string())
-                .unwrap(),
-        };
+        let var_name = expr.name.clone().unwrap().lexeme.to_string();
+        if let Some(reg) = self.get_var_register(&var_name) {
+            return Chunk {
+                instructions: vec![],
+                result_register: reg,
+            };
+        } else if let Some(up_ref) = self.get_upvalue(&var_name) {
+            let reg = self.next_register();
+            let upvalue_ix = self.add_upvalue(up_ref);
+            return Chunk {
+                instructions: vec![Instruction {
+                    opcode: OpCode::GetUpval,
+                    a: reg,
+                    b: upvalue_ix,
+                    c: 0,
+                }],
+                result_register: reg,
+            };
+        }
+        panic!("Variable not found!");
     }
 
     fn visit_list_expr(&mut self, expr: &ListExpr) -> Chunk {
@@ -470,7 +511,7 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_assign_expr(&mut self, expr: &AssignExpr) -> Chunk {
-        if let Some(reg) = self.get_var_register(expr.name.lexeme.to_string()) {
+        if let Some(reg) = self.get_var_register(&expr.name.lexeme.to_string()) {
             let mut chunk = expr.value.accept(self);
             if !chunk.instructions.is_empty() {
                 let inst = chunk.instructions.last_mut().unwrap();

@@ -172,7 +172,7 @@ pub struct BoolValue {
 #[derive(Debug, Clone)]
 pub struct FnValue {
     pub prototype: u16,
-    pub upvalues: HashMap<String, Upvalue>,
+    pub upvalues: Vec<Value>,
     pub constants: Vec<Value>,
 }
 
@@ -196,6 +196,5 @@ pub struct ListValue {
 
 #[derive(Debug, Clone)]
 pub struct Upvalue {
-    value: *mut Value,
-    closed_value: Option<Value>, // Only active when the upvalue is closed
+    value: MutValue<Value>,
 }

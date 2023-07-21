@@ -29,7 +29,7 @@ impl VM {
         let mut instructions = &self.instructions;
         let mut pc = self.pc;
         let mut sp = self.stack[self.stack.len() - 1].sp;
-        let mut upvalue_stack: Vec<Vec<Value>> = vec![];
+        let mut upvalue_stack: Vec<Vec<UpValue>> = vec![];
         while pc < instructions.len() {
             let inst = &instructions[pc];
             // println!("Executing {:#?}", inst);
@@ -46,13 +46,24 @@ impl VM {
                 }
                 OpCode::Closure => {
                     let prototype = &self.prototypes[inst.bx() as usize];
-                    let fn_upvalues = prototype
+                    let fn_upvalues: Vec<UpValue> = prototype
                         .upvalues
                         .iter()
                         .map(|u| {
-                            let ix = self.stack.len() - 1 - u.depth as usize;
-                            let stack = &self.stack[ix];
-                            self.activation_records[stack.sp + u.register as usize].clone()
+                            let base_sp = if u.depth == 0 {
+                                sp
+                            } else {
+                                let ix = self.stack.len() - 1 - u.depth as usize;
+                                self.stack[ix].sp
+                            };
+                            let upv = UpValue {
+                                value: MutValue::new(
+                                    self.activation_records[base_sp + u.register as usize].clone(),
+                                ),
+                            };
+                            self.activation_records[base_sp + u.register as usize] =
+                                Value::Up(upv.clone());
+                            return upv;
                         })
                         .collect();
                     self.activation_records[sp + inst.a as usize] =
@@ -302,7 +313,7 @@ impl VM {
                 }
                 OpCode::GetUpval => {
                     self.activation_records[sp + inst.a as usize] =
-                        upvalue_stack.last_mut().unwrap()[inst.b as usize].clone();
+                        Value::Up(upvalue_stack.last_mut().unwrap()[inst.b as usize].clone());
                     pc += 1;
                 }
                 _ => todo!(),

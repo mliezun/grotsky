@@ -109,6 +109,7 @@ impl Compiler {
 
     fn get_upvalue(&self, var_name: &String) -> Option<UpvalueRef> {
         for (depth, context) in self.contexts.iter().rev().skip(1).enumerate() {
+            println!("Looking upvalue {} {}", var_name, depth);
             if let Some(reg) = self.get_var_register_by_context(context, var_name) {
                 return Some(UpvalueRef {
                     depth: depth as u8,

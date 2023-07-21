@@ -22,11 +22,18 @@ pub enum Value {
     Number(NumberValue),
     String(StringValue),
     Bool(BoolValue),
+    Up(UpValue),
     Nil,
 }
 
 impl Value {
     pub fn add(&mut self, other: &mut Value) -> Value {
+        if let Value::Up(up_val) = self {
+            return up_val.value.0.borrow_mut().add(other);
+        }
+        if let Value::Up(other_up_val) = other {
+            return self.add(&mut other_up_val.value.0.borrow_mut());
+        }
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Number(NumberValue {
@@ -172,7 +179,7 @@ pub struct BoolValue {
 #[derive(Debug, Clone)]
 pub struct FnValue {
     pub prototype: u16,
-    pub upvalues: Vec<Value>,
+    pub upvalues: Vec<UpValue>,
     pub constants: Vec<Value>,
 }
 
@@ -195,6 +202,6 @@ pub struct ListValue {
 }
 
 #[derive(Debug, Clone)]
-pub struct Upvalue {
-    value: MutValue<Value>,
+pub struct UpValue {
+    pub value: MutValue<Value>,
 }

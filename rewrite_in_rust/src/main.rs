@@ -30,6 +30,11 @@ fn add_n(n) {
         return k + n
     }
 }
+let inc = add_n(1)
+let a = 1
+while a < 1000000 {
+    a = inc(a)
+}
 ";
 
 fn tree_interpreter(source: String) {

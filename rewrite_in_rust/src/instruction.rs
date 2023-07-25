@@ -24,9 +24,9 @@ pub enum OpCode {
     Close,
     SetUpval,
     GetUpval,
-    SetGlobal,
-    GetGlobal,
     Closure,
+    List,
+    Push,
 }
 
 // To indicate if the JMP is a continue or break inside

@@ -316,6 +316,23 @@ impl VM {
                         Value::Up(upvalue_stack.last_mut().unwrap()[inst.b as usize].clone());
                     pc += 1;
                 }
+                OpCode::List => {
+                    self.activation_records[sp + inst.a as usize] =
+                        Value::List(MutValue::new(ListValue { elements: vec![] }));
+                    pc += 1;
+                }
+                OpCode::Push => {
+                    if let Value::List(list_val) = &self.activation_records[sp + inst.a as usize] {
+                        list_val
+                            .0
+                            .borrow_mut()
+                            .elements
+                            .push(self.activation_records[sp + inst.b as usize].clone());
+                        pc += 1;
+                    } else {
+                        panic!("Cannot push to non-list");
+                    }
+                }
                 _ => todo!(),
             }
         }

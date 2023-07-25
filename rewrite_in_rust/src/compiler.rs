@@ -504,7 +504,29 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_list_expr(&mut self, expr: &ListExpr) -> Chunk {
-        todo!()
+        let reg = self.next_register();
+        let mut chunk = Chunk {
+            result_register: reg,
+            instructions: vec![Instruction {
+                opcode: OpCode::List,
+                a: reg,
+                b: 0,
+                c: 0,
+            }],
+        };
+        for e in &expr.elements {
+            let el_chunk = e.accept(self);
+            chunk
+                .instructions
+                .append(&mut el_chunk.instructions.clone());
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Push,
+                a: reg,
+                b: el_chunk.result_register,
+                c: 0,
+            });
+        }
+        return chunk;
     }
 
     fn visit_dictionary_expr(&mut self, expr: &DictionaryExpr) -> Chunk {

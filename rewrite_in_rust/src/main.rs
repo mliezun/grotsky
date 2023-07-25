@@ -25,16 +25,12 @@ while a < 1000000 {
 ";
 
 const SOURCE_LITERAL: &str = "
-fn add_n(n) {
-    return fn (k) {
-        return k + n
-    }
-}
-let inc = add_n(1)
-let a = 1
-while a < 1000000 {
-    a = inc(a)
-}
+let asd = [
+    1,
+    2,
+    3,
+    \"hello\",
+]
 ";
 
 fn tree_interpreter(source: String) {

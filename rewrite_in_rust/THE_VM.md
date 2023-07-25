@@ -255,4 +255,6 @@ Not (A, B) R(A) := !R(B)
 Neg (A, B) R(A) := -R(B)
 GetUpval (A, B) R(A) := U[B]
 SetUpval (A, B) U[B] := R(A)
+List (A) R(A) := []
+Push (A) R(A)[] := RK(B)
 ```

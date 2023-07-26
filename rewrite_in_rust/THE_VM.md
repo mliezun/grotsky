@@ -234,7 +234,7 @@ struct ClassValue {
 
 ```
 Move (A, B) R(A) := R(B)
-Closure (A, Bx) R(A) := closure(KPROTO[Bx], R(A), ... ,R(A+n))
+Closure (A, Bx) R(A) := closure(KPROTO[Bx], R(A), ..., R(A+n))
 Call (A, B, C) R(C-1) := R(A)(R(A+1), ... ,R(A+B-1))
 Return (A, B) return R(A), ... ,R(A+B-2)
 Test (A, B, C) if (R(B) <=> C) then R(A) := R(B) else PC++
@@ -256,5 +256,7 @@ Neg (A, B) R(A) := -R(B)
 GetUpval (A, B) R(A) := U[B]
 SetUpval (A, B) U[B] := R(A)
 List (A) R(A) := []
-Push (A) R(A)[] := RK(B)
+PushList (A) R(A)[] := RK(B)
+Dict R(A) := {}
+PushDict R(A)[RK(B)] := RK(C)
 ```

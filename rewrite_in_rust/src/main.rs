@@ -25,12 +25,12 @@ while a < 1000000 {
 ";
 
 const SOURCE_LITERAL: &str = "
-let asd = [
-    1,
-    2,
-    3,
-    \"hello\",
-]
+let asd = {
+    1: 2,
+    \"2\": 3,
+    4: \"five\",
+    true: false,
+}
 ";
 
 fn tree_interpreter(source: String) {

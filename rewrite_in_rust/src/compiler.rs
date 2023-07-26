@@ -520,7 +520,7 @@ impl ExprVisitor<Chunk> for Compiler {
                 .instructions
                 .append(&mut el_chunk.instructions.clone());
             chunk.instructions.push(Instruction {
-                opcode: OpCode::Push,
+                opcode: OpCode::PushList,
                 a: reg,
                 b: el_chunk.result_register,
                 c: 0,
@@ -530,7 +530,33 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_dictionary_expr(&mut self, expr: &DictionaryExpr) -> Chunk {
-        todo!()
+        let reg = self.next_register();
+        let mut chunk = Chunk {
+            result_register: reg,
+            instructions: vec![Instruction {
+                opcode: OpCode::Dict,
+                a: reg,
+                b: 0,
+                c: 0,
+            }],
+        };
+        for i in 0..(expr.elements.len() / 2) {
+            let k = &expr.elements[i * 2];
+            let val = &expr.elements[i * 2 + 1];
+            let k_chunk = k.accept(self);
+            let val_chunk = val.accept(self);
+            chunk.instructions.append(&mut k_chunk.instructions.clone());
+            chunk
+                .instructions
+                .append(&mut val_chunk.instructions.clone());
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::PushDict,
+                a: reg,
+                b: k_chunk.result_register,
+                c: val_chunk.result_register,
+            });
+        }
+        return chunk;
     }
 
     fn visit_assign_expr(&mut self, expr: &AssignExpr) -> Chunk {

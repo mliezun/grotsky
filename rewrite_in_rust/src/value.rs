@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 #[derive(Debug, Clone)]
@@ -15,7 +16,7 @@ impl<T> MutValue<T> {
 pub enum Value {
     Class(MutValue<ClassValue>),
     // Object(MutValue<ObjectValue>),
-    // Dict(MutValue<DictValue>),
+    Dict(MutValue<DictValue>),
     List(MutValue<ListValue>),
     Fn(MutValue<FnValue>),
     // Native(NativeValue),
@@ -25,6 +26,27 @@ pub enum Value {
     Up(UpValue),
     Nil,
 }
+
+impl Hash for Value {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Value::Number(val) => state.write_u64(val.n as u64),
+            Value::String(val) => val.s.hash(state),
+            Value::Bool(val) => state.write_u8(val.b as u8),
+            Value::Up(val) => val.value.0.borrow().hash(state),
+            _ => unimplemented!(),
+        };
+    }
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        let _self = &mut self.clone();
+        return truthy(&_self.equal(&mut other.clone()));
+    }
+}
+
+impl Eq for Value {}
 
 impl Value {
     pub fn add(&mut self, other: &mut Value) -> Value {
@@ -134,7 +156,7 @@ impl Value {
         }
         panic!("Not implemented");
     }
-    pub fn eq(&mut self, other: &mut Value) -> Value {
+    pub fn equal(&mut self, other: &mut Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Bool(BoolValue {
@@ -144,7 +166,7 @@ impl Value {
         }
         panic!("Not implemented");
     }
-    pub fn neq(&mut self, other: &mut Value) -> Value {
+    pub fn nequal(&mut self, other: &mut Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Bool(BoolValue {
@@ -199,6 +221,11 @@ pub struct ClassValue {
 #[derive(Debug, Clone)]
 pub struct ListValue {
     pub elements: Vec<Value>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DictValue {
+    pub elements: HashMap<Value, Value>,
 }
 
 #[derive(Debug, Clone)]

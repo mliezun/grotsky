@@ -295,7 +295,7 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] = val_b.eq(val_c);
+                    self.activation_records[sp + inst.a as usize] = val_b.equal(val_c);
                     pc += 1;
                 }
                 OpCode::Neq => {
@@ -308,7 +308,7 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] = val_b.neq(val_c);
+                    self.activation_records[sp + inst.a as usize] = val_b.nequal(val_c);
                     pc += 1;
                 }
                 OpCode::GetUpval => {
@@ -321,7 +321,7 @@ impl VM {
                         Value::List(MutValue::new(ListValue { elements: vec![] }));
                     pc += 1;
                 }
-                OpCode::Push => {
+                OpCode::PushList => {
                     if let Value::List(list_val) = &self.activation_records[sp + inst.a as usize] {
                         list_val
                             .0
@@ -331,6 +331,25 @@ impl VM {
                         pc += 1;
                     } else {
                         panic!("Cannot push to non-list");
+                    }
+                }
+                OpCode::Dict => {
+                    self.activation_records[sp + inst.a as usize] =
+                        Value::Dict(MutValue::new(DictValue {
+                            elements: HashMap::new(),
+                        }));
+                    pc += 1;
+                }
+                OpCode::PushDict => {
+                    if let Value::Dict(dict_val) = &self.activation_records[sp + inst.a as usize] {
+                        let hash_map = &mut dict_val.0.borrow_mut().elements;
+                        hash_map.insert(
+                            self.activation_records[sp + inst.b as usize].clone(),
+                            self.activation_records[sp + inst.c as usize].clone(),
+                        );
+                        pc += 1;
+                    } else {
+                        panic!("Cannot push to non-dict");
                     }
                 }
                 _ => todo!(),

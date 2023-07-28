@@ -57,12 +57,9 @@ impl VM {
                                 self.stack[ix].sp
                             };
                             let upv = UpValue {
-                                value: MutValue::new(
-                                    self.activation_records[base_sp + u.register as usize].clone(),
-                                ),
+                                rec: base_sp + u.register as usize,
+                                value: None,
                             };
-                            self.activation_records[base_sp + u.register as usize] =
-                                Value::Up(upv.clone());
                             return upv;
                         })
                         .collect();
@@ -108,19 +105,12 @@ impl VM {
                 }
                 OpCode::Return => {
                     if self.stack.len() <= 1 {
-                        // println!("Finishing program");
                         return;
                     }
                     let stack = self.stack.pop().unwrap();
                     upvalue_stack.pop();
-                    // println!("Popping stack: {:#?}", stack);
-                    // println!("Executing inst: {:#?}", inst);
                     if inst.b == inst.a + 2 && stack.result_register > 0 {
-                        // println!(
-                        //     "Storing result result_register={}, stack.sp={}",
-                        //     stack.result_register - 1,
-                        //     stack.sp,
-                        // );
+                        // Store return values
                         self.activation_records[stack.sp + (stack.result_register - 1) as usize] =
                             self.activation_records[sp + inst.a as usize].clone();
                     }
@@ -129,16 +119,11 @@ impl VM {
                     pc = stack.pc;
                     sp = stack.sp;
                     if let Some(func) = &self.stack.last().unwrap().function {
-                        // println!("There is a function {:#?}", func);
                         instructions =
                             &self.prototypes[func.0.borrow().prototype as usize].instructions;
                     } else {
-                        // println!("There is no function");
                         instructions = &self.instructions;
                     }
-                    // println!("{:#?}", self.stack);
-                    // println!("{:#?}", instructions);
-                    // println!("{:#?}", pc);
                 }
 
                 OpCode::Jmp => {
@@ -312,18 +297,23 @@ impl VM {
                     pc += 1;
                 }
                 OpCode::GetUpval => {
-                    self.activation_records[sp + inst.a as usize] =
-                        upvalue_stack.last_mut().unwrap()[inst.b as usize]
-                            .value
-                            .0
-                            .borrow_mut()
-                            .clone();
+                    let upval = &mut upvalue_stack.last_mut().unwrap()[inst.b as usize];
+                    if let Some(upref) = &upval.value {
+                        self.activation_records[sp + inst.a as usize] = upref.clone();
+                    } else {
+                        self.activation_records[sp + inst.a as usize] =
+                            self.activation_records[upval.rec].clone();
+                    }
                     pc += 1;
                 }
                 OpCode::SetUpval => {
                     let upval = &mut upvalue_stack.last_mut().unwrap()[inst.b as usize];
-                    upval.value =
-                        MutValue::new(self.activation_records[sp + inst.a as usize].clone());
+                    if upval.value.is_some() {
+                        upval.value = Some(self.activation_records[sp + inst.a as usize].clone());
+                    } else {
+                        self.activation_records[upval.rec] =
+                            self.activation_records[sp + inst.a as usize].clone();
+                    }
                     pc += 1;
                 }
                 OpCode::List => {

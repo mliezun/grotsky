@@ -103,7 +103,7 @@ fn test_bytecode_compiler(source: String) {
     // println!("{:#?}", my_mv);
     my_mv.interpret();
     let duration = start.elapsed();
-    println!("{:#?}", my_mv.activation_records[0]);
+    println!("{:#?}", my_mv);
     println!(
         "Duration compilation+execution: {:?}",
         duration.as_secs_f64()

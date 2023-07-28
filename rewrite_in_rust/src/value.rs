@@ -23,7 +23,6 @@ pub enum Value {
     Number(NumberValue),
     String(StringValue),
     Bool(BoolValue),
-    Up(UpValue),
     Nil,
 }
 
@@ -33,7 +32,6 @@ impl Hash for Value {
             Value::Number(val) => state.write_u64(val.n as u64),
             Value::String(val) => val.s.hash(state),
             Value::Bool(val) => state.write_u8(val.b as u8),
-            Value::Up(val) => val.value.0.borrow().hash(state),
             _ => unimplemented!(),
         };
     }
@@ -50,12 +48,6 @@ impl Eq for Value {}
 
 impl Value {
     pub fn add(&mut self, other: &mut Value) -> Value {
-        if let Value::Up(up_val) = self {
-            return up_val.value.0.borrow_mut().add(other);
-        }
-        if let Value::Up(other_up_val) = other {
-            return self.add(&mut other_up_val.value.0.borrow_mut());
-        }
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Number(NumberValue {
@@ -230,5 +222,6 @@ pub struct DictValue {
 
 #[derive(Debug, Clone)]
 pub struct UpValue {
-    pub value: MutValue<Value>,
+    pub rec: usize,
+    pub value: Option<Value>,
 }

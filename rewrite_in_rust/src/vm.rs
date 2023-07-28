@@ -313,7 +313,17 @@ impl VM {
                 }
                 OpCode::GetUpval => {
                     self.activation_records[sp + inst.a as usize] =
-                        Value::Up(upvalue_stack.last_mut().unwrap()[inst.b as usize].clone());
+                        upvalue_stack.last_mut().unwrap()[inst.b as usize]
+                            .value
+                            .0
+                            .borrow_mut()
+                            .clone();
+                    pc += 1;
+                }
+                OpCode::SetUpval => {
+                    let upval = &mut upvalue_stack.last_mut().unwrap()[inst.b as usize];
+                    upval.value =
+                        MutValue::new(self.activation_records[sp + inst.a as usize].clone());
                     pc += 1;
                 }
                 OpCode::List => {

@@ -25,12 +25,17 @@ while a < 1000000 {
 ";
 
 const SOURCE_LITERAL: &str = "
-let asd = {
-    1: 2,
-    \"2\": 3,
-    4: \"five\",
-    true: false,
+let a = 1
+let chain = fn (first, sec) {
+    return fn () {
+        first()
+        sec()
+    }
 }
+let add = fn () {
+    a = a + 1
+}
+chain(chain(add, add), chain(add, add))()
 ";
 
 fn tree_interpreter(source: String) {
@@ -98,7 +103,7 @@ fn test_bytecode_compiler(source: String) {
     // println!("{:#?}", my_mv);
     my_mv.interpret();
     let duration = start.elapsed();
-    println!("{:#?}", my_mv);
+    println!("{:#?}", my_mv.activation_records[0]);
     println!(
         "Duration compilation+execution: {:?}",
         duration.as_secs_f64()

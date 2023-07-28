@@ -572,6 +572,26 @@ impl ExprVisitor<Chunk> for Compiler {
             }
             chunk.result_register = reg;
             return chunk;
+        } else if let Some(up_ref) = self.get_upvalue(&expr.name.lexeme.to_string()) {
+            let reg = self.next_register();
+            let mut chunk = expr.value.accept(self);
+            if !chunk.instructions.is_empty() {
+                let inst = chunk.instructions.last_mut().unwrap();
+                if inst.opcode == OpCode::Call {
+                    inst.c = reg + 1;
+                } else {
+                    inst.a = reg;
+                }
+            }
+            let upvalue_ix = self.add_upvalue(up_ref);
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::SetUpval,
+                a: reg,
+                b: upvalue_ix,
+                c: 0,
+            });
+            chunk.result_register = reg;
+            return chunk;
         }
         panic!("Var doesn't exist!");
     }

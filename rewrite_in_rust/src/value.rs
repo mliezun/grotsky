@@ -193,7 +193,7 @@ pub struct BoolValue {
 #[derive(Debug, Clone)]
 pub struct FnValue {
     pub prototype: u16,
-    pub upvalues: Vec<UpValue>,
+    pub upvalues: Vec<MutValue<Value>>,
     pub constants: Vec<Value>,
 }
 

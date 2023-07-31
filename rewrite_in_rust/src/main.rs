@@ -96,7 +96,7 @@ fn test_bytecode_compiler(source: String) {
             result_register: 0,
         }],
         activation_records: (0..compiler.contexts.last().unwrap().register_count)
-            .map(|_| value::Value::Nil)
+            .map(|_| vm::Record::Val(value::Value::Nil))
             .collect(),
         pc: 0,
     };
@@ -120,10 +120,6 @@ fn main() {
     } else {
         source = SOURCE;
     }
-    let start = Instant::now();
-    //vm::test_vm_execution();
-    let duration = start.elapsed();
-    println!("Duration bytecode: {:?}", duration.as_secs_f64());
     tree_interpreter(String::from(source));
     test_bytecode_compiler(String::from(SOURCE_LITERAL));
 }

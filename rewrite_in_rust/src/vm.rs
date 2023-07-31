@@ -4,6 +4,7 @@ use crate::compiler::FnPrototype;
 use crate::instruction::*;
 use crate::value::*;
 use std::collections::HashMap;
+use std::ops::Deref;
 
 #[derive(Debug, Clone)]
 pub struct StackEntry {
@@ -13,6 +14,21 @@ pub struct StackEntry {
     pub result_register: u8,
 }
 
+#[derive(Debug, Clone)]
+pub enum Record {
+    Val(Value),
+    Ref(MutValue<Value>),
+}
+
+impl Record {
+    fn as_val(&self) -> Value {
+        match self {
+            Record::Val(v) => v.clone(),
+            Record::Ref(v) => v.0.deref().borrow_mut().clone(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct VM {
     pub instructions: Vec<Instruction>,
@@ -20,7 +36,7 @@ pub struct VM {
     pub constants: Vec<Value>,
     pub globals: HashMap<String, Value>,
     pub stack: Vec<StackEntry>,
-    pub activation_records: Vec<Value>,
+    pub activation_records: Vec<Record>,
     pub pc: usize,
 }
 
@@ -29,14 +45,13 @@ impl VM {
         let mut instructions = &self.instructions;
         let mut pc = self.pc;
         let mut sp = self.stack[self.stack.len() - 1].sp;
-        let mut upvalue_stack: Vec<Vec<UpValue>> = vec![];
         while pc < instructions.len() {
             let inst = &instructions[pc];
             // println!("Executing {:#?}", inst);
             match inst.opcode {
                 OpCode::LoadK => {
                     self.activation_records[sp + inst.a as usize] =
-                        self.constants[inst.bx() as usize].clone();
+                        Record::Val(self.constants[inst.bx() as usize].clone());
                     pc += 1;
                 }
                 OpCode::Move => {
@@ -46,7 +61,7 @@ impl VM {
                 }
                 OpCode::Closure => {
                     let prototype = &self.prototypes[inst.bx() as usize];
-                    let fn_upvalues: Vec<UpValue> = prototype
+                    let fn_upvalues: Vec<MutValue<Value>> = prototype
                         .upvalues
                         .iter()
                         .map(|u| {
@@ -56,26 +71,29 @@ impl VM {
                                 let ix = self.stack.len() - 1 - u.depth as usize;
                                 self.stack[ix].sp
                             };
-                            let upv = UpValue {
-                                rec: base_sp + u.register as usize,
-                                value: None,
+                            let rec_ix = base_sp + u.register as usize;
+                            let record = match self.activation_records[rec_ix].clone() {
+                                Record::Ref(v) => v,
+                                Record::Val(v) => MutValue::new(v),
                             };
-                            return upv;
+                            self.activation_records[rec_ix] = Record::Ref(record.clone());
+                            return record;
                         })
                         .collect();
                     self.activation_records[sp + inst.a as usize] =
-                        Value::Fn(MutValue::new(FnValue {
+                        Record::Val(Value::Fn(MutValue::new(FnValue {
                             prototype: inst.bx(),
                             upvalues: fn_upvalues,
                             constants: vec![],
-                        }));
-                    // println!("Records={:#?}", self.activation_records);
+                        })));
                     pc += 1;
                 }
                 OpCode::Call => {
-                    if let Value::Fn(fn_value) =
-                        self.activation_records[sp + inst.a as usize].clone()
-                    {
+                    let val = match &self.activation_records[sp + inst.a as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    if let Value::Fn(fn_value) = val {
                         let stack = StackEntry {
                             function: Some(fn_value.clone()),
                             pc: pc + 1,
@@ -85,21 +103,25 @@ impl VM {
                         let previous_sp = sp;
                         sp = self.activation_records.len();
                         self.stack.push(stack);
+
                         let prototype = &self.prototypes[fn_value.0.borrow().prototype as usize];
+
+                        // Expand activation records
                         self.activation_records.append(
-                            &mut (0..prototype.register_count).map(|_| Value::Nil).collect(),
+                            &mut (0..prototype.register_count)
+                                .map(|_| Record::Val(Value::Nil))
+                                .collect(),
                         );
+
+                        // Copy input arguments
                         for (i, reg) in ((inst.a + 1)..(inst.a + inst.b)).enumerate() {
                             self.activation_records[sp + i] =
                                 self.activation_records[previous_sp + reg as usize].clone();
                         }
-                        // println!("{:#?}", self.activation_records);
+
                         instructions = &prototype.instructions;
-                        upvalue_stack.push(fn_value.0.borrow().upvalues.clone());
                         pc = 0;
                     } else {
-                        // println!("sp={}, inst.a={}", sp, inst.a);
-                        // println!("Registers={:#?}", self.activation_records);
                         panic!("Not a function");
                     }
                 }
@@ -108,7 +130,6 @@ impl VM {
                         return;
                     }
                     let stack = self.stack.pop().unwrap();
-                    upvalue_stack.pop();
                     if inst.b == inst.a + 2 && stack.result_register > 0 {
                         // Store return values
                         self.activation_records[stack.sp + (stack.result_register - 1) as usize] =
@@ -131,9 +152,12 @@ impl VM {
                     pc = pc.wrapping_add(inst.sbx() as usize);
                 }
                 OpCode::Test => {
-                    let val_b = self.activation_records.get(sp + inst.b as usize).unwrap();
+                    let val_b = self
+                        .activation_records
+                        .get_mut(sp + inst.b as usize)
+                        .unwrap();
                     let bool_c = inst.c != 0;
-                    if truthy(val_b) == bool_c {
+                    if truthy(&val_b.as_val()) == bool_c {
                         self.activation_records[sp + inst.a as usize] = val_b.clone();
                     } else {
                         pc += 1;
@@ -141,7 +165,7 @@ impl VM {
                     pc += 1;
                 }
                 OpCode::Add => {
-                    let mut val_b = self
+                    let val_b = self
                         .activation_records
                         .get_mut(sp + inst.b as usize)
                         .unwrap()
@@ -150,11 +174,12 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] = val_b.add(val_c);
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(val_b.as_val().add(&mut val_c.as_val()));
                     pc += 1;
                 }
                 OpCode::Sub => {
-                    let mut val_b = self
+                    let val_b = self
                         .activation_records
                         .get_mut(sp + inst.b as usize)
                         .unwrap()
@@ -163,11 +188,12 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] = val_b.sub(val_c);
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(val_b.as_val().sub(&mut val_c.as_val()));
                     pc += 1;
                 }
                 OpCode::Mul => {
-                    let mut val_b = self
+                    let val_b = self
                         .activation_records
                         .get_mut(sp + inst.b as usize)
                         .unwrap()
@@ -176,11 +202,12 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] = val_b.mul(val_c);
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(val_b.as_val().mul(&mut val_c.as_val()));
                     pc += 1;
                 }
                 OpCode::Pow => {
-                    let mut val_b = self
+                    let val_b = self
                         .activation_records
                         .get_mut(sp + inst.b as usize)
                         .unwrap()
@@ -189,11 +216,12 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] = val_b.pow(val_c);
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(val_b.as_val().pow(&mut val_c.as_val()));
                     pc += 1;
                 }
                 OpCode::Div => {
-                    let mut val_b = self
+                    let val_b = self
                         .activation_records
                         .get_mut(sp + inst.b as usize)
                         .unwrap()
@@ -202,11 +230,12 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] = val_b.div(val_c);
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(val_b.as_val().div(&mut val_c.as_val()));
                     pc += 1;
                 }
                 OpCode::Mod => {
-                    let mut val_b = self
+                    let val_b = self
                         .activation_records
                         .get_mut(sp + inst.b as usize)
                         .unwrap()
@@ -215,11 +244,12 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] = val_b.modulo(val_c);
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(val_b.as_val().modulo(&mut val_c.as_val()));
                     pc += 1;
                 }
                 OpCode::Lt => {
-                    let mut val_b = self
+                    let val_b = self
                         .activation_records
                         .get_mut(sp + inst.b as usize)
                         .unwrap()
@@ -228,11 +258,12 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] = val_b.lt(val_c);
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(val_b.as_val().lt(&mut val_c.as_val()));
                     pc += 1;
                 }
                 OpCode::Lte => {
-                    let mut val_b = self
+                    let val_b = self
                         .activation_records
                         .get_mut(sp + inst.b as usize)
                         .unwrap()
@@ -241,11 +272,12 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] = val_b.lte(val_c);
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(val_b.as_val().lte(&mut val_c.as_val()));
                     pc += 1;
                 }
                 OpCode::Gt => {
-                    let mut val_b = self
+                    let val_b = self
                         .activation_records
                         .get_mut(sp + inst.b as usize)
                         .unwrap()
@@ -254,11 +286,12 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] = val_b.gt(val_c);
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(val_b.as_val().gt(&mut val_c.as_val()));
                     pc += 1;
                 }
                 OpCode::Gte => {
-                    let mut val_b = self
+                    let val_b = self
                         .activation_records
                         .get_mut(sp + inst.b as usize)
                         .unwrap()
@@ -267,11 +300,12 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] = val_b.gte(val_c);
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(val_b.as_val().gte(&mut val_c.as_val()));
                     pc += 1;
                 }
                 OpCode::Eq => {
-                    let mut val_b = self
+                    let val_b = self
                         .activation_records
                         .get_mut(sp + inst.b as usize)
                         .unwrap()
@@ -280,11 +314,12 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] = val_b.equal(val_c);
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(val_b.as_val().equal(&mut val_c.as_val()));
                     pc += 1;
                 }
                 OpCode::Neq => {
-                    let mut val_b = self
+                    let val_b = self
                         .activation_records
                         .get_mut(sp + inst.b as usize)
                         .unwrap()
@@ -293,41 +328,42 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] = val_b.nequal(val_c);
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(val_b.as_val().nequal(&mut val_c.as_val()));
                     pc += 1;
                 }
                 OpCode::GetUpval => {
-                    let upval = &mut upvalue_stack.last_mut().unwrap()[inst.b as usize];
-                    if let Some(upref) = &upval.value {
-                        self.activation_records[sp + inst.a as usize] = upref.clone();
-                    } else {
-                        self.activation_records[sp + inst.a as usize] =
-                            self.activation_records[upval.rec].clone();
-                    }
+                    let current_func = self.stack.last_mut().unwrap().function.clone().unwrap();
+                    let upval = &current_func.0.borrow().upvalues[inst.b as usize];
+                    self.activation_records[sp + inst.a as usize] = Record::Ref(upval.clone());
                     pc += 1;
                 }
                 OpCode::SetUpval => {
-                    let upval = &mut upvalue_stack.last_mut().unwrap()[inst.b as usize];
-                    if upval.value.is_some() {
-                        upval.value = Some(self.activation_records[sp + inst.a as usize].clone());
-                    } else {
-                        self.activation_records[upval.rec] =
-                            self.activation_records[sp + inst.a as usize].clone();
-                    }
+                    let current_func = self.stack.last_mut().unwrap().function.clone().unwrap();
+                    let upval = &current_func.0.borrow().upvalues[inst.b as usize];
+                    upval.0.replace(
+                        self.activation_records[sp + inst.a as usize]
+                            .as_val()
+                            .clone(),
+                    );
                     pc += 1;
                 }
                 OpCode::List => {
                     self.activation_records[sp + inst.a as usize] =
-                        Value::List(MutValue::new(ListValue { elements: vec![] }));
+                        Record::Val(Value::List(MutValue::new(ListValue { elements: vec![] })));
                     pc += 1;
                 }
                 OpCode::PushList => {
-                    if let Value::List(list_val) = &self.activation_records[sp + inst.a as usize] {
-                        list_val
-                            .0
-                            .borrow_mut()
-                            .elements
-                            .push(self.activation_records[sp + inst.b as usize].clone());
+                    let val = self.activation_records[sp + inst.a as usize]
+                        .as_val()
+                        .clone();
+                    if let Value::List(list_val) = val {
+                        let lval = list_val.0.deref();
+                        lval.borrow_mut().elements.push(
+                            self.activation_records[sp + inst.b as usize]
+                                .as_val()
+                                .clone(),
+                        );
                         pc += 1;
                     } else {
                         panic!("Cannot push to non-list");
@@ -335,17 +371,25 @@ impl VM {
                 }
                 OpCode::Dict => {
                     self.activation_records[sp + inst.a as usize] =
-                        Value::Dict(MutValue::new(DictValue {
+                        Record::Val(Value::Dict(MutValue::new(DictValue {
                             elements: HashMap::new(),
-                        }));
+                        })));
                     pc += 1;
                 }
                 OpCode::PushDict => {
-                    if let Value::Dict(dict_val) = &self.activation_records[sp + inst.a as usize] {
-                        let hash_map = &mut dict_val.0.borrow_mut().elements;
+                    let val = self.activation_records[sp + inst.a as usize]
+                        .as_val()
+                        .clone();
+                    if let Value::Dict(dict_val) = val {
+                        let dval = dict_val.0.deref();
+                        let hash_map = &mut dval.borrow_mut().elements;
                         hash_map.insert(
-                            self.activation_records[sp + inst.b as usize].clone(),
-                            self.activation_records[sp + inst.c as usize].clone(),
+                            self.activation_records[sp + inst.b as usize]
+                                .as_val()
+                                .clone(),
+                            self.activation_records[sp + inst.c as usize]
+                                .as_val()
+                                .clone(),
                         );
                         pc += 1;
                     } else {
@@ -356,71 +400,4 @@ impl VM {
             }
         }
     }
-}
-
-pub fn test_vm_execution() {
-    // println!("{:#b}", -3);
-    let dummy_fn = FnValue {
-        prototype: 1,
-        upvalues: vec![],
-        constants: vec![],
-    };
-    let mut vm = VM {
-        instructions: vec![
-            Instruction {
-                opcode: OpCode::Lt,
-                a: 3,
-                b: 0,
-                c: 2,
-            },
-            Instruction {
-                opcode: OpCode::Test,
-                a: 3,
-                b: 3,
-                c: 0,
-            },
-            Instruction {
-                opcode: OpCode::Jmp,
-                a: 0,
-                b: 0,
-                c: 3,
-            },
-            Instruction {
-                opcode: OpCode::Add,
-                a: 0,
-                b: 1,
-                c: 0,
-            },
-            Instruction {
-                opcode: OpCode::Jmp,
-                a: 0,
-                // -3
-                b: 255,
-                c: 252,
-            },
-        ],
-        prototypes: vec![],
-        constants: vec![],
-        globals: HashMap::new(),
-        stack: vec![StackEntry {
-            function: None,
-            pc: 0,
-            sp: 0,
-            result_register: 0,
-        }],
-        activation_records: vec![
-            Value::Number(NumberValue { n: 0.0 }),
-            Value::Number(NumberValue { n: 1.0 }),
-            Value::Number(NumberValue { n: 1000000.0 }),
-            Value::Number(NumberValue { n: 3.0 }),
-            Value::Number(NumberValue { n: 4.0 }),
-            Value::Number(NumberValue { n: 5.0 }),
-        ],
-        pc: 0,
-    };
-    vm.globals
-        .insert("dummy_fn".to_string(), Value::Fn(MutValue::new(dummy_fn)));
-    // println!("{:#?}", vm);
-    vm.interpret();
-    println!("{:#?}", vm);
 }

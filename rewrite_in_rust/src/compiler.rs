@@ -246,13 +246,8 @@ impl StmtVisitor<Chunk> for Compiler {
         chunk
             .instructions
             .append(&mut body_chunk.instructions.clone());
-        // CAUTION
-        // Here im adding +1, but I think it should be +2. It still works for the examples
-        // that I've tried. But I remain suspicious.
-        // Having a +1 here makes the loop faster, because it has to execute 1 instruction less.
-        // If there are any issues regarding while loops then change to +2.
         let loop_size =
-            -((body_chunk.instructions.len() + cond_chunk.instructions.len() + 1) as i16);
+            -((body_chunk.instructions.len() + cond_chunk.instructions.len() + 2) as i16);
         chunk.instructions.push(Instruction {
             opcode: OpCode::Jmp,
             a: 0,

@@ -183,7 +183,65 @@ impl StmtVisitor<Chunk> for Compiler {
     }
 
     fn visit_classic_for_stmt(&mut self, stmt: &ClassicForStmt) -> Chunk {
-        todo!()
+        let mut chunk = Chunk {
+            result_register: 0,
+            instructions: vec![],
+        };
+        if let Some(init) = &stmt.initializer {
+            let init_chunk = init.accept(self);
+            chunk
+                .instructions
+                .append(&mut init_chunk.instructions.clone());
+        }
+        let cond_chunk = stmt.condition.accept(self);
+        let mut body_chunk = stmt.body.accept(self);
+        let inc_chunk = stmt.increment.accept(self);
+        body_chunk
+            .instructions
+            .append(&mut inc_chunk.instructions.clone());
+        chunk
+            .instructions
+            .append(&mut cond_chunk.instructions.clone());
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::Test,
+            a: cond_chunk.result_register,
+            b: cond_chunk.result_register,
+            c: 0,
+        });
+        let jump_size = (body_chunk.instructions.len() + 2) as i16;
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::Jmp,
+            a: 0,
+            b: (jump_size >> 8) as u8,
+            c: jump_size as u8,
+        });
+        chunk
+            .instructions
+            .append(&mut body_chunk.instructions.clone());
+        let loop_size =
+            -((body_chunk.instructions.len() + cond_chunk.instructions.len() + 2) as i16);
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::Jmp,
+            a: 0,
+            b: (loop_size >> 8) as u8,
+            c: loop_size as u8,
+        });
+        // Patch continue and break
+        let chunk_size = chunk.instructions.len();
+        for (i, inst) in chunk.instructions.iter_mut().enumerate() {
+            if inst.is_continue() {
+                let jump_offset = -(i as i64);
+                inst.a = 0;
+                inst.b = (jump_offset >> 8) as u8;
+                inst.c = jump_offset as u8;
+            } else if inst.is_break() {
+                let jump_offset = chunk_size - i;
+                inst.a = 0;
+                inst.b = (jump_offset >> 8) as u8;
+                inst.c = jump_offset as u8;
+            }
+        }
+        return chunk;
     }
 
     fn visit_enhanced_for_stmt(&mut self, stmt: &EnhancedForStmt) -> Chunk {

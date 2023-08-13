@@ -572,7 +572,95 @@ impl StmtVisitor<Chunk> for Compiler {
     }
 
     fn visit_class_stmt(&mut self, stmt: &ClassStmt) -> Chunk {
-        todo!()
+        let result_register: u8 = self.next_register();
+        self.allocate_register(
+            stmt.name.clone().unwrap().lexeme.to_string(),
+            result_register,
+        );
+        let mut chunk = Chunk {
+            instructions: vec![],
+            result_register: result_register,
+        };
+        let tmp_reg = self.next_register();
+        let constant_ix = self.constants.len() as u16;
+        self.constants.push(Value::String(StringValue {
+            s: stmt.name.clone().unwrap().lexeme.to_string(),
+        }));
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::LoadK,
+            a: tmp_reg,
+            b: (constant_ix >> 8) as u8,
+            c: constant_ix as u8,
+        });
+        let superclass_reg = if let Some(superclass) = &stmt.superclass {
+            let var_chunk = self.visit_variable_expr(superclass);
+            chunk
+                .instructions
+                .append(&mut var_chunk.instructions.clone());
+            var_chunk.result_register
+        } else {
+            let nil_reg = self.next_register();
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::LoadNil,
+                a: nil_reg,
+                b: 0,
+                c: 0,
+            });
+            nil_reg
+        };
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::Class,
+            a: chunk.result_register,
+            b: tmp_reg,
+            c: superclass_reg,
+        });
+        self.enter_block();
+        for met in &stmt.methods {
+            let met_chunk = self.visit_fn_stmt(met);
+            chunk
+                .instructions
+                .append(&mut met_chunk.instructions.clone());
+            let constant_ix = self.constants.len() as u16;
+            self.constants.push(Value::String(StringValue {
+                s: met.name.lexeme.to_string(),
+            }));
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::LoadK,
+                a: tmp_reg,
+                b: (constant_ix >> 8) as u8,
+                c: constant_ix as u8,
+            });
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::ClassMeth,
+                a: chunk.result_register,
+                b: tmp_reg,
+                c: met_chunk.result_register,
+            });
+        }
+        for met in &stmt.static_methods {
+            let met_chunk = self.visit_fn_stmt(met);
+            chunk
+                .instructions
+                .append(&mut met_chunk.instructions.clone());
+            let constant_ix = self.constants.len() as u16;
+            self.constants.push(Value::String(StringValue {
+                s: met.name.lexeme.to_string(),
+            }));
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::LoadK,
+                a: tmp_reg,
+                b: (constant_ix >> 8) as u8,
+                c: constant_ix as u8,
+            });
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::ClassStMeth,
+                a: chunk.result_register,
+                b: tmp_reg,
+                c: met_chunk.result_register,
+            });
+        }
+        self.leave_block();
+        return chunk;
     }
 }
 

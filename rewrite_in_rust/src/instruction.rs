@@ -33,6 +33,9 @@ pub enum OpCode {
     Slice,
     Access,
     Set,
+    Class,
+    ClassMeth,
+    ClassStMeth,
     Addi,
 }
 

@@ -466,6 +466,105 @@ impl VM {
                         _ => panic!("Cannot access non iterable"),
                     }
                 }
+                OpCode::Class => {
+                    let class_name = match &self.activation_records[sp + inst.b as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    let superclass = match &self.activation_records[sp + inst.c as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    let mut class = ClassValue {
+                        name: "".to_string(),
+                        superclass: None,
+                        methods: HashMap::new(),
+                        classmethods: HashMap::new(),
+                    };
+                    if let Value::String(name) = class_name {
+                        class.name = name.s;
+                    } else {
+                        panic!("Class name should be string");
+                    }
+                    match superclass {
+                        Value::Class(superclass_val) => {
+                            class.superclass = Some(superclass_val);
+                        }
+                        Value::Nil => {}
+                        _ => panic!("Cannot inherit from non-class"),
+                    }
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(Value::Class(MutValue::new(class)));
+                    pc += 1;
+                }
+                OpCode::ClassMeth => {
+                    let class = match &self.activation_records[sp + inst.a as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    let prop = match &self.activation_records[sp + inst.b as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    let method = match &self.activation_records[sp + inst.c as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    let meth_name = if let Value::String(s) = prop {
+                        s.s
+                    } else {
+                        panic!("Cannot assign to non-string prop")
+                    };
+                    let meth_value = if let Value::Fn(m) = method {
+                        m
+                    } else {
+                        panic!("Cannot assign method as non-function")
+                    };
+                    if let Value::Class(class_val) = class {
+                        class_val
+                            .0
+                            .borrow_mut()
+                            .methods
+                            .insert(meth_name, meth_value);
+                        pc += 1;
+                    } else {
+                        panic!("Cannot assign method to non-classs");
+                    }
+                }
+                OpCode::ClassStMeth => {
+                    let class = match &self.activation_records[sp + inst.a as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    let prop = match &self.activation_records[sp + inst.b as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    let method = match &self.activation_records[sp + inst.c as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    let meth_name = if let Value::String(s) = prop {
+                        s.s
+                    } else {
+                        panic!("Cannot assign to non-string prop")
+                    };
+                    let meth_value = if let Value::Fn(m) = method {
+                        m
+                    } else {
+                        panic!("Cannot assign method as non-function")
+                    };
+                    if let Value::Class(class_val) = class {
+                        class_val
+                            .0
+                            .borrow_mut()
+                            .classmethods
+                            .insert(meth_name, meth_value);
+                        pc += 1;
+                    } else {
+                        panic!("Cannot assign method to non-classs");
+                    }
+                }
                 OpCode::Addi => {
                     let val_b = self
                         .activation_records

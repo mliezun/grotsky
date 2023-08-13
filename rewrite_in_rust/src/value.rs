@@ -207,8 +207,8 @@ pub struct StringValue {
 pub struct ClassValue {
     pub name: String,
     pub superclass: Option<MutValue<ClassValue>>,
-    pub methods: Vec<MutValue<FnValue>>,
-    pub classmethods: Vec<MutValue<FnValue>>,
+    pub methods: HashMap<String, MutValue<FnValue>>,
+    pub classmethods: HashMap<String, MutValue<FnValue>>,
 }
 
 #[derive(Debug, Clone)]

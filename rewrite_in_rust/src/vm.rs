@@ -439,6 +439,33 @@ impl VM {
                         _ => panic!("Cannot access non iterable"),
                     }
                 }
+                OpCode::Set => {
+                    let dest = match &self.activation_records[sp + inst.a as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    let accessor = match &self.activation_records[sp + inst.b as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    let val = match &self.activation_records[sp + inst.c as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    match dest {
+                        Value::List(list) => {
+                            if let Value::Number(nval) = accessor {
+                                list.0.borrow_mut().elements[nval.n as usize] = val;
+                                pc += 1;
+                            } else {
+                                panic!("Index error");
+                            }
+                        }
+                        Value::Dict(dict) => unimplemented!(),
+                        Value::String(str) => unimplemented!(),
+                        _ => panic!("Cannot access non iterable"),
+                    }
+                }
                 OpCode::Addi => {
                     let val_b = self
                         .activation_records

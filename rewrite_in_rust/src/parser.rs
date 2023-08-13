@@ -621,36 +621,33 @@ impl Parser<'_> {
     }
 
     fn assignment(&mut self) -> Expr {
-        let expr = self.or();
+        let mut expr = self.or();
         if self.matches(Token::Equal) {
             let equal = self.previous();
             let value = self.assignment();
 
-            // let mut object: Expr = Expr::Empty;
-            // let access = match expr {
-            //     Expr::Access(access) => {
-            //         object = *access.object;
-            //         loop {
-            //             if let Expr::Access(inner_access) = object {
-            //                 object = *inner_access.object;
-            //             } else {
-            //                 break;
-            //             }
-            //         }
-            //         let access_expr = Box::new(Expr::Access(access));
-            //         Some(access_expr)
-            //     }
-            //     _ => None,
-            // };
-            // if object != Expr::Empty {
-            //     expr = object;
-            // }
+            let access = match expr {
+                Expr::Access(a) => {
+                    let mut obj = a.clone().object;
+                    loop {
+                        if let Expr::Access(_a) = *obj {
+                            obj = _a.object;
+                        } else {
+                            break;
+                        }
+                    }
+                    expr = obj.as_ref().clone();
+                    Some(a)
+                }
+                _ => None,
+            };
 
             match expr {
                 Expr::Var(variable) => {
                     let assign = AssignExpr {
                         name: variable.name.unwrap(),
                         value: Box::new(value),
+                        access: access,
                     };
                     return Expr::Assign(assign);
                 }
@@ -659,6 +656,7 @@ impl Parser<'_> {
                         name: get.name,
                         value: Box::new(value),
                         object: get.object,
+                        access: access,
                     };
                     return Expr::Set(set);
                 }

@@ -28,6 +28,7 @@ pub struct DictionaryExpr {
 pub struct AssignExpr {
     pub name: TokenData,
     pub value: Box<Expr>,
+    pub access: Option<AccessExpr>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -66,6 +67,7 @@ pub struct SetExpr {
     pub object: Box<Expr>,
     pub name: TokenData,
     pub value: Box<Expr>,
+    pub access: Option<AccessExpr>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

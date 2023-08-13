@@ -684,35 +684,73 @@ impl ExprVisitor<Chunk> for Compiler {
     fn visit_assign_expr(&mut self, expr: &AssignExpr) -> Chunk {
         if let Some(reg) = self.get_var_register(&expr.name.lexeme.to_string()) {
             let mut chunk = expr.value.accept(self);
-            if !chunk.instructions.is_empty() {
-                let inst = chunk.instructions.last_mut().unwrap();
-                if inst.opcode == OpCode::Call {
-                    inst.c = reg + 1;
-                } else {
-                    inst.a = reg;
+
+            if let Some(access) = &expr.access {
+                let obj_chunk = access.object.accept(self);
+                let access_chunk = access.first.accept(self);
+                chunk
+                    .instructions
+                    .append(&mut obj_chunk.instructions.clone());
+                chunk
+                    .instructions
+                    .append(&mut access_chunk.instructions.clone());
+                chunk.instructions.push(Instruction {
+                    opcode: OpCode::Set,
+                    a: obj_chunk.result_register,
+                    b: access_chunk.result_register,
+                    c: chunk.result_register,
+                });
+            } else {
+                if !chunk.instructions.is_empty() {
+                    let inst = chunk.instructions.last_mut().unwrap();
+                    if inst.opcode == OpCode::Call {
+                        inst.c = reg + 1;
+                    } else {
+                        inst.a = reg;
+                    }
                 }
+                chunk.result_register = reg;
             }
-            chunk.result_register = reg;
+
             return chunk;
         } else if let Some(up_ref) = self.get_upvalue(&expr.name.lexeme.to_string()) {
             let reg = self.next_register();
             let mut chunk = expr.value.accept(self);
-            if !chunk.instructions.is_empty() {
-                let inst = chunk.instructions.last_mut().unwrap();
-                if inst.opcode == OpCode::Call {
-                    inst.c = reg + 1;
-                } else {
-                    inst.a = reg;
+
+            if let Some(access) = &expr.access {
+                let obj_chunk = access.object.accept(self);
+                let access_chunk = access.first.accept(self);
+                chunk
+                    .instructions
+                    .append(&mut obj_chunk.instructions.clone());
+                chunk
+                    .instructions
+                    .append(&mut access_chunk.instructions.clone());
+                chunk.instructions.push(Instruction {
+                    opcode: OpCode::Set,
+                    a: obj_chunk.result_register,
+                    b: access_chunk.result_register,
+                    c: chunk.result_register,
+                });
+            } else {
+                if !chunk.instructions.is_empty() {
+                    let inst = chunk.instructions.last_mut().unwrap();
+                    if inst.opcode == OpCode::Call {
+                        inst.c = reg + 1;
+                    } else {
+                        inst.a = reg;
+                    }
                 }
+                let upvalue_ix = self.add_upvalue(up_ref);
+                chunk.instructions.push(Instruction {
+                    opcode: OpCode::SetUpval,
+                    a: reg,
+                    b: upvalue_ix,
+                    c: 0,
+                });
+                chunk.result_register = reg;
             }
-            let upvalue_ix = self.add_upvalue(up_ref);
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::SetUpval,
-                a: reg,
-                b: upvalue_ix,
-                c: 0,
-            });
-            chunk.result_register = reg;
+
             return chunk;
         }
         panic!("Var doesn't exist!");

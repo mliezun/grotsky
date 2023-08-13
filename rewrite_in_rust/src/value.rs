@@ -23,6 +23,7 @@ pub enum Value {
     Number(NumberValue),
     String(StringValue),
     Bool(BoolValue),
+    Slice(SliceValue),
     Nil,
 }
 
@@ -215,13 +216,23 @@ pub struct ListValue {
     pub elements: Vec<Value>,
 }
 
+impl ListValue {
+    pub fn access(&self, accesor: Value) -> Value {
+        match accesor {
+            Value::Number(val) => self.elements[val.n as usize].clone(),
+            _ => unimplemented!(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct DictValue {
     pub elements: HashMap<Value, Value>,
 }
 
 #[derive(Debug, Clone)]
-pub struct UpValue {
-    pub rec: usize,
-    pub value: Option<Value>,
+pub struct SliceValue {
+    pub first: Rc<Value>,
+    pub second: Rc<Value>,
+    pub third: Rc<Value>,
 }

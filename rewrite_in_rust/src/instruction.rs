@@ -3,6 +3,7 @@
 pub enum OpCode {
     Move,
     LoadK,
+    LoadNil,
     Jmp,
     Test,
     Add,
@@ -29,6 +30,10 @@ pub enum OpCode {
     PushList,
     Dict,
     PushDict,
+    Slice,
+    Access,
+    Set,
+    Addi,
 }
 
 // To indicate if the JMP is a continue or break inside

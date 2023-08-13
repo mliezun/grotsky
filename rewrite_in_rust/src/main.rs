@@ -25,10 +25,9 @@ while a < 1000000 {
 ";
 
 const SOURCE_LITERAL: &str = "
-let b = 2
-for let i = 0; i < 10; i = i + 1 {
-    b = b * 2
-}
+let list = [1,2,3,4,5,6]
+let a = list[4] + 10
+let b = a + 1
 ";
 
 fn tree_interpreter(source: String) {
@@ -96,7 +95,7 @@ fn test_bytecode_compiler(source: String) {
     // println!("{:#?}", my_mv);
     my_mv.interpret();
     let duration = start.elapsed();
-    println!("{:#?}", my_mv.activation_records[0]);
+    println!("{:#?}", my_mv);
     println!(
         "Duration compilation+execution: {:?}",
         duration.as_secs_f64()

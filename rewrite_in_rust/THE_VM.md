@@ -234,6 +234,8 @@ struct ClassValue {
 
 ```
 Move (A, B) R(A) := R(B)
+LoadK (A, Bx) R(A) := K[Bx]
+LoadNil (A) R(A) := nil
 Closure (A, Bx) R(A) := closure(KPROTO[Bx], R(A), ..., R(A+n))
 Call (A, B, C) R(C-1) := R(A)(R(A+1), ... ,R(A+B-1))
 Return (A, B) return R(A), ... ,R(A+B-2)
@@ -256,7 +258,11 @@ Neg (A, B) R(A) := -R(B)
 GetUpval (A, B) R(A) := U[B]
 SetUpval (A, B) U[B] := R(A)
 List (A) R(A) := []
-PushList (A) R(A)[] := RK(B)
+PushList (A) R(A)[] := R(B)
 Dict R(A) := {}
-PushDict R(A)[RK(B)] := RK(C)
+PushDict R(A)[R(B)] := R(C)
+Slice (A, B) R(A) = slice(R(B))
+Access (A, B, C) R(A) = R(B)[R(C)]
+Set (A, B, C) R(A)[R(B)] = R(C)
+Addi (A, B, Imm) R(A) = R(B) + Imm
 ```

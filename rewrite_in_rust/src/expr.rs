@@ -123,6 +123,15 @@ pub enum Expr {
     Empty,
 }
 
+impl Expr {
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Expr::Empty => true,
+            _ => false,
+        }
+    }
+}
+
 pub trait ExprVisitor<T> {
     fn visit_function_expr(&mut self, expr: &FnExpr) -> T;
     fn visit_variable_expr(&mut self, expr: &VarExpr) -> T;

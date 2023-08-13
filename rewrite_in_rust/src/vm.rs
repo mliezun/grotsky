@@ -5,6 +5,7 @@ use crate::instruction::*;
 use crate::value::*;
 use std::collections::HashMap;
 use std::ops::Deref;
+use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub struct StackEntry {
@@ -52,6 +53,10 @@ impl VM {
                 OpCode::LoadK => {
                     self.activation_records[sp + inst.a as usize] =
                         Record::Val(self.constants[inst.bx() as usize].clone());
+                    pc += 1;
+                }
+                OpCode::LoadNil => {
+                    self.activation_records[sp + inst.a as usize] = Record::Val(Value::Nil);
                     pc += 1;
                 }
                 OpCode::Move => {
@@ -395,6 +400,57 @@ impl VM {
                     } else {
                         panic!("Cannot push to non-dict");
                     }
+                }
+                OpCode::Slice => {
+                    let val = match &self.activation_records[sp + inst.a as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    if let Value::List(list) = &val {
+                        let slice = SliceValue {
+                            first: Rc::new(list.0.borrow().elements[0].clone()),
+                            second: Rc::new(list.0.borrow().elements[1].clone()),
+                            third: Rc::new(list.0.borrow().elements[2].clone()),
+                        };
+                        self.activation_records[sp + inst.a as usize] =
+                            Record::Val(Value::Slice(slice));
+                        pc += 1;
+                    } else {
+                        panic!("Cannot create slice from non-list")
+                    }
+                }
+                OpCode::Access => {
+                    let val = match &self.activation_records[sp + inst.b as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    let accessor = match &self.activation_records[sp + inst.c as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    match val {
+                        Value::List(list) => {
+                            self.activation_records[sp + inst.a as usize] =
+                                Record::Val(list.0.borrow().access(accessor));
+                            pc += 1;
+                        }
+                        Value::Dict(dict) => unimplemented!(),
+                        Value::String(str) => unimplemented!(),
+                        _ => panic!("Cannot access non iterable"),
+                    }
+                }
+                OpCode::Addi => {
+                    let val_b = self
+                        .activation_records
+                        .get_mut(sp + inst.b as usize)
+                        .unwrap()
+                        .clone();
+                    self.activation_records[sp + inst.a as usize] = Record::Val(
+                        val_b
+                            .as_val()
+                            .add(&mut Value::Number(NumberValue { n: inst.c as f64 })),
+                    );
+                    pc += 1;
                 }
                 _ => todo!(),
             }

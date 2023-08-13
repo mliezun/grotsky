@@ -245,7 +245,76 @@ impl StmtVisitor<Chunk> for Compiler {
     }
 
     fn visit_enhanced_for_stmt(&mut self, stmt: &EnhancedForStmt) -> Chunk {
-        todo!()
+        let counter_reg = self.next_register();
+        let mut chunk = Chunk {
+            result_register: 0,
+            instructions: vec![],
+        };
+        let cond_chunk = Chunk {
+            result_register: counter_reg,
+            instructions: vec![Instruction {
+                opcode: OpCode::Lt,
+                a: counter_reg,
+                b: 0,
+                c: 0,
+            }],
+        };
+        let mut body_chunk = stmt.body.accept(self);
+        let inc_chunk = Chunk {
+            result_register: counter_reg,
+            instructions: vec![Instruction {
+                opcode: OpCode::Addi,
+                a: counter_reg,
+                b: counter_reg,
+                c: 1,
+            }],
+        };
+        body_chunk
+            .instructions
+            .append(&mut inc_chunk.instructions.clone());
+        chunk
+            .instructions
+            .append(&mut cond_chunk.instructions.clone());
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::Test,
+            a: cond_chunk.result_register,
+            b: cond_chunk.result_register,
+            c: 0,
+        });
+        let jump_size = (body_chunk.instructions.len() + 2) as i16;
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::Jmp,
+            a: 0,
+            b: (jump_size >> 8) as u8,
+            c: jump_size as u8,
+        });
+        chunk
+            .instructions
+            .append(&mut body_chunk.instructions.clone());
+        let loop_size =
+            -((body_chunk.instructions.len() + cond_chunk.instructions.len() + 2) as i16);
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::Jmp,
+            a: 0,
+            b: (loop_size >> 8) as u8,
+            c: loop_size as u8,
+        });
+        // Patch continue and break
+        let chunk_size = chunk.instructions.len();
+        for (i, inst) in chunk.instructions.iter_mut().enumerate() {
+            if inst.is_continue() {
+                let jump_offset = -(i as i64);
+                inst.a = 0;
+                inst.b = (jump_offset >> 8) as u8;
+                inst.c = jump_offset as u8;
+            } else if inst.is_break() {
+                let jump_offset = chunk_size - i;
+                inst.a = 0;
+                inst.b = (jump_offset >> 8) as u8;
+                inst.c = jump_offset as u8;
+            }
+        }
+        return chunk;
     }
 
     fn visit_let_stmt(&mut self, stmt: &LetStmt) -> Chunk {
@@ -650,7 +719,109 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_access_expr(&mut self, expr: &AccessExpr) -> Chunk {
-        todo!()
+        let mut chunk = Chunk {
+            result_register: self.next_register(),
+            instructions: vec![],
+        };
+        let obj_chunk = expr.object.accept(self);
+        chunk
+            .instructions
+            .append(&mut obj_chunk.instructions.clone());
+        let accessor_count = vec![expr.first.clone(), expr.second.clone(), expr.third.clone()]
+            .iter()
+            .filter(|s| !s.is_empty())
+            .count();
+        if accessor_count == 1 {
+            let first_chunk = expr.first.accept(self);
+            chunk
+                .instructions
+                .append(&mut first_chunk.instructions.clone());
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Access,
+                a: chunk.result_register,
+                b: obj_chunk.result_register,
+                c: first_chunk.result_register,
+            });
+        } else {
+            let list_register = self.next_register();
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::List,
+                a: list_register,
+                b: 0,
+                c: 0,
+            });
+            let nil_register = self.next_register();
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::LoadNil,
+                a: nil_register,
+                b: 0,
+                c: 0,
+            });
+            if !expr.first.is_empty() {
+                let first_chunk = expr.first.accept(self);
+                chunk
+                    .instructions
+                    .append(&mut first_chunk.instructions.clone());
+                chunk.instructions.push(Instruction {
+                    opcode: OpCode::PushList,
+                    a: list_register,
+                    b: first_chunk.result_register,
+                    c: 0,
+                });
+            } else {
+                chunk.instructions.push(Instruction {
+                    opcode: OpCode::PushList,
+                    a: list_register,
+                    b: nil_register,
+                    c: 0,
+                });
+            }
+            if !expr.second.is_empty() {
+                let second_chunk = expr.second.accept(self);
+                chunk
+                    .instructions
+                    .append(&mut second_chunk.instructions.clone());
+                chunk.instructions.push(Instruction {
+                    opcode: OpCode::PushList,
+                    a: list_register,
+                    b: second_chunk.result_register,
+                    c: 0,
+                });
+            } else {
+                chunk.instructions.push(Instruction {
+                    opcode: OpCode::PushList,
+                    a: list_register,
+                    b: nil_register,
+                    c: 0,
+                });
+            }
+            if !expr.third.is_empty() {
+                let third_chunk = expr.third.accept(self);
+                chunk
+                    .instructions
+                    .append(&mut third_chunk.instructions.clone());
+                chunk.instructions.push(Instruction {
+                    opcode: OpCode::PushList,
+                    a: list_register,
+                    b: third_chunk.result_register,
+                    c: 0,
+                });
+            } else {
+                chunk.instructions.push(Instruction {
+                    opcode: OpCode::PushList,
+                    a: list_register,
+                    b: nil_register,
+                    c: 0,
+                });
+            }
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Slice,
+                a: list_register,
+                b: list_register,
+                c: 0,
+            });
+        }
+        return chunk;
     }
 
     fn visit_binary_expr(&mut self, expr: &BinaryExpr) -> Chunk {

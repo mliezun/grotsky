@@ -126,6 +126,8 @@ impl Compiler {
     }
 
     pub fn compile(&mut self, stmts: Vec<Stmt>) {
+        let io_reg = self.next_register();
+        self.allocate_register("io".to_string(), io_reg);
         for stmt in stmts {
             let chunk = stmt.accept(self);
             self.add_chunk(chunk);

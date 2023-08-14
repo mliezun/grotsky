@@ -126,6 +126,23 @@ impl VM {
 
                         instructions = &prototype.instructions;
                         pc = 0;
+                    } else if let Value::Native(n) = val {
+                        if let Some(callable) = n.callable {
+                            let mut args: Vec<Value> = vec![];
+                            for reg in (inst.a + 1)..(inst.a + inst.b) {
+                                let val = match &self.activation_records[sp + reg as usize] {
+                                    Record::Ref(v) => v.0.borrow().clone(),
+                                    Record::Val(v) => v.clone(),
+                                };
+                                args.push(val);
+                            }
+                            let result = callable(args);
+                            self.activation_records[sp + inst.c as usize] =
+                                Record::Val(result.clone());
+                            pc += 1;
+                        } else {
+                            panic!("Not a function");
+                        }
                     } else {
                         panic!("Not a function");
                     }

@@ -19,7 +19,7 @@ pub enum Value {
     Dict(MutValue<DictValue>),
     List(MutValue<ListValue>),
     Fn(MutValue<FnValue>),
-    // Native(NativeValue),
+    Native(NativeValue),
     Number(NumberValue),
     String(StringValue),
     Bool(BoolValue),
@@ -48,6 +48,14 @@ impl PartialEq for Value {
 impl Eq for Value {}
 
 impl Value {
+    pub fn repr(&self) -> String {
+        match self {
+            Value::String(s) => s.s.clone(),
+            Value::Number(n) => n.n.to_string(),
+            _ => "".to_string(),
+        }
+    }
+
     pub fn get(&self, prop: String) -> Value {
         if let Value::List(l) = self {
             if prop == "length" {
@@ -55,6 +63,9 @@ impl Value {
                     n: l.0.borrow().elements.len() as f64,
                 });
             }
+        }
+        if let Value::Native(n) = self {
+            return n.props.get(&prop).unwrap().clone();
         }
         unimplemented!();
     }
@@ -246,4 +257,20 @@ pub struct SliceValue {
     pub first: Rc<Value>,
     pub second: Rc<Value>,
     pub third: Rc<Value>,
+}
+
+#[derive(Clone)]
+pub struct NativeValue {
+    pub props: HashMap<String, Value>,
+    pub callable: Option<&'static dyn Fn(Vec<Value>) -> Value>,
+}
+
+impl core::fmt::Debug for NativeValue {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        if self.callable.is_some() {
+            write!(f, "<native fn>")
+        } else {
+            write!(f, "NativeValue({:#?})", self.props)
+        }
+    }
 }

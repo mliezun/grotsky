@@ -265,7 +265,9 @@ Slice (A, B) R(A) := slice(R(B))
 Access (A, B, C) R(A) := R(B)[R(C)]
 Set (A, B, C) R(A)[R(B)] := R(C)
 Class (A, B) R(A) := class(name: R(B), superclass: R(C))
-ClassMeth (A, B, C) R(A).R(B) = R(C)
-ClassStMeth (A, B, C) R(A).R(B) = R(C)
+ClassMeth (A, B, C) R(A).R(B) := R(C)
+ClassStMeth (A, B, C) R(A).R(B) := R(C)
+GetObj (A, B, C) R(A) := R(B).R(C)
+SetObj (A, B, C) R(A).R(B) := R(C)
 Addi (A, B, Imm) R(A) := R(B) + Imm
 ```

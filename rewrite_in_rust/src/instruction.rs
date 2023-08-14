@@ -36,6 +36,8 @@ pub enum OpCode {
     Class,
     ClassMeth,
     ClassStMeth,
+    GetObj,
+    SetObj,
     Addi,
 }
 

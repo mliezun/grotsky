@@ -48,6 +48,17 @@ impl PartialEq for Value {
 impl Eq for Value {}
 
 impl Value {
+    pub fn get(&self, prop: String) -> Value {
+        if let Value::List(l) = self {
+            if prop == "length" {
+                return Value::Number(NumberValue {
+                    n: l.0.borrow().elements.len() as f64,
+                });
+            }
+        }
+        unimplemented!();
+    }
+
     pub fn add(&mut self, other: &mut Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {

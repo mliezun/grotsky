@@ -565,6 +565,23 @@ impl VM {
                         panic!("Cannot assign method to non-classs");
                     }
                 }
+                OpCode::GetObj => {
+                    let val_b = match &self.activation_records[sp + inst.b as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    let val_c = match &self.activation_records[sp + inst.c as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    let prop = if let Value::String(s) = val_c {
+                        s.s
+                    } else {
+                        panic!("Prop has to be a string")
+                    };
+                    self.activation_records[sp + inst.a as usize] = Record::Val(val_b.get(prop));
+                    pc += 1;
+                }
                 OpCode::Addi => {
                     let val_b = self
                         .activation_records

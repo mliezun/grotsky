@@ -1027,11 +1027,54 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_get_expr(&mut self, expr: &GetExpr) -> Chunk {
-        todo!()
+        let mut chunk = expr.object.accept(self);
+        let result_register = self.next_register();
+        let constant_ix = self.constants.len() as u16;
+        let val = Value::String(StringValue {
+            s: expr.name.lexeme.to_string(),
+        });
+        self.constants.push(val);
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::LoadK,
+            a: result_register,
+            b: (constant_ix >> 8) as u8,
+            c: constant_ix as u8,
+        });
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::GetObj,
+            a: result_register,
+            b: chunk.result_register,
+            c: result_register,
+        });
+        return chunk;
     }
 
     fn visit_set_expr(&mut self, expr: &SetExpr) -> Chunk {
-        todo!()
+        let mut chunk = expr.object.accept(self);
+        // TODO: handle expr.access
+        let value_chunk = expr.value.accept(self);
+        chunk
+            .instructions
+            .append(&mut value_chunk.instructions.clone());
+        let tmp_register = self.next_register();
+        let constant_ix = self.constants.len() as u16;
+        let val = Value::String(StringValue {
+            s: expr.name.lexeme.to_string(),
+        });
+        self.constants.push(val);
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::LoadK,
+            a: tmp_register,
+            b: (constant_ix >> 8) as u8,
+            c: constant_ix as u8,
+        });
+        chunk.instructions.push(Instruction {
+            opcode: OpCode::SetObj,
+            a: chunk.result_register,
+            b: tmp_register,
+            c: value_chunk.result_register,
+        });
+        return chunk;
     }
 
     fn visit_super_expr(&mut self, expr: &SuperExpr) -> Chunk {

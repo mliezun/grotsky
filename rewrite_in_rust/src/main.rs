@@ -25,12 +25,6 @@ while a < 1000000 {
 }
 ";
 
-const SOURCE_LITERAL: &str = "
-let a = [0, 0, 0, 0]
-let b = a.length
-io.println(\"Result\", b)
-";
-
 fn tree_interpreter(source: String) {
     let state = &mut state::InterpreterState::new(source);
     let mut lex = lexer::Lexer::new(state);
@@ -68,7 +62,7 @@ fn test_bytecode_compiler(source: String) {
         }],
         prototypes: vec![],
     };
-    let start = Instant::now();
+    // let start = Instant::now();
     compiler.compile(state.stmts.clone());
     let mut my_mv = vm::VM {
         instructions: compiler
@@ -96,12 +90,12 @@ fn test_bytecode_compiler(source: String) {
     my_mv.activation_records[0] = vm::Record::Val(value::Value::Native(native::IO::build()));
     // println!("{:#?}", my_mv);
     my_mv.interpret();
-    let duration = start.elapsed();
+    // let duration = start.elapsed();
     // println!("{:#?}", my_mv.activation_records);
-    println!(
-        "Duration compilation+execution: {:?}",
-        duration.as_secs_f64()
-    );
+    // println!(
+    //     "Duration compilation+execution: {:?}",
+    //     duration.as_secs_f64()
+    // );
 }
 
 fn main() {
@@ -114,6 +108,6 @@ fn main() {
     } else {
         source = SOURCE;
     }
-    tree_interpreter(String::from(source));
-    test_bytecode_compiler(String::from(SOURCE_LITERAL));
+    // tree_interpreter(String::from(source));
+    test_bytecode_compiler(String::from(source));
 }

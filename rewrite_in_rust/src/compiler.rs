@@ -1048,6 +1048,7 @@ impl ExprVisitor<Chunk> for Compiler {
             b: chunk.result_register,
             c: result_register,
         });
+        chunk.result_register = result_register;
         return chunk;
     }
 

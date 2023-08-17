@@ -137,7 +137,7 @@ impl VM {
                                 args.push(val);
                             }
                             let result = callable(args);
-                            self.activation_records[sp + inst.c as usize] =
+                            self.activation_records[sp + inst.c as usize - 1] =
                                 Record::Val(result.clone());
                             pc += 1;
                         } else {

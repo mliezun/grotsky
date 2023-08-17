@@ -2,6 +2,7 @@ mod compiler;
 mod expr;
 mod instruction;
 mod lexer;
+mod native;
 mod parser;
 mod state;
 mod stmt;
@@ -25,9 +26,9 @@ while a < 1000000 {
 ";
 
 const SOURCE_LITERAL: &str = "
-let list = [1,2,3,4,5,6]
-let a = list[4] + 10
-let b = a + 1
+let a = [0, 0, 0, 0]
+let b = a.length
+io.println(\"Result\", b)
 ";
 
 fn tree_interpreter(source: String) {
@@ -92,10 +93,11 @@ fn test_bytecode_compiler(source: String) {
             .collect(),
         pc: 0,
     };
+    my_mv.activation_records[0] = vm::Record::Val(value::Value::Native(native::IO::build()));
     // println!("{:#?}", my_mv);
     my_mv.interpret();
     let duration = start.elapsed();
-    println!("{:#?}", my_mv);
+    // println!("{:#?}", my_mv.activation_records);
     println!(
         "Duration compilation+execution: {:?}",
         duration.as_secs_f64()

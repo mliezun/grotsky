@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use std::ops::{Range, RangeFrom, RangeTo, RangeFull};
 
 #[derive(Debug, Clone)]
 pub struct MutValue<T>(pub Rc<RefCell<T>>);
@@ -66,6 +67,13 @@ impl Value {
                 });
             }
         }
+        if let Value::String(s) = self {
+            if prop == "length" {
+                return Value::Number(NumberValue {
+                    n: s.s.len() as f64,
+                });
+            }
+        }
         if let Value::Native(n) = self {
             return n.props.get(&prop).unwrap().clone();
         }
@@ -77,6 +85,13 @@ impl Value {
             if let Value::Number(other_val) = other {
                 return Value::Number(NumberValue {
                     n: num_val.n + other_val.n,
+                });
+            }
+        }
+        if let Value::String(str_val) = self {
+            if let Value::String(other_val) = other {
+                return Value::String(StringValue {
+                    s: str_val.s.clone() + &other_val.s,
                 });
             }
         }
@@ -239,6 +254,21 @@ pub struct StringValue {
     pub s: String,
 }
 
+impl StringValue {
+    pub fn access(&self, accesor: Value) -> Value {
+        match accesor {
+            Value::Number(val) => Value::String(StringValue {
+                s: String::from(self.s.get((val.n as usize)..(1 + val.n as usize)).unwrap()),
+            }),
+            Value::Slice(val) => {
+                let (first, second, third) = val.as_interval();
+                Value::String(StringValue { s: String::from(self.s.get()) })
+            };
+            _ => unimplemented!(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ClassValue {
     pub name: String,
@@ -271,6 +301,24 @@ pub struct SliceValue {
     pub first: Rc<Value>,
     pub second: Rc<Value>,
     pub third: Rc<Value>,
+}
+
+impl SliceValue {
+    fn as_interval(&self) -> (Option<usize>, Option<usize>, usize) {
+        let mut first: Option<usize> = None;
+        let mut second: Option<usize> = None;
+        let mut third: usize = 1;
+        if let Value::Number(val) = &*self.first {
+            first = Some(val.n as usize);
+        }
+        if let Value::Number(val) = &*self.second {
+            second = Some(val.n as usize);
+        }
+        if let Value::Number(val) = &*self.third {
+            third = val.n as usize;
+        }
+        return first, second, third;
+    }
 }
 
 #[derive(Clone)]

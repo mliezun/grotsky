@@ -1146,7 +1146,7 @@ impl ExprVisitor<Chunk> for Compiler {
                 b: left_chunk.result_register,
                 c: 1,
             });
-            let jump_size = (right_chunk.instructions.len() + 1) as u16;
+            let jump_size = (right_chunk.instructions.len() + 2) as u16;
             chunk.instructions.push(Instruction {
                 opcode: OpCode::Jmp,
                 a: 0,
@@ -1169,7 +1169,7 @@ impl ExprVisitor<Chunk> for Compiler {
                 b: left_chunk.result_register,
                 c: 0,
             });
-            let jump_size = (right_chunk.instructions.len() + 1) as u16;
+            let jump_size = (right_chunk.instructions.len() + 2) as u16;
             chunk.instructions.push(Instruction {
                 opcode: OpCode::Jmp,
                 a: 0,

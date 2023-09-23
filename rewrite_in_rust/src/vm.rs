@@ -451,8 +451,12 @@ impl VM {
                                 Record::Val(list.0.borrow().access(accessor));
                             pc += 1;
                         }
+                        Value::String(str) => {
+                            self.activation_records[sp + inst.a as usize] =
+                                Record::Val(str.access(accessor));
+                            pc += 1;
+                        }
                         Value::Dict(dict) => unimplemented!(),
-                        Value::String(str) => unimplemented!(),
                         _ => panic!("Cannot access non iterable"),
                     }
                 }

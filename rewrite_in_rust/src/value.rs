@@ -1,8 +1,9 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+use std::iter::StepBy;
+use std::ops::Range;
 use std::rc::Rc;
-use std::ops::{Range, RangeFrom, RangeTo, RangeFull};
 
 #[derive(Debug, Clone)]
 pub struct MutValue<T>(pub Rc<RefCell<T>>);
@@ -54,6 +55,17 @@ impl Value {
             Value::String(s) => s.s.clone(),
             Value::Number(n) => n.n.to_string(),
             Value::Bool(b) => b.b.to_string(),
+            Value::List(l) => {
+                format!(
+                    "[{}]",
+                    l.0.borrow()
+                        .elements
+                        .iter()
+                        .map(|x| x.repr())
+                        .reduce(|acc, e| acc + ", " + &e)
+                        .unwrap_or("".to_string())
+                )
+            }
             Value::Nil => "nil".to_string(),
             _ => "".to_string(),
         }
@@ -156,6 +168,13 @@ impl Value {
                 });
             }
         }
+        if let Value::String(str_val) = self {
+            if let Value::String(other_val) = other {
+                return Value::Bool(BoolValue {
+                    b: str_val.s < other_val.s,
+                });
+            }
+        }
         panic!("Not implemented");
     }
     pub fn lte(&mut self, other: &mut Value) -> Value {
@@ -163,6 +182,13 @@ impl Value {
             if let Value::Number(other_val) = other {
                 return Value::Bool(BoolValue {
                     b: num_val.n <= other_val.n,
+                });
+            }
+        }
+        if let Value::String(str_val) = self {
+            if let Value::String(other_val) = other {
+                return Value::Bool(BoolValue {
+                    b: str_val.s <= other_val.s,
                 });
             }
         }
@@ -176,6 +202,13 @@ impl Value {
                 });
             }
         }
+        if let Value::String(str_val) = self {
+            if let Value::String(other_val) = other {
+                return Value::Bool(BoolValue {
+                    b: str_val.s > other_val.s,
+                });
+            }
+        }
         panic!("Not implemented");
     }
     pub fn gte(&mut self, other: &mut Value) -> Value {
@@ -183,6 +216,13 @@ impl Value {
             if let Value::Number(other_val) = other {
                 return Value::Bool(BoolValue {
                     b: num_val.n >= other_val.n,
+                });
+            }
+        }
+        if let Value::String(str_val) = self {
+            if let Value::String(other_val) = other {
+                return Value::Bool(BoolValue {
+                    b: str_val.s >= other_val.s,
                 });
             }
         }
@@ -196,6 +236,20 @@ impl Value {
                 });
             }
         }
+        if let Value::String(str_val) = self {
+            if let Value::String(other_val) = other {
+                return Value::Bool(BoolValue {
+                    b: str_val.s == other_val.s,
+                });
+            }
+        }
+        if let Value::Bool(bool_val) = self {
+            if let Value::Bool(other_val) = other {
+                return Value::Bool(BoolValue {
+                    b: bool_val.b == other_val.b,
+                });
+            }
+        }
         panic!("Not implemented");
     }
     pub fn nequal(&mut self, other: &mut Value) -> Value {
@@ -203,6 +257,20 @@ impl Value {
             if let Value::Number(other_val) = other {
                 return Value::Bool(BoolValue {
                     b: num_val.n != other_val.n,
+                });
+            }
+        }
+        if let Value::String(str_val) = self {
+            if let Value::String(other_val) = other {
+                return Value::Bool(BoolValue {
+                    b: str_val.s != other_val.s,
+                });
+            }
+        }
+        if let Value::Bool(bool_val) = self {
+            if let Value::Bool(other_val) = other {
+                return Value::Bool(BoolValue {
+                    b: bool_val.b != other_val.b,
                 });
             }
         }
@@ -261,9 +329,15 @@ impl StringValue {
                 s: String::from(self.s.get((val.n as usize)..(1 + val.n as usize)).unwrap()),
             }),
             Value::Slice(val) => {
-                let (first, second, third) = val.as_interval();
-                Value::String(StringValue { s: String::from(self.s.get()) })
-            };
+                let mut result_str = "".to_string();
+                for i in val.as_interval() {
+                    if i >= self.s.len() {
+                        break;
+                    }
+                    result_str.push_str(self.s.get(i..i + 1).unwrap());
+                }
+                Value::String(StringValue { s: result_str })
+            }
             _ => unimplemented!(),
         }
     }
@@ -304,7 +378,7 @@ pub struct SliceValue {
 }
 
 impl SliceValue {
-    fn as_interval(&self) -> (Option<usize>, Option<usize>, usize) {
+    fn as_interval(&self) -> StepBy<Range<usize>> {
         let mut first: Option<usize> = None;
         let mut second: Option<usize> = None;
         let mut third: usize = 1;
@@ -317,7 +391,16 @@ impl SliceValue {
         if let Value::Number(val) = &*self.third {
             third = val.n as usize;
         }
-        return first, second, third;
+        let range = if first.is_some() && second.is_some() {
+            first.unwrap()..second.unwrap()
+        } else if first.is_some() && second.is_none() {
+            first.unwrap()..usize::MAX
+        } else if first.is_none() && second.is_some() {
+            0..second.unwrap()
+        } else {
+            0..usize::MAX
+        };
+        return range.step_by(third);
     }
 }
 

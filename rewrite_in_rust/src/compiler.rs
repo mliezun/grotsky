@@ -967,6 +967,12 @@ impl ExprVisitor<Chunk> for Compiler {
                 b: list_register,
                 c: 0,
             });
+            chunk.instructions.push(Instruction {
+                opcode: OpCode::Access,
+                a: chunk.result_register,
+                b: obj_chunk.result_register,
+                c: list_register,
+            });
         }
         return chunk;
     }

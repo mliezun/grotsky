@@ -52,6 +52,8 @@ impl Value {
         match self {
             Value::String(s) => s.s.clone(),
             Value::Number(n) => n.n.to_string(),
+            Value::Bool(b) => b.b.to_string(),
+            Value::Nil => "nil".to_string(),
             _ => "".to_string(),
         }
     }
@@ -190,6 +192,18 @@ impl Value {
             }
         }
         panic!("Not implemented");
+    }
+    pub fn neg(&mut self) -> Value {
+        if let Value::Number(num_val) = self {
+            return Value::Number(NumberValue { n: -num_val.n });
+        }
+        panic!("Not implemented");
+    }
+    pub fn not(&mut self) -> Value {
+        return match self {
+            Value::Bool(bool_val) => Value::Bool(BoolValue { b: !bool_val.b }),
+            _ => Value::Bool(BoolValue { b: !truthy(self) }),
+        };
     }
 }
 

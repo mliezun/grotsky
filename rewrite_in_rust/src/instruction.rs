@@ -22,7 +22,6 @@ pub enum OpCode {
     Neg,
     Call,
     Return,
-    Close,
     SetUpval,
     GetUpval,
     Closure,

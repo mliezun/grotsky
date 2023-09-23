@@ -109,7 +109,7 @@ impl Compiler {
 
     fn get_upvalue(&self, var_name: &String) -> Option<UpvalueRef> {
         for (depth, context) in self.contexts.iter().rev().skip(1).enumerate() {
-            println!("Looking upvalue {} {}", var_name, depth);
+            // println!("Looking upvalue {} {}", var_name, depth);
             if let Some(reg) = self.get_var_register_by_context(context, var_name) {
                 return Some(UpvalueRef {
                     depth: depth as u8,
@@ -551,6 +551,19 @@ impl StmtVisitor<Chunk> for Compiler {
         let result_register: u8 = self.next_register();
         self.allocate_register(stmt.name.lexeme.to_string(), result_register);
         self.enter_function(stmt.name.lexeme.to_string());
+        // Register name inside function
+        let self_fn_name_reg = self.next_register();
+        self.allocate_register(stmt.name.lexeme.to_string(), self_fn_name_reg);
+        self.add_chunk(Chunk {
+            instructions: vec![Instruction {
+                opcode: OpCode::Closure,
+                a: self_fn_name_reg,
+                b: 0,
+                c: 0,
+            }],
+            result_register: self_fn_name_reg,
+        });
+        // Register name for input arguments
         for p in stmt.params.iter() {
             let reg = self.next_register();
             self.allocate_register(p.lexeme.to_string(), reg);
@@ -562,6 +575,12 @@ impl StmtVisitor<Chunk> for Compiler {
         }
         self.leave_block();
         let prototype_ix = self.leave_function();
+        let first_instruction = self.prototypes[prototype_ix as usize]
+            .instructions
+            .first_mut()
+            .unwrap();
+        first_instruction.b = (prototype_ix >> 8) as u8;
+        first_instruction.c = prototype_ix as u8;
         return Chunk {
             instructions: vec![Instruction {
                 opcode: OpCode::Closure,

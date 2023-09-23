@@ -14,9 +14,9 @@ mod vm;
 use fnv::FnvHashMap;
 use std::collections::HashMap;
 
-use std::env;
 use std::fs::read_to_string;
 use std::time::Instant;
+use std::{env, panic};
 
 const SOURCE: &str = "
 let a = 1
@@ -41,15 +41,29 @@ fn tree_interpreter(source: String) {
     let start = Instant::now();
     exec.interpret(&mut state.stmts);
     let duration = start.elapsed();
-    println!("Duration tree: {:?}", duration.as_secs_f64());
+    // println!("Duration tree: {:?}", duration.as_secs_f64());
 }
 
-fn test_bytecode_compiler(source: String) {
+fn run_bytecode_interpreter(source: String) {
     let state = &mut state::InterpreterState::new(source);
     let mut lex = lexer::Lexer::new(state);
     lex.scan();
+    if !state.errors.is_empty() {
+        for err in &state.errors {
+            println!("Error on line {}\n\t{}", err.line, err.message);
+        }
+        return;
+    }
     let mut parser = parser::Parser::new(state);
-    parser.parse();
+    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+        parser.parse();
+    }));
+    if result.is_err() || !state.errors.is_empty() {
+        for err in &state.errors {
+            println!("Error on line {}\n\t{}", err.line, err.message);
+        }
+        return;
+    }
     let mut compiler = compiler::Compiler {
         constants: vec![],
         contexts: vec![compiler::FnContext {
@@ -88,7 +102,7 @@ fn test_bytecode_compiler(source: String) {
         pc: 0,
     };
     my_mv.activation_records[0] = vm::Record::Val(value::Value::Native(native::IO::build()));
-    // println!("{:#?}", my_mv);
+    // println!("{:#?}", my_mv.prototypes);
     my_mv.interpret();
     // let duration = start.elapsed();
     // println!("{:#?}", my_mv.activation_records);
@@ -108,6 +122,9 @@ fn main() {
     } else {
         source = SOURCE;
     }
+    panic::set_hook(Box::new(|_info| {
+        // do nothing
+    }));
     // tree_interpreter(String::from(source));
-    test_bytecode_compiler(String::from(source));
+    run_bytecode_interpreter(String::from(source));
 }

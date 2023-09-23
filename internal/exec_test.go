@@ -107,6 +107,8 @@ func checkExpression(t *testing.T, exp string, result ...string) {
 	source := "io.println(" + exp + ")"
 	tp := &testPrinter{}
 
+	t.Log("Run expression", exp)
+
 	run_code("", source, tp)
 	any := false
 	for _, r := range result {
@@ -123,6 +125,8 @@ func checkExpression(t *testing.T, exp string, result ...string) {
 			result,
 			tp.printed,
 		)
+	} else {
+		t.Log("Successful run expression", exp)
 	}
 }
 
@@ -159,6 +163,13 @@ func checkStatements(t *testing.T, code string, resultVar string, result string)
 }
 
 func checkLexer(t *testing.T, source string, line int, result ...string) {
+	max := 20
+	if len(source) < max {
+		max = len(source)
+	}
+
+	t.Log("Run code", source[:max])
+
 	tp := &testPrinter{}
 	run_code("", source, tp)
 	compare := ""
@@ -176,6 +187,8 @@ func checkLexer(t *testing.T, source string, line int, result ...string) {
 			compare,
 			tp.printed,
 		)
+	} else {
+		t.Log("Successful run code", source[:max])
 	}
 }
 

@@ -120,8 +120,8 @@ impl VM {
 
                         // Copy input arguments
                         for (i, reg) in ((inst.a + 1)..(inst.a + inst.b)).enumerate() {
-                            self.activation_records[sp + i] =
-                                self.activation_records[previous_sp + reg as usize].clone();
+                            self.activation_records[sp + i + 1] =
+                                self.activation_records[previous_sp + reg as usize + 1].clone();
                         }
 
                         instructions = &prototype.instructions;
@@ -596,6 +596,7 @@ impl VM {
                     } else {
                         panic!("Prop has to be a string")
                     };
+                    // println!("{:#?} {}", val_b, prop);
                     self.activation_records[sp + inst.a as usize] = Record::Val(val_b.get(prop));
                     pc += 1;
                 }
@@ -610,6 +611,26 @@ impl VM {
                             .as_val()
                             .add(&mut Value::Number(NumberValue { n: inst.c as f64 })),
                     );
+                    pc += 1;
+                }
+                OpCode::Neg => {
+                    let val_b = self
+                        .activation_records
+                        .get_mut(sp + inst.b as usize)
+                        .unwrap()
+                        .clone();
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(val_b.as_val().neg());
+                    pc += 1;
+                }
+                OpCode::Not => {
+                    let val_b = self
+                        .activation_records
+                        .get_mut(sp + inst.b as usize)
+                        .unwrap()
+                        .clone();
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(val_b.as_val().not());
                     pc += 1;
                 }
                 _ => todo!(),

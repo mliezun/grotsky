@@ -52,6 +52,13 @@ impl Eq for Value {}
 impl Value {
     pub fn repr(&self) -> String {
         match self {
+            Value::String(s) => format!("{:?}", s.s),
+            _ => self.string(),
+        }
+    }
+
+    pub fn string(&self) -> String {
+        match self {
             Value::String(s) => s.s.clone(),
             Value::Number(n) => n.n.to_string(),
             Value::Bool(b) => b.b.to_string(),

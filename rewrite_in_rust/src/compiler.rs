@@ -866,6 +866,7 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_access_expr(&mut self, expr: &AccessExpr) -> Chunk {
+        // println!("{:#?}", expr);
         let mut chunk = Chunk {
             result_register: self.next_register(),
             instructions: vec![],
@@ -874,11 +875,7 @@ impl ExprVisitor<Chunk> for Compiler {
         chunk
             .instructions
             .append(&mut obj_chunk.instructions.clone());
-        let accessor_count = vec![expr.first.clone(), expr.second.clone(), expr.third.clone()]
-            .iter()
-            .filter(|s| !s.is_empty())
-            .count();
-        if accessor_count == 1 {
+        if !expr.first.is_empty() && expr.second.is_empty() && expr.third.is_empty() {
             let first_chunk = expr.first.accept(self);
             chunk
                 .instructions
@@ -1260,7 +1257,10 @@ impl ExprAcceptor<Chunk> for Expr {
             Expr::Logical(expr) => visitor.visit_logical_expr(&expr),
             Expr::This(expr) => visitor.visit_this_expr(&expr),
             Expr::Unary(expr) => visitor.visit_unary_expr(&expr),
-            Expr::Empty => unreachable!(),
+            Expr::Empty => Chunk {
+                instructions: vec![],
+                result_register: 0,
+            },
         }
     }
 }

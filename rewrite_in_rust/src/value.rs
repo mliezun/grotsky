@@ -365,8 +365,24 @@ pub struct ListValue {
 
 impl ListValue {
     pub fn access(&self, accesor: Value) -> Value {
+        // println!("accessor = {:#?}", accesor);
         match accesor {
-            Value::Number(val) => self.elements[val.n as usize].clone(),
+            Value::Number(val) => {
+                if self.elements.is_empty() {
+                    return Value::List(MutValue::new(ListValue { elements: vec![] }));
+                }
+                return self.elements[val.n as usize].clone();
+            }
+            Value::Slice(slice) => {
+                let mut elements = vec![];
+                for i in slice.as_interval() {
+                    if i >= self.elements.len() {
+                        break;
+                    }
+                    elements.push(self.elements[i].clone());
+                }
+                return Value::List(MutValue::new(ListValue { elements: elements }));
+            }
             _ => unimplemented!(),
         }
     }

@@ -445,6 +445,8 @@ impl VM {
                         Record::Ref(v) => v.0.borrow().clone(),
                         Record::Val(v) => v.clone(),
                     };
+                    // println!("{:#?}", val);
+                    // println!("{:#?}", accessor);
                     match val {
                         Value::List(list) => {
                             self.activation_records[sp + inst.a as usize] =

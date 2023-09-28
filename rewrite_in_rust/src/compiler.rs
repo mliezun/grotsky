@@ -875,7 +875,12 @@ impl ExprVisitor<Chunk> for Compiler {
         chunk
             .instructions
             .append(&mut obj_chunk.instructions.clone());
-        if !expr.first.is_empty() && expr.second.is_empty() && expr.third.is_empty() {
+        if !expr.first.is_empty()
+            && expr.first_colon.token == Token::Nil
+            && expr.second.is_empty()
+            && expr.second_colon.token == Token::Nil
+            && expr.third.is_empty()
+        {
             let first_chunk = expr.first.accept(self);
             chunk
                 .instructions

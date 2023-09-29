@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::iter::StepBy;
 use std::ops::Range;
@@ -114,6 +114,18 @@ impl Value {
                 });
             }
         }
+        if let Value::List(list_val) = self {
+            if let Value::List(other_val) = other {
+                let mut elements = vec![];
+                for e in list_val.0.borrow().elements.iter() {
+                    elements.push(e.clone());
+                }
+                for e in other_val.0.borrow().elements.iter() {
+                    elements.push(e.clone());
+                }
+                return Value::List(MutValue::new(ListValue { elements: elements }));
+            }
+        }
         println!("{:#?} + {:#?}", self, other);
         panic!("Not implemented");
     }
@@ -123,6 +135,20 @@ impl Value {
                 return Value::Number(NumberValue {
                     n: num_val.n - other_val.n,
                 });
+            }
+        }
+        if let Value::List(list_val) = self {
+            if let Value::List(other_val) = other {
+                let mut elements = HashSet::new();
+                for e in list_val.0.borrow().elements.iter() {
+                    elements.insert(e.clone());
+                }
+                for e in other_val.0.borrow().elements.iter() {
+                    elements.remove(e);
+                }
+                return Value::List(MutValue::new(ListValue {
+                    elements: elements.into_iter().collect(),
+                }));
             }
         }
         panic!("Not implemented");
@@ -257,6 +283,15 @@ impl Value {
                 });
             }
         }
+        if let Value::List(list_val) = self {
+            if let Value::List(other_val) = other {
+                let elements = &list_val.0.borrow().elements;
+                let other_elements = &other_val.0.borrow().elements;
+                let result = elements.len() == other_elements.len()
+                    && std::ptr::eq(elements.as_ptr(), other_elements.as_ptr());
+                return Value::Bool(BoolValue { b: result });
+            }
+        }
         panic!("Not implemented");
     }
     pub fn nequal(&mut self, other: &mut Value) -> Value {
@@ -281,11 +316,29 @@ impl Value {
                 });
             }
         }
+        if let Value::List(list_val) = self {
+            if let Value::List(other_val) = other {
+                let elements = &list_val.0.borrow().elements;
+                let other_elements = &other_val.0.borrow().elements;
+                let result = elements.len() != other_elements.len()
+                    || !std::ptr::eq(elements.as_ptr(), other_elements.as_ptr());
+                return Value::Bool(BoolValue { b: result });
+            }
+        }
         panic!("Not implemented");
     }
     pub fn neg(&mut self) -> Value {
         if let Value::Number(num_val) = self {
             return Value::Number(NumberValue { n: -num_val.n });
+        }
+        if let Value::List(list_val) = self {
+            let mut elements: HashSet<Value> = HashSet::new();
+            for element in list_val.0.borrow().elements.iter() {
+                elements.insert(element.clone());
+            }
+            return Value::List(MutValue::new(ListValue {
+                elements: elements.into_iter().collect(),
+            }));
         }
         panic!("Not implemented");
     }

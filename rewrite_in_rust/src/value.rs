@@ -73,8 +73,19 @@ impl Value {
                         .unwrap_or("".to_string())
                 )
             }
+            Value::Dict(d) => {
+                format!(
+                    "{{{}}}",
+                    d.0.borrow()
+                        .elements
+                        .iter()
+                        .map(|(k, v)| format!("{}: {}", k.repr(), v.repr()))
+                        .reduce(|acc, e| acc + ", " + &e)
+                        .unwrap_or("".to_string())
+                )
+            }
             Value::Nil => "nil".to_string(),
-            _ => "".to_string(),
+            _ => unimplemented!(),
         }
     }
 
@@ -90,6 +101,13 @@ impl Value {
             if prop == "length" {
                 return Value::Number(NumberValue {
                     n: s.s.len() as f64,
+                });
+            }
+        }
+        if let Value::Dict(d) = self {
+            if prop == "length" {
+                return Value::Number(NumberValue {
+                    n: d.0.borrow().elements.len() as f64,
                 });
             }
         }
@@ -452,6 +470,12 @@ impl ListValue {
 #[derive(Debug, Clone)]
 pub struct DictValue {
     pub elements: HashMap<Value, Value>,
+}
+
+impl DictValue {
+    pub fn access(&self, accesor: Value) -> Value {
+        self.elements.get(&accesor).unwrap().clone()
+    }
 }
 
 #[derive(Debug, Clone)]

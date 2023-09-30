@@ -390,7 +390,11 @@ impl StringValue {
             }),
             Value::Slice(val) => {
                 let mut result_str = "".to_string();
-                for i in val.as_interval() {
+                let (range, step) = val.as_range();
+                if step > self.s.len() {
+                    return Value::String(StringValue { s: result_str });
+                }
+                for i in range.step_by(step) {
                     if i >= self.s.len() {
                         break;
                     }
@@ -428,7 +432,11 @@ impl ListValue {
             }
             Value::Slice(slice) => {
                 let mut elements = vec![];
-                for i in slice.as_interval() {
+                let (range, step) = slice.as_range();
+                if step > self.elements.len() {
+                    return Value::List(MutValue::new(ListValue { elements: elements }));
+                }
+                for i in range.step_by(step) {
                     if i >= self.elements.len() {
                         break;
                     }
@@ -454,7 +462,7 @@ pub struct SliceValue {
 }
 
 impl SliceValue {
-    fn as_interval(&self) -> StepBy<Range<usize>> {
+    fn as_range(&self) -> (Range<usize>, usize) {
         let mut first: Option<usize> = None;
         let mut second: Option<usize> = None;
         let mut third: usize = 1;
@@ -476,7 +484,10 @@ impl SliceValue {
         } else {
             0..usize::MAX
         };
-        return range.step_by(third);
+        if third <= 1 {
+            third = 1;
+        }
+        return (range, third);
     }
 }
 

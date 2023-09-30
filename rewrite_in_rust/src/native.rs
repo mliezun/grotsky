@@ -14,7 +14,7 @@ impl IO {
         }
         let text = values
             .iter()
-            .map(|v| v.repr())
+            .map(|v| v.string())
             .reduce(|v1, v2| v1 + " " + &v2)
             .unwrap();
         println!("{}", text);

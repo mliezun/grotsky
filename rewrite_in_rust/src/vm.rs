@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use crate::compiler::FnPrototype;
+use crate::errors::RuntimeErr;
 use crate::instruction::*;
 use crate::value::*;
 use std::collections::HashMap;
@@ -196,8 +197,14 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] =
-                        Record::Val(val_b.as_val().add(&mut val_c.as_val()));
+                    match val_b.as_val().add(&mut val_c.as_val()) {
+                        Ok(v) => {
+                            self.activation_records[sp + inst.a as usize] = Record::Val(v);
+                        }
+                        Err(e) => {
+                            self.exception(e, 1);
+                        }
+                    }
                     pc += 1;
                 }
                 OpCode::Sub => {
@@ -616,11 +623,17 @@ impl VM {
                         .get_mut(sp + inst.b as usize)
                         .unwrap()
                         .clone();
-                    self.activation_records[sp + inst.a as usize] = Record::Val(
-                        val_b
-                            .as_val()
-                            .add(&mut Value::Number(NumberValue { n: inst.c as f64 })),
-                    );
+                    match val_b
+                        .as_val()
+                        .add(&mut Value::Number(NumberValue { n: inst.c as f64 }))
+                    {
+                        Ok(v) => {
+                            self.activation_records[sp + inst.a as usize] = Record::Val(v);
+                        }
+                        Err(e) => {
+                            self.exception(e, 1);
+                        }
+                    }
                     pc += 1;
                 }
                 OpCode::Neg => {
@@ -646,5 +659,10 @@ impl VM {
                 _ => todo!(),
             }
         }
+    }
+
+    pub fn exception(&self, error: RuntimeErr, line: usize) {
+        print!("Runtime Error on line {}\n\t{}\n", line, error.msg);
+        std::process::exit(1);
     }
 }

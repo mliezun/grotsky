@@ -133,6 +133,8 @@ func checkExpression(t *testing.T, exp string, result ...string) {
 func checkErrorMsg(t *testing.T, source string, errorMsg string, line int) {
 	result := fmt.Sprintf("Runtime Error on line %d\n\t%s\n", line, errorMsg)
 
+	t.Log("Run source", source)
+
 	tp := &testPrinter{}
 	run_code("", source, tp)
 	if !tp.Equals(result) {
@@ -143,6 +145,8 @@ func checkErrorMsg(t *testing.T, source string, errorMsg string, line int) {
 			result,
 			tp.printed,
 		)
+	} else {
+		t.Log("Successful run source", source)
 	}
 }
 

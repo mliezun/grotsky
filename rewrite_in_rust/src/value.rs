@@ -1,9 +1,10 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::iter::StepBy;
 use std::ops::Range;
 use std::rc::Rc;
+
+use crate::errors::{RuntimeErr, ERR_EXPECTED_NUMBER};
 
 #[derive(Debug, Clone)]
 pub struct MutValue<T>(pub Rc<RefCell<T>>);
@@ -118,19 +119,21 @@ impl Value {
         unimplemented!();
     }
 
-    pub fn add(&mut self, other: &mut Value) -> Value {
+    pub fn add(&mut self, other: &mut Value) -> Result<Value, RuntimeErr> {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
-                return Value::Number(NumberValue {
+                return Ok(Value::Number(NumberValue {
                     n: num_val.n + other_val.n,
-                });
+                }));
+            } else {
+                return Err(ERR_EXPECTED_NUMBER);
             }
         }
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
-                return Value::String(StringValue {
+                return Ok(Value::String(StringValue {
                     s: str_val.s.clone() + &other_val.s,
-                });
+                }));
             }
         }
         if let Value::List(list_val) = self {
@@ -142,7 +145,7 @@ impl Value {
                 for e in other_val.0.borrow().elements.iter() {
                     elements.push(e.clone());
                 }
-                return Value::List(MutValue::new(ListValue { elements: elements }));
+                return Ok(Value::List(MutValue::new(ListValue { elements: elements })));
             }
         }
         if let Value::Dict(dict_val) = self {
@@ -154,7 +157,7 @@ impl Value {
                 for (k, v) in other_val.0.borrow().elements.iter() {
                     elements.insert(k.clone(), v.clone());
                 }
-                return Value::Dict(MutValue::new(DictValue { elements: elements }));
+                return Ok(Value::Dict(MutValue::new(DictValue { elements: elements })));
             }
         }
         println!("{:#?} + {:#?}", self, other);

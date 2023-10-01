@@ -1,4 +1,5 @@
 mod compiler;
+mod errors;
 mod expr;
 mod instruction;
 mod lexer;

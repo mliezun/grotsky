@@ -144,6 +144,18 @@ impl Value {
                 return Value::List(MutValue::new(ListValue { elements: elements }));
             }
         }
+        if let Value::Dict(dict_val) = self {
+            if let Value::Dict(other_val) = other {
+                let mut elements = HashMap::new();
+                for (k, v) in dict_val.0.borrow().elements.iter() {
+                    elements.insert(k.clone(), v.clone());
+                }
+                for (k, v) in other_val.0.borrow().elements.iter() {
+                    elements.insert(k.clone(), v.clone());
+                }
+                return Value::Dict(MutValue::new(DictValue { elements: elements }));
+            }
+        }
         println!("{:#?} + {:#?}", self, other);
         panic!("Not implemented");
     }
@@ -305,8 +317,18 @@ impl Value {
             if let Value::List(other_val) = other {
                 let elements = &list_val.0.borrow().elements;
                 let other_elements = &other_val.0.borrow().elements;
-                let result = elements.len() == other_elements.len()
-                    && std::ptr::eq(elements.as_ptr(), other_elements.as_ptr());
+                let result = std::ptr::eq(elements.as_ptr(), other_elements.as_ptr());
+                return Value::Bool(BoolValue { b: result });
+            }
+        }
+        if let Value::Dict(dict_val) = self {
+            if let Value::Dict(other_val) = other {
+                let elements = &dict_val.0.borrow().elements;
+                let other_elements = &other_val.0.borrow().elements;
+                let result = std::ptr::eq(
+                    core::ptr::addr_of!(elements),
+                    core::ptr::addr_of!(other_elements),
+                );
                 return Value::Bool(BoolValue { b: result });
             }
         }
@@ -338,8 +360,18 @@ impl Value {
             if let Value::List(other_val) = other {
                 let elements = &list_val.0.borrow().elements;
                 let other_elements = &other_val.0.borrow().elements;
-                let result = elements.len() != other_elements.len()
-                    || !std::ptr::eq(elements.as_ptr(), other_elements.as_ptr());
+                let result = !std::ptr::eq(elements.as_ptr(), other_elements.as_ptr());
+                return Value::Bool(BoolValue { b: result });
+            }
+        }
+        if let Value::Dict(dict_val) = self {
+            if let Value::Dict(other_val) = other {
+                let elements = &dict_val.0.borrow().elements;
+                let other_elements = &other_val.0.borrow().elements;
+                let result = !std::ptr::eq(
+                    core::ptr::addr_of!(elements),
+                    core::ptr::addr_of!(other_elements),
+                );
                 return Value::Bool(BoolValue { b: result });
             }
         }
@@ -474,6 +506,11 @@ pub struct DictValue {
 
 impl DictValue {
     pub fn access(&self, accesor: Value) -> Value {
+        if self.elements.is_empty() {
+            return Value::Dict(MutValue::new(DictValue {
+                elements: HashMap::new(),
+            }));
+        }
         self.elements.get(&accesor).unwrap().clone()
     }
 }

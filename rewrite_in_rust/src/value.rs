@@ -84,7 +84,8 @@ impl Value {
                         .unwrap_or("".to_string())
                 )
             }
-            Value::Nil => "nil".to_string(),
+            Value::Fn(f) => "<fn anonymous>".to_string(),
+            Value::Nil => "<nil>".to_string(),
             _ => unimplemented!(),
         }
     }
@@ -332,7 +333,13 @@ impl Value {
                 return Value::Bool(BoolValue { b: result });
             }
         }
-        panic!("Not implemented");
+        return match self {
+            Value::Nil => match other {
+                Value::Nil => Value::Bool(BoolValue { b: true }),
+                _ => Value::Bool(BoolValue { b: false }),
+            },
+            _ => Value::Bool(BoolValue { b: false }),
+        };
     }
     pub fn nequal(&mut self, other: &mut Value) -> Value {
         if let Value::Number(num_val) = self {
@@ -375,7 +382,13 @@ impl Value {
                 return Value::Bool(BoolValue { b: result });
             }
         }
-        panic!("Not implemented");
+        return match self {
+            Value::Nil => match other {
+                Value::Nil => Value::Bool(BoolValue { b: false }),
+                _ => Value::Bool(BoolValue { b: true }),
+            },
+            _ => Value::Bool(BoolValue { b: true }),
+        };
     }
     pub fn neg(&mut self) -> Value {
         if let Value::Number(num_val) = self {

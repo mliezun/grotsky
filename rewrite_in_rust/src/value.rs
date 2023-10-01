@@ -4,7 +4,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::Range;
 use std::rc::Rc;
 
-use crate::errors::{RuntimeErr, ERR_EXPECTED_NUMBER};
+use crate::errors::{RuntimeErr, ERR_EXPECTED_NUMBER, ERR_UNDEFINED_OP};
 
 #[derive(Debug, Clone)]
 pub struct MutValue<T>(pub Rc<RefCell<T>>);
@@ -160,15 +160,16 @@ impl Value {
                 return Ok(Value::Dict(MutValue::new(DictValue { elements: elements })));
             }
         }
-        println!("{:#?} + {:#?}", self, other);
-        panic!("Not implemented");
+        return Err(ERR_UNDEFINED_OP);
     }
-    pub fn sub(&mut self, other: &mut Value) -> Value {
+    pub fn sub(&mut self, other: &mut Value) -> Result<Value, RuntimeErr> {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
-                return Value::Number(NumberValue {
+                return Ok(Value::Number(NumberValue {
                     n: num_val.n - other_val.n,
-                });
+                }));
+            } else {
+                return Err(ERR_EXPECTED_NUMBER);
             }
         }
         if let Value::List(list_val) = self {
@@ -180,12 +181,12 @@ impl Value {
                 for e in other_val.0.borrow().elements.iter() {
                     elements.remove(e);
                 }
-                return Value::List(MutValue::new(ListValue {
+                return Ok(Value::List(MutValue::new(ListValue {
                     elements: elements.into_iter().collect(),
-                }));
+                })));
             }
         }
-        panic!("Not implemented");
+        return Err(ERR_UNDEFINED_OP);
     }
     pub fn mul(&mut self, other: &mut Value) -> Value {
         if let Value::Number(num_val) = self {

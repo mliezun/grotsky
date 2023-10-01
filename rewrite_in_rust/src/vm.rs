@@ -217,8 +217,15 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] =
-                        Record::Val(val_b.as_val().sub(&mut val_c.as_val()));
+                    match val_b.as_val().sub(&mut val_c.as_val()) {
+                        Ok(v) => {
+                            self.activation_records[sp + inst.a as usize] = Record::Val(v);
+                        }
+                        Err(e) => {
+                            self.exception(e, 1);
+                        }
+                    }
+
                     pc += 1;
                 }
                 OpCode::Mul => {
@@ -663,6 +670,6 @@ impl VM {
 
     pub fn exception(&self, error: RuntimeErr, line: usize) {
         print!("Runtime Error on line {}\n\t{}\n", line, error.msg);
-        std::process::exit(1);
+        std::process::exit(0);
     }
 }

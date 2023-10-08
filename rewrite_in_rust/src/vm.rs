@@ -204,7 +204,7 @@ impl VM {
                             self.activation_records[sp + inst.a as usize] = Record::Val(v);
                         }
                         Err(e) => {
-                            self.exception(e, 1);
+                            self.exception(e, self.instructions_data[pc].clone());
                         }
                     }
                     pc += 1;
@@ -224,7 +224,7 @@ impl VM {
                             self.activation_records[sp + inst.a as usize] = Record::Val(v);
                         }
                         Err(e) => {
-                            self.exception(e, 1);
+                            self.exception(e, self.instructions_data[pc].clone());
                         }
                     }
 
@@ -640,7 +640,7 @@ impl VM {
                             self.activation_records[sp + inst.a as usize] = Record::Val(v);
                         }
                         Err(e) => {
-                            self.exception(e, 1);
+                            self.exception(e, self.instructions_data[pc].clone());
                         }
                     }
                     pc += 1;
@@ -670,8 +670,18 @@ impl VM {
         }
     }
 
-    pub fn exception(&self, error: RuntimeErr, line: usize) {
-        print!("Runtime Error on line {}\n\t{}\n", line, error.msg);
+    pub fn exception(&self, error: RuntimeErr, token: Option<TokenData>) {
+        match token {
+            Some(tk) => {
+                print!(
+                    "Runtime Error on line {}\n\t{}: {}\n",
+                    tk.line, error.msg, tk.lexeme
+                );
+            }
+            None => {
+                print!("Runtime Error\n\t{}\n", error.msg);
+            }
+        }
         std::process::exit(0);
     }
 }

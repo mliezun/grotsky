@@ -55,7 +55,7 @@ impl Compiler {
         });
     }
 
-    fn leave_function(&mut self) -> u16 {
+    fn leave_function(&mut self, param_count: usize) -> u16 {
         let current_context = self.contexts.pop().unwrap();
         let prototype_ix = self.prototypes.len();
         let mut instructions: Vec<InstSrc> = current_context
@@ -78,6 +78,7 @@ impl Compiler {
             register_count: current_context.register_count,
             upvalues: current_context.upvalues,
             instruction_data: instructions.iter().map(|i| i.src.clone()).collect(),
+            param_count: param_count,
         });
         return prototype_ix as u16;
     }
@@ -151,6 +152,7 @@ pub struct FnPrototype {
     pub register_count: u8,
     pub upvalues: Vec<UpvalueRef>,
     pub instruction_data: Vec<Option<TokenData>>,
+    pub param_count: usize,
 }
 
 #[derive(Debug)]
@@ -655,7 +657,7 @@ impl StmtVisitor<Chunk> for Compiler {
             self.add_chunk(chunk);
         }
         self.leave_block();
-        let prototype_ix = self.leave_function();
+        let prototype_ix = self.leave_function(stmt.params.len());
         let first_instruction = self.prototypes[prototype_ix as usize]
             .instructions
             .first_mut()
@@ -802,7 +804,7 @@ impl ExprVisitor<Chunk> for Compiler {
             self.add_chunk(chunk);
         }
         self.leave_block();
-        let prototype_ix = self.leave_function();
+        let prototype_ix = self.leave_function(expr.params.len());
         let token_data = expr.params.get(0).and_then(|p| Some(p.clone()));
         return Chunk {
             instructions: vec![InstSrc {

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::compiler::FnPrototype;
-use crate::errors::{RuntimeErr, ERR_ONLY_FUNCTION, ERR_READ_ONLY};
+use crate::errors::{RuntimeErr, ERR_INVALID_NUMBER_ARGUMENTS, ERR_ONLY_FUNCTION, ERR_READ_ONLY};
 use crate::instruction::*;
 use crate::token::TokenData;
 use crate::value::*;
@@ -122,7 +122,14 @@ impl VM {
                         );
 
                         // Copy input arguments
-                        for (i, reg) in ((inst.a + 1)..(inst.a + inst.b)).enumerate() {
+                        let input_range = (inst.a + 1)..(inst.a + inst.b);
+                        if input_range.len() != prototype.param_count {
+                            self.exception(
+                                ERR_INVALID_NUMBER_ARGUMENTS,
+                                self.instructions_data[pc].clone(),
+                            );
+                        }
+                        for (i, reg) in input_range.enumerate() {
                             self.activation_records[sp + i + 1] =
                                 self.activation_records[previous_sp + reg as usize + 1].clone();
                         }

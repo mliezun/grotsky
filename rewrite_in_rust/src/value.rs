@@ -4,7 +4,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::Range;
 use std::rc::Rc;
 
-use crate::errors::{RuntimeErr, ERR_EXPECTED_NUMBER, ERR_UNDEFINED_OP};
+use crate::errors::{RuntimeErr, ERR_EXPECTED_NUMBER, ERR_UNDEFINED_OP, ERR_UNDEFINED_PROP};
 
 #[derive(Debug, Clone)]
 pub struct MutValue<T>(pub Rc<RefCell<T>>);
@@ -91,32 +91,32 @@ impl Value {
         }
     }
 
-    pub fn get(&self, prop: String) -> Value {
+    pub fn get(&self, prop: String) -> Result<Value, RuntimeErr> {
         if let Value::List(l) = self {
             if prop == "length" {
-                return Value::Number(NumberValue {
+                return Ok(Value::Number(NumberValue {
                     n: l.0.borrow().elements.len() as f64,
-                });
+                }));
             }
         }
         if let Value::String(s) = self {
             if prop == "length" {
-                return Value::Number(NumberValue {
+                return Ok(Value::Number(NumberValue {
                     n: s.s.len() as f64,
-                });
+                }));
             }
         }
         if let Value::Dict(d) = self {
             if prop == "length" {
-                return Value::Number(NumberValue {
+                return Ok(Value::Number(NumberValue {
                     n: d.0.borrow().elements.len() as f64,
-                });
+                }));
             }
         }
         if let Value::Native(n) = self {
-            return n.props.get(&prop).unwrap().clone();
+            return Ok(n.props.get(&prop).unwrap().clone());
         }
-        unimplemented!();
+        return Err(ERR_UNDEFINED_PROP);
     }
 
     pub fn add(&mut self, other: &mut Value) -> Result<Value, RuntimeErr> {
@@ -394,20 +394,20 @@ impl Value {
             _ => Value::Bool(BoolValue { b: true }),
         };
     }
-    pub fn neg(&mut self) -> Value {
+    pub fn neg(&mut self) -> Result<Value, RuntimeErr> {
         if let Value::Number(num_val) = self {
-            return Value::Number(NumberValue { n: -num_val.n });
+            return Ok(Value::Number(NumberValue { n: -num_val.n }));
         }
         if let Value::List(list_val) = self {
             let mut elements: HashSet<Value> = HashSet::new();
             for element in list_val.0.borrow().elements.iter() {
                 elements.insert(element.clone());
             }
-            return Value::List(MutValue::new(ListValue {
+            return Ok(Value::List(MutValue::new(ListValue {
                 elements: elements.into_iter().collect(),
-            }));
+            })));
         }
-        panic!("Not implemented");
+        return Err(ERR_UNDEFINED_OP);
     }
     pub fn not(&mut self) -> Value {
         return match self {

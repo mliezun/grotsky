@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::compiler::FnPrototype;
-use crate::errors::RuntimeErr;
+use crate::errors::{RuntimeErr, ERR_ONLY_FUNCTION};
 use crate::instruction::*;
 use crate::token::TokenData;
 use crate::value::*;
@@ -144,10 +144,10 @@ impl VM {
                                 Record::Val(result.clone());
                             pc += 1;
                         } else {
-                            panic!("Not a function");
+                            self.exception(ERR_ONLY_FUNCTION, self.instructions_data[pc].clone());
                         }
                     } else {
-                        panic!("Not a function");
+                        self.exception(ERR_ONLY_FUNCTION, self.instructions_data[pc].clone());
                     }
                 }
                 OpCode::Return => {
@@ -623,7 +623,14 @@ impl VM {
                         panic!("Prop has to be a string")
                     };
                     // println!("{:#?} {}", val_b, prop);
-                    self.activation_records[sp + inst.a as usize] = Record::Val(val_b.get(prop));
+                    match val_b.get(prop) {
+                        Ok(v) => {
+                            self.activation_records[sp + inst.a as usize] = Record::Val(v);
+                        }
+                        Err(e) => {
+                            self.exception(e, self.instructions_data[pc].clone());
+                        }
+                    }
                     pc += 1;
                 }
                 OpCode::Addi => {
@@ -651,8 +658,12 @@ impl VM {
                         .get_mut(sp + inst.b as usize)
                         .unwrap()
                         .clone();
-                    self.activation_records[sp + inst.a as usize] =
-                        Record::Val(val_b.as_val().neg());
+                    match val_b.as_val().neg() {
+                        Ok(v) => {
+                            self.activation_records[sp + inst.a as usize] = Record::Val(v);
+                        }
+                        Err(e) => self.exception(e, self.instructions_data[pc].clone()),
+                    }
                     pc += 1;
                 }
                 OpCode::Not => {

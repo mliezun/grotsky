@@ -4,7 +4,10 @@ use std::hash::{Hash, Hasher};
 use std::ops::Range;
 use std::rc::Rc;
 
-use crate::errors::{RuntimeErr, ERR_EXPECTED_NUMBER, ERR_UNDEFINED_OP, ERR_UNDEFINED_PROP};
+use crate::errors::{
+    RuntimeErr, ERR_EXPECTED_DICT, ERR_EXPECTED_LIST, ERR_EXPECTED_NUMBER, ERR_EXPECTED_STRING,
+    ERR_UNDEFINED_OP, ERR_UNDEFINED_PROP,
+};
 
 #[derive(Debug, Clone)]
 pub struct MutValue<T>(pub Rc<RefCell<T>>);
@@ -134,6 +137,8 @@ impl Value {
                 return Ok(Value::String(StringValue {
                     s: str_val.s.clone() + &other_val.s,
                 }));
+            } else {
+                return Err(ERR_EXPECTED_STRING);
             }
         }
         if let Value::List(list_val) = self {
@@ -146,6 +151,8 @@ impl Value {
                     elements.push(e.clone());
                 }
                 return Ok(Value::List(MutValue::new(ListValue { elements: elements })));
+            } else {
+                return Err(ERR_EXPECTED_LIST);
             }
         }
         if let Value::Dict(dict_val) = self {
@@ -158,6 +165,8 @@ impl Value {
                     elements.insert(k.clone(), v.clone());
                 }
                 return Ok(Value::Dict(MutValue::new(DictValue { elements: elements })));
+            } else {
+                return Err(ERR_EXPECTED_DICT);
             }
         }
         return Err(ERR_UNDEFINED_OP);

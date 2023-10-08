@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::compiler::FnPrototype;
-use crate::errors::{RuntimeErr, ERR_ONLY_FUNCTION};
+use crate::errors::{RuntimeErr, ERR_ONLY_FUNCTION, ERR_READ_ONLY};
 use crate::instruction::*;
 use crate::token::TokenData;
 use crate::value::*;
@@ -631,6 +631,11 @@ impl VM {
                             self.exception(e, self.instructions_data[pc].clone());
                         }
                     }
+                    pc += 1;
+                }
+                OpCode::SetObj => {
+                    // TODO: implement
+                    self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
                     pc += 1;
                 }
                 OpCode::Addi => {

@@ -58,22 +58,26 @@ impl Compiler {
     fn leave_function(&mut self) -> u16 {
         let current_context = self.contexts.pop().unwrap();
         let prototype_ix = self.prototypes.len();
-        let mut instructions: Vec<Instruction> = current_context
+        let mut instructions: Vec<InstSrc> = current_context
             .chunks
             .iter()
             .map(|c| c.instructions.clone())
             .flatten()
             .collect();
-        instructions.push(Instruction {
-            opcode: OpCode::Return,
-            a: 0,
-            b: 0,
-            c: 0,
+        instructions.push(InstSrc {
+            inst: Instruction {
+                opcode: OpCode::Return,
+                a: 0,
+                b: 0,
+                c: 0,
+            },
+            src: None,
         });
         self.prototypes.push(FnPrototype {
-            instructions: instructions,
+            instructions: instructions.iter().map(|i| i.inst.clone()).collect(),
             register_count: current_context.register_count,
             upvalues: current_context.upvalues,
+            instruction_data: instructions.iter().map(|i| i.src.clone()).collect(),
         });
         return prototype_ix as u16;
     }
@@ -146,6 +150,7 @@ pub struct FnPrototype {
     pub instructions: Vec<Instruction>,
     pub register_count: u8,
     pub upvalues: Vec<UpvalueRef>,
+    pub instruction_data: Vec<Option<TokenData>>,
 }
 
 #[derive(Debug)]
@@ -169,10 +174,26 @@ pub struct Local {
     reg: u8,
 }
 
+#[derive(Debug, Clone)]
+pub struct InstSrc {
+    pub inst: Instruction,
+    pub src: Option<TokenData>,
+}
+
 #[derive(Debug)]
 pub struct Chunk {
-    pub instructions: Vec<Instruction>,
+    pub instructions: Vec<InstSrc>,
     pub result_register: u8,
+}
+
+impl Chunk {
+    pub fn push(&mut self, inst: Instruction, src: Option<TokenData>) {
+        self.instructions.push(InstSrc { inst, src });
+    }
+
+    pub fn append(&mut self, instructions: &mut Vec<InstSrc>) {
+        self.instructions.append(instructions);
+    }
 }
 
 impl StmtVisitor<Chunk> for Compiler {
@@ -204,43 +225,52 @@ impl StmtVisitor<Chunk> for Compiler {
         chunk
             .instructions
             .append(&mut cond_chunk.instructions.clone());
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::Test,
-            a: cond_chunk.result_register,
-            b: cond_chunk.result_register,
-            c: 0,
-        });
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Test,
+                a: cond_chunk.result_register,
+                b: cond_chunk.result_register,
+                c: 0,
+            },
+            Some(stmt.keyword.clone()),
+        );
         let jump_size = (body_chunk.instructions.len() + 2) as i16;
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::Jmp,
-            a: 0,
-            b: (jump_size >> 8) as u8,
-            c: jump_size as u8,
-        });
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Jmp,
+                a: 0,
+                b: (jump_size >> 8) as u8,
+                c: jump_size as u8,
+            },
+            Some(stmt.keyword.clone()),
+        );
         chunk
             .instructions
             .append(&mut body_chunk.instructions.clone());
         let loop_size =
             -((body_chunk.instructions.len() + cond_chunk.instructions.len() + 2) as i16);
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::Jmp,
-            a: 0,
-            b: (loop_size >> 8) as u8,
-            c: loop_size as u8,
-        });
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Jmp,
+                a: 0,
+                b: (loop_size >> 8) as u8,
+                c: loop_size as u8,
+            },
+            Some(stmt.keyword.clone()),
+        );
         // Patch continue and break
         let chunk_size = chunk.instructions.len();
         for (i, inst) in chunk.instructions.iter_mut().enumerate() {
-            if inst.is_continue() {
+            if inst.inst.is_continue() {
                 let jump_offset = -(i as i64);
-                inst.a = 0;
-                inst.b = (jump_offset >> 8) as u8;
-                inst.c = jump_offset as u8;
-            } else if inst.is_break() {
+                inst.inst.a = 0;
+                inst.inst.b = (jump_offset >> 8) as u8;
+                inst.inst.c = jump_offset as u8;
+            } else if inst.inst.is_break() {
                 let jump_offset = chunk_size - i;
-                inst.a = 0;
-                inst.b = (jump_offset >> 8) as u8;
-                inst.c = jump_offset as u8;
+                inst.inst.a = 0;
+                inst.inst.b = (jump_offset >> 8) as u8;
+                inst.inst.c = jump_offset as u8;
             }
         }
         return chunk;
@@ -254,66 +284,75 @@ impl StmtVisitor<Chunk> for Compiler {
         };
         let cond_chunk = Chunk {
             result_register: counter_reg,
-            instructions: vec![Instruction {
-                opcode: OpCode::Lt,
-                a: counter_reg,
-                b: 0,
-                c: 0,
+            instructions: vec![InstSrc {
+                inst: Instruction {
+                    opcode: OpCode::Lt,
+                    a: counter_reg,
+                    b: 0,
+                    c: 0,
+                },
+                src: Some(stmt.keyword.clone()),
             }],
         };
         let mut body_chunk = stmt.body.accept(self);
-        let inc_chunk = Chunk {
+        let inc_chunk: Chunk = Chunk {
             result_register: counter_reg,
-            instructions: vec![Instruction {
-                opcode: OpCode::Addi,
-                a: counter_reg,
-                b: counter_reg,
-                c: 1,
+            instructions: vec![InstSrc {
+                inst: Instruction {
+                    opcode: OpCode::Addi,
+                    a: counter_reg,
+                    b: counter_reg,
+                    c: 1,
+                },
+                src: Some(stmt.keyword.clone()),
             }],
         };
-        body_chunk
-            .instructions
-            .append(&mut inc_chunk.instructions.clone());
-        chunk
-            .instructions
-            .append(&mut cond_chunk.instructions.clone());
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::Test,
-            a: cond_chunk.result_register,
-            b: cond_chunk.result_register,
-            c: 0,
-        });
+        body_chunk.append(&mut inc_chunk.instructions.clone());
+        chunk.append(&mut cond_chunk.instructions.clone());
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Test,
+                a: cond_chunk.result_register,
+                b: cond_chunk.result_register,
+                c: 0,
+            },
+            Some(stmt.keyword.clone()),
+        );
         let jump_size = (body_chunk.instructions.len() + 2) as i16;
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::Jmp,
-            a: 0,
-            b: (jump_size >> 8) as u8,
-            c: jump_size as u8,
-        });
-        chunk
-            .instructions
-            .append(&mut body_chunk.instructions.clone());
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Jmp,
+                a: 0,
+                b: (jump_size >> 8) as u8,
+                c: jump_size as u8,
+            },
+            Some(stmt.keyword.clone()),
+        );
+        chunk.append(&mut body_chunk.instructions.clone());
         let loop_size =
             -((body_chunk.instructions.len() + cond_chunk.instructions.len() + 2) as i16);
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::Jmp,
-            a: 0,
-            b: (loop_size >> 8) as u8,
-            c: loop_size as u8,
-        });
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Jmp,
+                a: 0,
+                b: (loop_size >> 8) as u8,
+                c: loop_size as u8,
+            },
+            Some(stmt.keyword.clone()),
+        );
         // Patch continue and break
         let chunk_size = chunk.instructions.len();
         for (i, inst) in chunk.instructions.iter_mut().enumerate() {
-            if inst.is_continue() {
+            if inst.inst.is_continue() {
                 let jump_offset = -(i as i64);
-                inst.a = 0;
-                inst.b = (jump_offset >> 8) as u8;
-                inst.c = jump_offset as u8;
-            } else if inst.is_break() {
+                inst.inst.a = 0;
+                inst.inst.b = (jump_offset >> 8) as u8;
+                inst.inst.c = jump_offset as u8;
+            } else if inst.inst.is_break() {
                 let jump_offset = chunk_size - i;
-                inst.a = 0;
-                inst.b = (jump_offset >> 8) as u8;
-                inst.c = jump_offset as u8;
+                inst.inst.a = 0;
+                inst.inst.b = (jump_offset >> 8) as u8;
+                inst.inst.c = jump_offset as u8;
             }
         }
         return chunk;
@@ -359,43 +398,52 @@ impl StmtVisitor<Chunk> for Compiler {
         chunk
             .instructions
             .append(&mut cond_chunk.instructions.clone());
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::Test,
-            a: cond_chunk.result_register,
-            b: cond_chunk.result_register,
-            c: 0,
-        });
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Test,
+                a: cond_chunk.result_register,
+                b: cond_chunk.result_register,
+                c: 0,
+            },
+            Some(stmt.keyword.clone()),
+        );
         let jump_size = (body_chunk.instructions.len() + 2) as i16;
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::Jmp,
-            a: 0,
-            b: (jump_size >> 8) as u8,
-            c: jump_size as u8,
-        });
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Jmp,
+                a: 0,
+                b: (jump_size >> 8) as u8,
+                c: jump_size as u8,
+            },
+            Some(stmt.keyword.clone()),
+        );
         chunk
             .instructions
             .append(&mut body_chunk.instructions.clone());
         let loop_size =
             -((body_chunk.instructions.len() + cond_chunk.instructions.len() + 2) as i16);
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::Jmp,
-            a: 0,
-            b: (loop_size >> 8) as u8,
-            c: loop_size as u8,
-        });
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Jmp,
+                a: 0,
+                b: (loop_size >> 8) as u8,
+                c: loop_size as u8,
+            },
+            Some(stmt.keyword.clone()),
+        );
         // Patch continue and break
         let chunk_size = chunk.instructions.len();
         for (i, inst) in chunk.instructions.iter_mut().enumerate() {
-            if inst.is_continue() {
+            if inst.inst.is_continue() {
                 let jump_offset = -(i as i64);
-                inst.a = 0;
-                inst.b = (jump_offset >> 8) as u8;
-                inst.c = jump_offset as u8;
-            } else if inst.is_break() {
+                inst.inst.a = 0;
+                inst.inst.b = (jump_offset >> 8) as u8;
+                inst.inst.c = jump_offset as u8;
+            } else if inst.inst.is_break() {
                 let jump_offset = chunk_size - i;
-                inst.a = 0;
-                inst.b = (jump_offset >> 8) as u8;
-                inst.c = jump_offset as u8;
+                inst.inst.a = 0;
+                inst.inst.b = (jump_offset >> 8) as u8;
+                inst.inst.c = jump_offset as u8;
             }
         }
         return chunk;
@@ -411,30 +459,39 @@ impl StmtVisitor<Chunk> for Compiler {
             chunk
                 .instructions
                 .append(&mut val_chunk.instructions.clone());
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::Return,
-                a: val_chunk.result_register,
-                b: val_chunk.result_register + 2,
-                c: 0,
-            });
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::Return,
+                    a: val_chunk.result_register,
+                    b: val_chunk.result_register + 2,
+                    c: 0,
+                },
+                Some(stmt.keyword.clone()),
+            );
         } else {
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::Return,
-                a: 0,
-                b: 0,
-                c: 0,
-            });
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::Return,
+                    a: 0,
+                    b: 0,
+                    c: 0,
+                },
+                Some(stmt.keyword.clone()),
+            );
         }
         return chunk;
     }
 
     fn visit_break_stmt(&mut self, stmt: &BreakStmt) -> Chunk {
         return Chunk {
-            instructions: vec![Instruction {
-                opcode: OpCode::Jmp,
-                a: JMP_BREAK,
-                b: 0,
-                c: 0,
+            instructions: vec![InstSrc {
+                inst: Instruction {
+                    opcode: OpCode::Jmp,
+                    a: JMP_BREAK,
+                    b: 0,
+                    c: 0,
+                },
+                src: Some(stmt.keyword.clone()),
             }],
             result_register: 0,
         };
@@ -442,11 +499,14 @@ impl StmtVisitor<Chunk> for Compiler {
 
     fn visit_continue_stmt(&mut self, stmt: &ContinueStmt) -> Chunk {
         return Chunk {
-            instructions: vec![Instruction {
-                opcode: OpCode::Jmp,
-                a: JMP_CONTINUE,
-                b: 0,
-                c: 0,
+            instructions: vec![InstSrc {
+                inst: Instruction {
+                    opcode: OpCode::Jmp,
+                    a: JMP_CONTINUE,
+                    b: 0,
+                    c: 0,
+                },
+                src: Some(stmt.keyword.clone()),
             }],
             result_register: 0,
         };
@@ -456,7 +516,7 @@ impl StmtVisitor<Chunk> for Compiler {
         let extra_jmp_insts: usize = 3;
         let mut total_body_size: usize = 0;
         let mut if_cond_chunk = stmt.condition.accept(self);
-        let mut if_body: Vec<Instruction> = stmt
+        let mut if_body: Vec<InstSrc> = stmt
             .then_branch
             .iter()
             .map(|c| c.accept(self).instructions)
@@ -466,10 +526,10 @@ impl StmtVisitor<Chunk> for Compiler {
         total_body_size += if_body.len();
         total_body_size += extra_jmp_insts;
         let mut elifs_cond_chunks: Vec<Chunk> = vec![];
-        let mut elifs_body: Vec<Vec<Instruction>> = vec![];
+        let mut elifs_body: Vec<Vec<InstSrc>> = vec![];
         for e in &stmt.elifs {
             let elif_cond_chunk = e.condition.accept(self);
-            let elif_body: Vec<Instruction> = e
+            let elif_body: Vec<InstSrc> = e
                 .then_branch
                 .iter()
                 .map(|c| c.accept(self).instructions)
@@ -481,7 +541,7 @@ impl StmtVisitor<Chunk> for Compiler {
             elifs_cond_chunks.push(elif_cond_chunk);
             elifs_body.push(elif_body);
         }
-        let else_body: Vec<Instruction> = stmt
+        let else_body: Vec<InstSrc> = stmt
             .else_branch
             .iter()
             .map(|c| c.accept(self).instructions)
@@ -494,56 +554,74 @@ impl StmtVisitor<Chunk> for Compiler {
             instructions: vec![],
             result_register: 0,
         };
-        chunk.instructions.append(&mut if_cond_chunk.instructions);
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::Test,
-            a: if_cond_chunk.result_register,
-            b: if_cond_chunk.result_register,
-            c: 0,
-        });
+        chunk.append(&mut if_cond_chunk.instructions);
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Test,
+                a: if_cond_chunk.result_register,
+                b: if_cond_chunk.result_register,
+                c: 0,
+            },
+            Some(stmt.keyword.clone()),
+        );
         let mut jmp_offset = (if_body.len() + 2) as u16;
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::Jmp,
-            a: 0,
-            b: (jmp_offset >> 8) as u8,
-            c: jmp_offset as u8,
-        });
-        chunk.instructions.append(&mut if_body);
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Jmp,
+                a: 0,
+                b: (jmp_offset >> 8) as u8,
+                c: jmp_offset as u8,
+            },
+            Some(stmt.keyword.clone()),
+        );
+        chunk.append(&mut if_body);
         jmp_offset = (total_body_size - chunk.instructions.len() + 1) as u16;
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::Jmp,
-            a: 0,
-            b: (jmp_offset >> 8) as u8,
-            c: jmp_offset as u8,
-        });
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Jmp,
+                a: 0,
+                b: (jmp_offset >> 8) as u8,
+                c: jmp_offset as u8,
+            },
+            Some(stmt.keyword.clone()),
+        );
         for (i, elif_cond_chunk) in elifs_cond_chunks.iter().enumerate() {
             chunk
                 .instructions
                 .append(&mut elif_cond_chunk.instructions.clone());
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::Test,
-                a: elif_cond_chunk.result_register,
-                b: elif_cond_chunk.result_register,
-                c: 0,
-            });
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::Test,
+                    a: elif_cond_chunk.result_register,
+                    b: elif_cond_chunk.result_register,
+                    c: 0,
+                },
+                None,
+            );
             let elif_body = &elifs_body[i];
             jmp_offset = (elif_body.len() + 2) as u16;
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::Jmp,
-                a: 0,
-                b: (jmp_offset >> 8) as u8,
-                c: jmp_offset as u8,
-            });
-            chunk.instructions.append(&mut elif_body.clone());
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::Jmp,
+                    a: 0,
+                    b: (jmp_offset >> 8) as u8,
+                    c: jmp_offset as u8,
+                },
+                None,
+            );
+            chunk.append(&mut elif_body.clone());
             jmp_offset = (total_body_size - chunk.instructions.len() + 1) as u16;
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::Jmp,
-                a: 0,
-                b: (jmp_offset >> 8) as u8,
-                c: jmp_offset as u8,
-            });
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::Jmp,
+                    a: 0,
+                    b: (jmp_offset >> 8) as u8,
+                    c: jmp_offset as u8,
+                },
+                None,
+            );
         }
-        chunk.instructions.append(&mut else_body.clone());
+        chunk.append(&mut else_body.clone());
         return chunk;
     }
 
@@ -555,11 +633,14 @@ impl StmtVisitor<Chunk> for Compiler {
         let self_fn_name_reg = self.next_register();
         self.allocate_register(stmt.name.lexeme.to_string(), self_fn_name_reg);
         self.add_chunk(Chunk {
-            instructions: vec![Instruction {
-                opcode: OpCode::Closure,
-                a: self_fn_name_reg,
-                b: 0,
-                c: 0,
+            instructions: vec![InstSrc {
+                inst: Instruction {
+                    opcode: OpCode::Closure,
+                    a: self_fn_name_reg,
+                    b: 0,
+                    c: 0,
+                },
+                src: Some(stmt.name.clone()),
             }],
             result_register: self_fn_name_reg,
         });
@@ -582,11 +663,14 @@ impl StmtVisitor<Chunk> for Compiler {
         first_instruction.b = (prototype_ix >> 8) as u8;
         first_instruction.c = prototype_ix as u8;
         return Chunk {
-            instructions: vec![Instruction {
-                opcode: OpCode::Closure,
-                a: result_register,
-                b: (prototype_ix >> 8) as u8,
-                c: prototype_ix as u8,
+            instructions: vec![InstSrc {
+                inst: Instruction {
+                    opcode: OpCode::Closure,
+                    a: result_register,
+                    b: (prototype_ix >> 8) as u8,
+                    c: prototype_ix as u8,
+                },
+                src: Some(stmt.name.clone()),
             }],
             result_register: result_register,
         };
@@ -607,12 +691,15 @@ impl StmtVisitor<Chunk> for Compiler {
         self.constants.push(Value::String(StringValue {
             s: stmt.name.clone().unwrap().lexeme.to_string(),
         }));
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::LoadK,
-            a: tmp_reg,
-            b: (constant_ix >> 8) as u8,
-            c: constant_ix as u8,
-        });
+        chunk.push(
+            Instruction {
+                opcode: OpCode::LoadK,
+                a: tmp_reg,
+                b: (constant_ix >> 8) as u8,
+                c: constant_ix as u8,
+            },
+            stmt.name.clone(),
+        );
         let superclass_reg = if let Some(superclass) = &stmt.superclass {
             let var_chunk = self.visit_variable_expr(superclass);
             chunk
@@ -621,20 +708,26 @@ impl StmtVisitor<Chunk> for Compiler {
             var_chunk.result_register
         } else {
             let nil_reg = self.next_register();
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::LoadNil,
-                a: nil_reg,
-                b: 0,
-                c: 0,
-            });
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::LoadNil,
+                    a: nil_reg,
+                    b: 0,
+                    c: 0,
+                },
+                stmt.name.clone(),
+            );
             nil_reg
         };
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::Class,
-            a: chunk.result_register,
-            b: tmp_reg,
-            c: superclass_reg,
-        });
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Class,
+                a: chunk.result_register,
+                b: tmp_reg,
+                c: superclass_reg,
+            },
+            stmt.name.clone(),
+        );
         self.enter_block();
         for met in &stmt.methods {
             let met_chunk = self.visit_fn_stmt(met);
@@ -645,40 +738,50 @@ impl StmtVisitor<Chunk> for Compiler {
             self.constants.push(Value::String(StringValue {
                 s: met.name.lexeme.to_string(),
             }));
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::LoadK,
-                a: tmp_reg,
-                b: (constant_ix >> 8) as u8,
-                c: constant_ix as u8,
-            });
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::ClassMeth,
-                a: chunk.result_register,
-                b: tmp_reg,
-                c: met_chunk.result_register,
-            });
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::LoadK,
+                    a: tmp_reg,
+                    b: (constant_ix >> 8) as u8,
+                    c: constant_ix as u8,
+                },
+                stmt.name.clone(),
+            );
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::ClassMeth,
+                    a: chunk.result_register,
+                    b: tmp_reg,
+                    c: met_chunk.result_register,
+                },
+                stmt.name.clone(),
+            );
         }
         for met in &stmt.static_methods {
             let met_chunk = self.visit_fn_stmt(met);
-            chunk
-                .instructions
-                .append(&mut met_chunk.instructions.clone());
+            chunk.append(&mut met_chunk.instructions.clone());
             let constant_ix = self.constants.len() as u16;
             self.constants.push(Value::String(StringValue {
                 s: met.name.lexeme.to_string(),
             }));
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::LoadK,
-                a: tmp_reg,
-                b: (constant_ix >> 8) as u8,
-                c: constant_ix as u8,
-            });
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::ClassStMeth,
-                a: chunk.result_register,
-                b: tmp_reg,
-                c: met_chunk.result_register,
-            });
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::LoadK,
+                    a: tmp_reg,
+                    b: (constant_ix >> 8) as u8,
+                    c: constant_ix as u8,
+                },
+                stmt.name.clone(),
+            );
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::ClassStMeth,
+                    a: chunk.result_register,
+                    b: tmp_reg,
+                    c: met_chunk.result_register,
+                },
+                stmt.name.clone(),
+            );
         }
         self.leave_block();
         return chunk;
@@ -700,12 +803,16 @@ impl ExprVisitor<Chunk> for Compiler {
         }
         self.leave_block();
         let prototype_ix = self.leave_function();
+        let token_data = expr.params.get(0).and_then(|p| Some(p.clone()));
         return Chunk {
-            instructions: vec![Instruction {
-                opcode: OpCode::Closure,
-                a: result_register,
-                b: (prototype_ix >> 8) as u8,
-                c: prototype_ix as u8,
+            instructions: vec![InstSrc {
+                inst: Instruction {
+                    opcode: OpCode::Closure,
+                    a: result_register,
+                    b: (prototype_ix >> 8) as u8,
+                    c: prototype_ix as u8,
+                },
+                src: token_data.clone(),
             }],
             result_register: result_register,
         };
@@ -722,11 +829,14 @@ impl ExprVisitor<Chunk> for Compiler {
             let reg = self.next_register();
             let upvalue_ix = self.add_upvalue(up_ref);
             return Chunk {
-                instructions: vec![Instruction {
-                    opcode: OpCode::GetUpval,
-                    a: reg,
-                    b: upvalue_ix,
-                    c: 0,
+                instructions: vec![InstSrc {
+                    inst: Instruction {
+                        opcode: OpCode::GetUpval,
+                        a: reg,
+                        b: upvalue_ix,
+                        c: 0,
+                    },
+                    src: expr.name.clone(),
                 }],
                 result_register: reg,
             };
@@ -738,24 +848,28 @@ impl ExprVisitor<Chunk> for Compiler {
         let reg = self.next_register();
         let mut chunk = Chunk {
             result_register: reg,
-            instructions: vec![Instruction {
-                opcode: OpCode::List,
-                a: reg,
-                b: 0,
-                c: 0,
+            instructions: vec![InstSrc {
+                inst: Instruction {
+                    opcode: OpCode::List,
+                    a: reg,
+                    b: 0,
+                    c: 0,
+                },
+                src: Some(expr.brace.clone()),
             }],
         };
         for e in &expr.elements {
             let el_chunk = e.accept(self);
-            chunk
-                .instructions
-                .append(&mut el_chunk.instructions.clone());
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::PushList,
-                a: reg,
-                b: el_chunk.result_register,
-                c: 0,
-            });
+            chunk.append(&mut el_chunk.instructions.clone());
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::PushList,
+                    a: reg,
+                    b: el_chunk.result_register,
+                    c: 0,
+                },
+                Some(expr.brace.clone()),
+            );
         }
         return chunk;
     }
@@ -764,11 +878,14 @@ impl ExprVisitor<Chunk> for Compiler {
         let reg = self.next_register();
         let mut chunk = Chunk {
             result_register: reg,
-            instructions: vec![Instruction {
-                opcode: OpCode::Dict,
-                a: reg,
-                b: 0,
-                c: 0,
+            instructions: vec![InstSrc {
+                inst: Instruction {
+                    opcode: OpCode::Dict,
+                    a: reg,
+                    b: 0,
+                    c: 0,
+                },
+                src: Some(expr.curly_brace.clone()),
             }],
         };
         for i in 0..(expr.elements.len() / 2) {
@@ -776,46 +893,47 @@ impl ExprVisitor<Chunk> for Compiler {
             let val = &expr.elements[i * 2 + 1];
             let k_chunk = k.accept(self);
             let val_chunk = val.accept(self);
-            chunk.instructions.append(&mut k_chunk.instructions.clone());
-            chunk
-                .instructions
-                .append(&mut val_chunk.instructions.clone());
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::PushDict,
-                a: reg,
-                b: k_chunk.result_register,
-                c: val_chunk.result_register,
-            });
+            chunk.append(&mut k_chunk.instructions.clone());
+            chunk.append(&mut val_chunk.instructions.clone());
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::PushDict,
+                    a: reg,
+                    b: k_chunk.result_register,
+                    c: val_chunk.result_register,
+                },
+                Some(expr.curly_brace.clone()),
+            );
         }
         return chunk;
     }
 
     fn visit_assign_expr(&mut self, expr: &AssignExpr) -> Chunk {
+        let token_data = Some(expr.name.clone());
         if let Some(reg) = self.get_var_register(&expr.name.lexeme.to_string()) {
             let mut chunk = expr.value.accept(self);
 
             if let Some(access) = &expr.access {
                 let obj_chunk = access.object.accept(self);
                 let access_chunk = access.first.accept(self);
-                chunk
-                    .instructions
-                    .append(&mut obj_chunk.instructions.clone());
-                chunk
-                    .instructions
-                    .append(&mut access_chunk.instructions.clone());
-                chunk.instructions.push(Instruction {
-                    opcode: OpCode::Set,
-                    a: obj_chunk.result_register,
-                    b: access_chunk.result_register,
-                    c: chunk.result_register,
-                });
+                chunk.append(&mut obj_chunk.instructions.clone());
+                chunk.append(&mut access_chunk.instructions.clone());
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::Set,
+                        a: obj_chunk.result_register,
+                        b: access_chunk.result_register,
+                        c: chunk.result_register,
+                    },
+                    token_data.clone(),
+                );
             } else {
                 if !chunk.instructions.is_empty() {
                     let inst = chunk.instructions.last_mut().unwrap();
-                    if inst.opcode == OpCode::Call {
-                        inst.c = reg + 1;
+                    if inst.inst.opcode == OpCode::Call {
+                        inst.inst.c = reg + 1;
                     } else {
-                        inst.a = reg;
+                        inst.inst.a = reg;
                     }
                 }
                 chunk.result_register = reg;
@@ -829,34 +947,36 @@ impl ExprVisitor<Chunk> for Compiler {
             if let Some(access) = &expr.access {
                 let obj_chunk = access.object.accept(self);
                 let access_chunk = access.first.accept(self);
-                chunk
-                    .instructions
-                    .append(&mut obj_chunk.instructions.clone());
-                chunk
-                    .instructions
-                    .append(&mut access_chunk.instructions.clone());
-                chunk.instructions.push(Instruction {
-                    opcode: OpCode::Set,
-                    a: obj_chunk.result_register,
-                    b: access_chunk.result_register,
-                    c: chunk.result_register,
-                });
+                chunk.append(&mut obj_chunk.instructions.clone());
+                chunk.append(&mut access_chunk.instructions.clone());
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::Set,
+                        a: obj_chunk.result_register,
+                        b: access_chunk.result_register,
+                        c: chunk.result_register,
+                    },
+                    token_data.clone(),
+                );
             } else {
                 if !chunk.instructions.is_empty() {
                     let inst = chunk.instructions.last_mut().unwrap();
-                    if inst.opcode == OpCode::Call {
-                        inst.c = reg + 1;
+                    if inst.inst.opcode == OpCode::Call {
+                        inst.inst.c = reg + 1;
                     } else {
-                        inst.a = reg;
+                        inst.inst.a = reg;
                     }
                 }
                 let upvalue_ix = self.add_upvalue(up_ref);
-                chunk.instructions.push(Instruction {
-                    opcode: OpCode::SetUpval,
-                    a: reg,
-                    b: upvalue_ix,
-                    c: 0,
-                });
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::SetUpval,
+                        a: reg,
+                        b: upvalue_ix,
+                        c: 0,
+                    },
+                    token_data.clone(),
+                );
                 chunk.result_register = reg;
             }
 
@@ -872,6 +992,7 @@ impl ExprVisitor<Chunk> for Compiler {
             instructions: vec![],
         };
         let obj_chunk = expr.object.accept(self);
+        let token_data = Some(expr.brace.clone());
         chunk
             .instructions
             .append(&mut obj_chunk.instructions.clone());
@@ -885,96 +1006,123 @@ impl ExprVisitor<Chunk> for Compiler {
             chunk
                 .instructions
                 .append(&mut first_chunk.instructions.clone());
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::Access,
-                a: chunk.result_register,
-                b: obj_chunk.result_register,
-                c: first_chunk.result_register,
-            });
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::Access,
+                    a: chunk.result_register,
+                    b: obj_chunk.result_register,
+                    c: first_chunk.result_register,
+                },
+                token_data.clone(),
+            );
         } else {
             let list_register = self.next_register();
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::List,
-                a: list_register,
-                b: 0,
-                c: 0,
-            });
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::List,
+                    a: list_register,
+                    b: 0,
+                    c: 0,
+                },
+                token_data.clone(),
+            );
             let nil_register = self.next_register();
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::LoadNil,
-                a: nil_register,
-                b: 0,
-                c: 0,
-            });
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::LoadNil,
+                    a: nil_register,
+                    b: 0,
+                    c: 0,
+                },
+                token_data.clone(),
+            );
             if !expr.first.is_empty() {
                 let first_chunk = expr.first.accept(self);
-                chunk
-                    .instructions
-                    .append(&mut first_chunk.instructions.clone());
-                chunk.instructions.push(Instruction {
-                    opcode: OpCode::PushList,
-                    a: list_register,
-                    b: first_chunk.result_register,
-                    c: 0,
-                });
+                chunk.append(&mut first_chunk.instructions.clone());
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::PushList,
+                        a: list_register,
+                        b: first_chunk.result_register,
+                        c: 0,
+                    },
+                    token_data.clone(),
+                );
             } else {
-                chunk.instructions.push(Instruction {
-                    opcode: OpCode::PushList,
-                    a: list_register,
-                    b: nil_register,
-                    c: 0,
-                });
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::PushList,
+                        a: list_register,
+                        b: nil_register,
+                        c: 0,
+                    },
+                    token_data.clone(),
+                );
             }
             if !expr.second.is_empty() {
                 let second_chunk = expr.second.accept(self);
-                chunk
-                    .instructions
-                    .append(&mut second_chunk.instructions.clone());
-                chunk.instructions.push(Instruction {
-                    opcode: OpCode::PushList,
-                    a: list_register,
-                    b: second_chunk.result_register,
-                    c: 0,
-                });
+                chunk.append(&mut second_chunk.instructions.clone());
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::PushList,
+                        a: list_register,
+                        b: second_chunk.result_register,
+                        c: 0,
+                    },
+                    token_data.clone(),
+                );
             } else {
-                chunk.instructions.push(Instruction {
-                    opcode: OpCode::PushList,
-                    a: list_register,
-                    b: nil_register,
-                    c: 0,
-                });
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::PushList,
+                        a: list_register,
+                        b: nil_register,
+                        c: 0,
+                    },
+                    token_data.clone(),
+                );
             }
             if !expr.third.is_empty() {
                 let third_chunk = expr.third.accept(self);
-                chunk
-                    .instructions
-                    .append(&mut third_chunk.instructions.clone());
-                chunk.instructions.push(Instruction {
-                    opcode: OpCode::PushList,
-                    a: list_register,
-                    b: third_chunk.result_register,
-                    c: 0,
-                });
+                chunk.append(&mut third_chunk.instructions.clone());
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::PushList,
+                        a: list_register,
+                        b: third_chunk.result_register,
+                        c: 0,
+                    },
+                    token_data.clone(),
+                );
             } else {
-                chunk.instructions.push(Instruction {
-                    opcode: OpCode::PushList,
-                    a: list_register,
-                    b: nil_register,
-                    c: 0,
-                });
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::PushList,
+                        a: list_register,
+                        b: nil_register,
+                        c: 0,
+                    },
+                    token_data.clone(),
+                );
             }
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::Slice,
-                a: list_register,
-                b: list_register,
-                c: 0,
-            });
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::Access,
-                a: chunk.result_register,
-                b: obj_chunk.result_register,
-                c: list_register,
-            });
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::Slice,
+                    a: list_register,
+                    b: list_register,
+                    c: 0,
+                },
+                token_data.clone(),
+            );
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::Access,
+                    a: chunk.result_register,
+                    b: obj_chunk.result_register,
+                    c: list_register,
+                },
+                token_data.clone(),
+            );
         }
         return chunk;
     }
@@ -1008,12 +1156,15 @@ impl ExprVisitor<Chunk> for Compiler {
         chunk
             .instructions
             .append(&mut right_chunk.instructions.clone());
-        chunk.instructions.push(Instruction {
-            opcode: opcode,
-            a: result_register,
-            b: left_chunk.result_register,
-            c: right_chunk.result_register,
-        });
+        chunk.push(
+            Instruction {
+                opcode: opcode,
+                a: result_register,
+                b: left_chunk.result_register,
+                c: right_chunk.result_register,
+            },
+            Some(expr.operator.clone()),
+        );
         return chunk;
     }
 
@@ -1022,12 +1173,16 @@ impl ExprVisitor<Chunk> for Compiler {
         // println!("Callee: {:#?}", chunk);
         let fn_register = self.next_register();
         // println!("fn_register: {:#?}", fn_register);
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::Move,
-            a: fn_register,
-            b: chunk.result_register,
-            c: 0,
-        });
+        let token_data = Some(expr.paren.clone());
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Move,
+                a: fn_register,
+                b: chunk.result_register,
+                c: 0,
+            },
+            token_data.clone(),
+        );
         let start_reg = self.next_register();
         for _ in 1..(expr.arguments.len()) {
             self.next_register();
@@ -1037,20 +1192,26 @@ impl ExprVisitor<Chunk> for Compiler {
             chunk
                 .instructions
                 .append(&mut arg_chunk.instructions.clone());
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::Move,
-                a: start_reg + i as u8,
-                b: arg_chunk.result_register,
-                c: 0,
-            });
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::Move,
+                    a: start_reg + i as u8,
+                    b: arg_chunk.result_register,
+                    c: 0,
+                },
+                None,
+            );
         }
         chunk.result_register = self.next_register();
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::Call,
-            a: fn_register,
-            b: expr.arguments.len() as u8 + 1,
-            c: chunk.result_register + 1,
-        });
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Call,
+                a: fn_register,
+                b: expr.arguments.len() as u8 + 1,
+                c: chunk.result_register + 1,
+            },
+            token_data.clone(),
+        );
         // println!("Call chunk: {:#?}", chunk);
         return chunk;
     }
@@ -1063,18 +1224,24 @@ impl ExprVisitor<Chunk> for Compiler {
             s: expr.name.lexeme.to_string(),
         });
         self.constants.push(val);
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::LoadK,
-            a: result_register,
-            b: (constant_ix >> 8) as u8,
-            c: constant_ix as u8,
-        });
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::GetObj,
-            a: result_register,
-            b: chunk.result_register,
-            c: result_register,
-        });
+        chunk.push(
+            Instruction {
+                opcode: OpCode::LoadK,
+                a: result_register,
+                b: (constant_ix >> 8) as u8,
+                c: constant_ix as u8,
+            },
+            Some(expr.name.clone()),
+        );
+        chunk.push(
+            Instruction {
+                opcode: OpCode::GetObj,
+                a: result_register,
+                b: chunk.result_register,
+                c: result_register,
+            },
+            Some(expr.name.clone()),
+        );
         chunk.result_register = result_register;
         return chunk;
     }
@@ -1092,18 +1259,24 @@ impl ExprVisitor<Chunk> for Compiler {
             s: expr.name.lexeme.to_string(),
         });
         self.constants.push(val);
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::LoadK,
-            a: tmp_register,
-            b: (constant_ix >> 8) as u8,
-            c: constant_ix as u8,
-        });
-        chunk.instructions.push(Instruction {
-            opcode: OpCode::SetObj,
-            a: chunk.result_register,
-            b: tmp_register,
-            c: value_chunk.result_register,
-        });
+        chunk.push(
+            Instruction {
+                opcode: OpCode::LoadK,
+                a: tmp_register,
+                b: (constant_ix >> 8) as u8,
+                c: constant_ix as u8,
+            },
+            Some(expr.name.clone()),
+        );
+        chunk.push(
+            Instruction {
+                opcode: OpCode::SetObj,
+                a: chunk.result_register,
+                b: tmp_register,
+                c: value_chunk.result_register,
+            },
+            Some(expr.name.clone()),
+        );
         return chunk;
     }
 
@@ -1126,11 +1299,14 @@ impl ExprVisitor<Chunk> for Compiler {
         let constant_ix = self.constants.len() as u16;
         self.constants.push(val);
         let chunk = Chunk {
-            instructions: vec![Instruction {
-                opcode: OpCode::LoadK,
-                a: result_register,
-                b: (constant_ix >> 8) as u8,
-                c: constant_ix as u8,
+            instructions: vec![InstSrc {
+                inst: Instruction {
+                    opcode: OpCode::LoadK,
+                    a: result_register,
+                    b: (constant_ix >> 8) as u8,
+                    c: constant_ix as u8,
+                },
+                src: None,
             }],
             result_register: result_register,
         };
@@ -1148,51 +1324,65 @@ impl ExprVisitor<Chunk> for Compiler {
             .instructions
             .append(&mut left_chunk.instructions.clone());
         if expr.operator.token == Token::Or {
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::Test,
-                a: left_chunk.result_register,
-                b: left_chunk.result_register,
-                c: 1,
-            });
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::Test,
+                    a: left_chunk.result_register,
+                    b: left_chunk.result_register,
+                    c: 1,
+                },
+                Some(expr.operator.clone()),
+            );
             let jump_size = (right_chunk.instructions.len() + 2) as u16;
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::Jmp,
-                a: 0,
-                b: (jump_size >> 8) as u8,
-                c: jump_size as u8,
-            });
-            chunk
-                .instructions
-                .append(&mut right_chunk.instructions.clone());
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::Move,
-                a: chunk.result_register,
-                b: right_chunk.result_register,
-                c: 0,
-            });
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::Jmp,
+                    a: 0,
+                    b: (jump_size >> 8) as u8,
+                    c: jump_size as u8,
+                },
+                Some(expr.operator.clone()),
+            );
+            chunk.append(&mut right_chunk.instructions.clone());
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::Move,
+                    a: chunk.result_register,
+                    b: right_chunk.result_register,
+                    c: 0,
+                },
+                Some(expr.operator.clone()),
+            );
         } else {
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::Test,
-                a: left_chunk.result_register,
-                b: left_chunk.result_register,
-                c: 0,
-            });
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::Test,
+                    a: left_chunk.result_register,
+                    b: left_chunk.result_register,
+                    c: 0,
+                },
+                Some(expr.operator.clone()),
+            );
             let jump_size = (right_chunk.instructions.len() + 2) as u16;
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::Jmp,
-                a: 0,
-                b: (jump_size >> 8) as u8,
-                c: jump_size as u8,
-            });
-            chunk
-                .instructions
-                .append(&mut right_chunk.instructions.clone());
-            chunk.instructions.push(Instruction {
-                opcode: OpCode::Move,
-                a: chunk.result_register,
-                b: right_chunk.result_register,
-                c: 0,
-            });
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::Jmp,
+                    a: 0,
+                    b: (jump_size >> 8) as u8,
+                    c: jump_size as u8,
+                },
+                Some(expr.operator.clone()),
+            );
+            chunk.append(&mut right_chunk.instructions.clone());
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::Move,
+                    a: chunk.result_register,
+                    b: right_chunk.result_register,
+                    c: 0,
+                },
+                Some(expr.operator.clone()),
+            );
         }
         return chunk;
     }
@@ -1218,7 +1408,7 @@ impl ExprVisitor<Chunk> for Compiler {
             },
             _ => unreachable!(),
         };
-        chunk.instructions.push(inst);
+        chunk.push(inst, Some(expr.operator.clone()));
         return chunk;
     }
 }

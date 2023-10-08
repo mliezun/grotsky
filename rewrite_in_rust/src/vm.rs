@@ -3,6 +3,7 @@
 use crate::compiler::FnPrototype;
 use crate::errors::RuntimeErr;
 use crate::instruction::*;
+use crate::token::TokenData;
 use crate::value::*;
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -33,13 +34,14 @@ impl Record {
 
 #[derive(Debug)]
 pub struct VM {
+    pub pc: usize,
     pub instructions: Vec<Instruction>,
     pub prototypes: Vec<FnPrototype>,
     pub constants: Vec<Value>,
     pub globals: HashMap<String, Value>,
     pub stack: Vec<StackEntry>,
     pub activation_records: Vec<Record>,
-    pub pc: usize,
+    pub instructions_data: Vec<Option<TokenData>>,
 }
 
 impl VM {

@@ -79,15 +79,17 @@ fn run_bytecode_interpreter(source: String) {
     };
     // let start = Instant::now();
     compiler.compile(state.stmts.clone());
+    let instructions: Vec<compiler::InstSrc> = compiler
+        .contexts
+        .iter()
+        .map(|c| c.chunks.iter())
+        .flatten()
+        .map(|c| c.instructions.clone())
+        .flatten()
+        .collect();
     let mut my_mv = vm::VM {
-        instructions: compiler
-            .contexts
-            .iter()
-            .map(|c| c.chunks.iter())
-            .flatten()
-            .map(|c| c.instructions.clone())
-            .flatten()
-            .collect(),
+        instructions: instructions.iter().map(|i| i.inst.clone()).collect(),
+        instructions_data: instructions.iter().map(|i| i.src.clone()).collect(),
         prototypes: compiler.prototypes,
         constants: compiler.constants,
         globals: HashMap::new(),

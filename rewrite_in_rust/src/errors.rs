@@ -1,9 +1,10 @@
-pub struct RuntimeErr<'a> {
-    pub msg: &'a str,
+#[derive(Clone)]
+pub struct RuntimeErr {
+    pub msg: &'static str,
 }
 
-impl RuntimeErr<'_> {
-    pub const fn new(msg: &str) -> RuntimeErr {
+impl RuntimeErr {
+    pub const fn new(msg: &'static str) -> RuntimeErr {
         RuntimeErr { msg: msg }
     }
 }

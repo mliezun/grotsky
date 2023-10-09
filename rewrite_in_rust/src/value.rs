@@ -5,8 +5,8 @@ use std::ops::Range;
 use std::rc::Rc;
 
 use crate::errors::{
-    RuntimeErr, ERR_EXPECTED_DICT, ERR_EXPECTED_LIST, ERR_EXPECTED_NUMBER, ERR_EXPECTED_STRING,
-    ERR_UNDEFINED_OP, ERR_UNDEFINED_PROP,
+    RuntimeErr, ERR_EXPECTED_DICT, ERR_EXPECTED_LIST, ERR_EXPECTED_NUMBER, ERR_EXPECTED_OBJECT,
+    ERR_EXPECTED_STRING, ERR_UNDEFINED_OP, ERR_UNDEFINED_PROP,
 };
 
 #[derive(Debug, Clone)]
@@ -100,6 +100,8 @@ impl Value {
                 return Ok(Value::Number(NumberValue {
                     n: l.0.borrow().elements.len() as f64,
                 }));
+            } else {
+                return Err(ERR_UNDEFINED_PROP);
             }
         }
         if let Value::String(s) = self {
@@ -107,6 +109,8 @@ impl Value {
                 return Ok(Value::Number(NumberValue {
                     n: s.s.len() as f64,
                 }));
+            } else {
+                return Err(ERR_UNDEFINED_PROP);
             }
         }
         if let Value::Dict(d) = self {
@@ -114,12 +118,14 @@ impl Value {
                 return Ok(Value::Number(NumberValue {
                     n: d.0.borrow().elements.len() as f64,
                 }));
+            } else {
+                return Err(ERR_UNDEFINED_PROP);
             }
         }
         if let Value::Native(n) = self {
             return Ok(n.props.get(&prop).unwrap().clone());
         }
-        return Err(ERR_UNDEFINED_PROP);
+        return Err(ERR_EXPECTED_OBJECT);
     }
 
     pub fn add(&mut self, other: &mut Value) -> Result<Value, RuntimeErr> {

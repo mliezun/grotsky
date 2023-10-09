@@ -1,7 +1,9 @@
 #![allow(dead_code)]
 
 use crate::compiler::FnPrototype;
-use crate::errors::{RuntimeErr, ERR_INVALID_NUMBER_ARGUMENTS, ERR_ONLY_FUNCTION, ERR_READ_ONLY};
+use crate::errors::{
+    RuntimeErr, ERR_EXPECTED_OBJECT, ERR_INVALID_NUMBER_ARGUMENTS, ERR_ONLY_FUNCTION, ERR_READ_ONLY,
+};
 use crate::instruction::*;
 use crate::token::TokenData;
 use crate::value::*;
@@ -641,8 +643,19 @@ impl VM {
                     pc += 1;
                 }
                 OpCode::SetObj => {
+                    let val_a = match &self.activation_records[sp + inst.a as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
                     // TODO: implement
-                    self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
+                    match val_a {
+                        Value::String(s) => {
+                            self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
+                        }
+                        _ => {
+                            self.exception(ERR_EXPECTED_OBJECT, self.instructions_data[pc].clone());
+                        }
+                    };
                     pc += 1;
                 }
                 OpCode::Addi => {
@@ -688,7 +701,6 @@ impl VM {
                         Record::Val(val_b.as_val().not());
                     pc += 1;
                 }
-                _ => todo!(),
             }
         }
     }

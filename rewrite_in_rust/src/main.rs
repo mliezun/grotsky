@@ -127,9 +127,11 @@ fn main() {
     } else {
         source = SOURCE;
     }
-    panic::set_hook(Box::new(|_info| {
-        // do nothing
-    }));
+    let grotsky_debug = env::var("GROTSKY_DEBUG").unwrap_or("1".to_string());
+    if grotsky_debug != "1" && !grotsky_debug.eq_ignore_ascii_case("true") {
+        // Disable rust backtrace
+        panic::set_hook(Box::new(|_info| {}));
+    }
     // tree_interpreter(String::from(source));
     run_bytecode_interpreter(String::from(source));
 }

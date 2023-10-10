@@ -994,7 +994,11 @@ impl ExprVisitor<Chunk> for Compiler {
             instructions: vec![],
         };
         let obj_chunk = expr.object.accept(self);
-        let token_data = Some(expr.brace.clone());
+        let token_data = if expr.second_colon.token != Token::Nil {
+            Some(expr.second_colon.clone())
+        } else {
+            Some(expr.brace.clone())
+        };
         chunk
             .instructions
             .append(&mut obj_chunk.instructions.clone());
@@ -1035,6 +1039,18 @@ impl ExprVisitor<Chunk> for Compiler {
                     a: nil_register,
                     b: 0,
                     c: 0,
+                },
+                token_data.clone(),
+            );
+            let one_register = self.next_register();
+            let constant_ix = self.constants.len() as u16;
+            self.constants.push(Value::Number(NumberValue { n: 1.0 }));
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::LoadK,
+                    a: one_register,
+                    b: (constant_ix >> 8) as u8,
+                    c: constant_ix as u8,
                 },
                 token_data.clone(),
             );
@@ -1092,6 +1108,16 @@ impl ExprVisitor<Chunk> for Compiler {
                         opcode: OpCode::PushList,
                         a: list_register,
                         b: third_chunk.result_register,
+                        c: 0,
+                    },
+                    token_data.clone(),
+                );
+            } else if expr.second_colon.token == Token::Nil {
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::PushList,
+                        a: list_register,
+                        b: one_register,
                         c: 0,
                     },
                     token_data.clone(),

@@ -2,7 +2,8 @@
 
 use crate::compiler::FnPrototype;
 use crate::errors::{
-    RuntimeErr, ERR_EXPECTED_OBJECT, ERR_INVALID_NUMBER_ARGUMENTS, ERR_ONLY_FUNCTION, ERR_READ_ONLY,
+    RuntimeErr, ERR_EXPECTED_OBJECT, ERR_INVALID_ACCESS, ERR_INVALID_NUMBER_ARGUMENTS,
+    ERR_ONLY_FUNCTION, ERR_READ_ONLY,
 };
 use crate::instruction::*;
 use crate::token::TokenData;
@@ -249,8 +250,14 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] =
-                        Record::Val(val_b.as_val().mul(&mut val_c.as_val()));
+                    match val_b.as_val().mul(&mut val_c.as_val()) {
+                        Ok(v) => {
+                            self.activation_records[sp + inst.a as usize] = Record::Val(v);
+                        }
+                        Err(e) => {
+                            self.exception(e, self.instructions_data[pc].clone());
+                        }
+                    }
                     pc += 1;
                 }
                 OpCode::Pow => {
@@ -500,7 +507,9 @@ impl VM {
                                 Record::Val(dict.0.borrow().access(accessor));
                             pc += 1;
                         }
-                        _ => panic!("Cannot access non iterable"),
+                        _ => {
+                            self.exception(ERR_INVALID_ACCESS, self.instructions_data[pc].clone());
+                        }
                     }
                 }
                 OpCode::Set => {
@@ -662,6 +671,12 @@ impl VM {
                     // TODO: implement
                     match val_a {
                         Value::String(s) => {
+                            self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
+                        }
+                        Value::List(l) => {
+                            self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
+                        }
+                        Value::Dict(d) => {
                             self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
                         }
                         _ => {

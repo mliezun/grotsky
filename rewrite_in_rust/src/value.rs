@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use crate::errors::{
     RuntimeErr, ERR_EXPECTED_DICT, ERR_EXPECTED_LIST, ERR_EXPECTED_NUMBER, ERR_EXPECTED_OBJECT,
-    ERR_EXPECTED_STRING, ERR_ONLY_NUMBERS, ERR_UNDEFINED_OP, ERR_UNDEFINED_PROP,
+    ERR_EXPECTED_STEP, ERR_EXPECTED_STRING, ERR_ONLY_NUMBERS, ERR_UNDEFINED_OP, ERR_UNDEFINED_PROP,
 };
 
 #[derive(Debug, Clone)]
@@ -203,15 +203,15 @@ impl Value {
         }
         return Err(ERR_UNDEFINED_OP);
     }
-    pub fn mul(&mut self, other: &mut Value) -> Value {
+    pub fn mul(&mut self, other: &mut Value) -> Result<Value, RuntimeErr> {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
-                return Value::Number(NumberValue {
+                return Ok(Value::Number(NumberValue {
                     n: num_val.n * other_val.n,
-                });
+                }));
             }
         }
-        panic!("Not implemented");
+        return Err(ERR_UNDEFINED_OP);
     }
     pub fn div(&mut self, other: &mut Value) -> Value {
         if let Value::Number(num_val) = self {
@@ -566,8 +566,6 @@ pub struct SliceValue {
 
 impl SliceValue {
     fn as_range(&self) -> Result<(Range<usize>, usize), RuntimeErr> {
-        let mut second: Option<usize> = None;
-        let mut third: usize = 1;
         let first = match &*self.first {
             Value::Number(val) => Some(val.n as usize),
             Value::Nil => None,
@@ -580,7 +578,7 @@ impl SliceValue {
         };
         let mut third = match &*self.third {
             Value::Number(val) => val.n as usize,
-            Value::Nil => 1,
+            Value::Nil => return Err(ERR_EXPECTED_STEP),
             _ => return Err(ERR_ONLY_NUMBERS),
         };
         let range = if first.is_some() && second.is_some() {

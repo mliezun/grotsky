@@ -1,3 +1,5 @@
+use crate::errors::RuntimeErr;
+use crate::errors::ERR_UNDEFINED_VAR;
 use crate::expr::*;
 use crate::instruction::*;
 use crate::stmt::*;
@@ -137,6 +139,18 @@ impl Compiler {
             let chunk = stmt.accept(self);
             self.add_chunk(chunk);
         }
+    }
+
+    pub fn compilation_error(&self, msg: RuntimeErr, token_data: Option<TokenData>) {
+        if let Some(tk) = token_data {
+            print!(
+                "Compilation Error on line {}\n\t{}: {}\n",
+                tk.line, msg.msg, tk.lexeme,
+            );
+        } else {
+            print!("Compilation Error\n\t{}\n", msg.msg);
+        }
+        std::process::exit(0);
     }
 }
 
@@ -843,7 +857,8 @@ impl ExprVisitor<Chunk> for Compiler {
                 result_register: reg,
             };
         }
-        panic!("Variable not found!");
+        self.compilation_error(ERR_UNDEFINED_VAR, expr.name.clone());
+        unreachable!();
     }
 
     fn visit_list_expr(&mut self, expr: &ListExpr) -> Chunk {
@@ -984,7 +999,8 @@ impl ExprVisitor<Chunk> for Compiler {
 
             return chunk;
         }
-        panic!("Var doesn't exist!");
+        self.compilation_error(ERR_UNDEFINED_VAR, Some(expr.name.clone()));
+        unreachable!();
     }
 
     fn visit_access_expr(&mut self, expr: &AccessExpr) -> Chunk {

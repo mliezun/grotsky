@@ -137,6 +137,21 @@ func checkErrorMsg(t *testing.T, source string, errorMsg string, line int) {
 
 	tp := &testPrinter{}
 	run_code("", source, tp)
+	if strings.Contains(tp.printed, "Compilation") {
+		result := fmt.Sprintf("Compilation Error on line %d\n\t%s\n", line, errorMsg)
+		if !tp.Equals(result) {
+			t.Log(string(debug.Stack()))
+			t.Errorf(
+				"\nSource:\n----\n%s\n----\nExpected:\n----\n%#v----\nFound:\n----\n%#v----",
+				source,
+				result,
+				tp.printed,
+			)
+		} else {
+			t.Log("Successful run source", source)
+		}
+		return
+	}
 	if !tp.Equals(result) {
 		t.Log(string(debug.Stack()))
 		t.Errorf(

@@ -151,15 +151,23 @@ impl Value {
             }
         }
         if let Value::List(list_val) = self {
-            if let Value::List(other_val) = other {
-                let mut elements = vec![];
-                for e in list_val.0.borrow().elements.iter() {
-                    elements.push(e.clone());
+            match other {
+                Value::List(other_val) => {
+                    let mut elements = vec![];
+                    for e in list_val.0.borrow().elements.iter() {
+                        elements.push(e.clone());
+                    }
+                    for e in other_val.0.borrow().elements.iter() {
+                        elements.push(e.clone());
+                    }
+                    return Ok(Value::List(MutValue::new(ListValue { elements: elements })));
                 }
-                for e in other_val.0.borrow().elements.iter() {
-                    elements.push(e.clone());
+                Value::Nil => {
+                    return Err(ERR_UNDEFINED_OP);
                 }
-                return Ok(Value::List(MutValue::new(ListValue { elements: elements })));
+                _ => {
+                    return Err(ERR_EXPECTED_LIST);
+                }
             }
         }
         if let Value::Dict(dict_val) = self {

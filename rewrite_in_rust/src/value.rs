@@ -95,6 +95,9 @@ impl Value {
     }
 
     pub fn get(&self, prop: String) -> Result<Value, RuntimeErr> {
+        if let Value::Number(n) = self {
+            return Err(ERR_UNDEFINED_PROP);
+        }
         if let Value::List(l) = self {
             if prop == "length" {
                 return Ok(Value::Number(NumberValue {
@@ -157,8 +160,6 @@ impl Value {
                     elements.push(e.clone());
                 }
                 return Ok(Value::List(MutValue::new(ListValue { elements: elements })));
-            } else {
-                return Err(ERR_EXPECTED_LIST);
             }
         }
         if let Value::Dict(dict_val) = self {
@@ -260,22 +261,22 @@ impl Value {
         }
         panic!("Not implemented");
     }
-    pub fn lte(&mut self, other: &mut Value) -> Value {
+    pub fn lte(&mut self, other: &mut Value) -> Result<Value, RuntimeErr> {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
-                return Value::Bool(BoolValue {
+                return Ok(Value::Bool(BoolValue {
                     b: num_val.n <= other_val.n,
-                });
+                }));
             }
         }
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
-                return Value::Bool(BoolValue {
+                return Ok(Value::Bool(BoolValue {
                     b: str_val.s <= other_val.s,
-                });
+                }));
             }
         }
-        panic!("Not implemented");
+        return Err(ERR_UNDEFINED_OP);
     }
     pub fn gt(&mut self, other: &mut Value) -> Value {
         if let Value::Number(num_val) = self {

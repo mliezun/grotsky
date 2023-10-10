@@ -326,8 +326,14 @@ impl VM {
                         .activation_records
                         .get_mut(sp + inst.c as usize)
                         .unwrap();
-                    self.activation_records[sp + inst.a as usize] =
-                        Record::Val(val_b.as_val().lte(&mut val_c.as_val()));
+                    match val_b.as_val().lte(&mut val_c.as_val()) {
+                        Ok(v) => {
+                            self.activation_records[sp + inst.a as usize] = Record::Val(v);
+                        }
+                        Err(e) => {
+                            self.exception(e, self.instructions_data[pc].clone());
+                        }
+                    }
                     pc += 1;
                 }
                 OpCode::Gt => {
@@ -670,6 +676,9 @@ impl VM {
                     };
                     // TODO: implement
                     match val_a {
+                        Value::Number(n) => {
+                            self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
+                        }
                         Value::String(s) => {
                             self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
                         }

@@ -474,13 +474,25 @@ impl VM {
                     // println!("{:#?}", accessor);
                     match val {
                         Value::List(list) => {
-                            self.activation_records[sp + inst.a as usize] =
-                                Record::Val(list.0.borrow().access(accessor));
+                            match list.0.borrow().access(accessor) {
+                                Ok(v) => {
+                                    self.activation_records[sp + inst.a as usize] = Record::Val(v);
+                                }
+                                Err(e) => {
+                                    self.exception(e, self.instructions_data[pc].clone());
+                                }
+                            }
                             pc += 1;
                         }
                         Value::String(str) => {
-                            self.activation_records[sp + inst.a as usize] =
-                                Record::Val(str.access(accessor));
+                            match str.access(accessor) {
+                                Ok(v) => {
+                                    self.activation_records[sp + inst.a as usize] = Record::Val(v);
+                                }
+                                Err(e) => {
+                                    self.exception(e, self.instructions_data[pc].clone());
+                                }
+                            }
                             pc += 1;
                         }
                         Value::Dict(dict) => {

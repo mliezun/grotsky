@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use crate::errors::{
     RuntimeErr, ERR_EXPECTED_DICT, ERR_EXPECTED_LIST, ERR_EXPECTED_NUMBER, ERR_EXPECTED_OBJECT,
-    ERR_EXPECTED_STRING, ERR_UNDEFINED_OP, ERR_UNDEFINED_PROP,
+    ERR_EXPECTED_STRING, ERR_ONLY_NUMBERS, ERR_UNDEFINED_OP, ERR_UNDEFINED_PROP,
 };
 
 #[derive(Debug, Clone)]
@@ -465,24 +465,28 @@ pub struct StringValue {
 }
 
 impl StringValue {
-    pub fn access(&self, accesor: Value) -> Value {
+    pub fn access(&self, accesor: Value) -> Result<Value, RuntimeErr> {
         match accesor {
-            Value::Number(val) => Value::String(StringValue {
+            Value::Number(val) => Ok(Value::String(StringValue {
                 s: String::from(self.s.get((val.n as usize)..(1 + val.n as usize)).unwrap()),
-            }),
+            })),
             Value::Slice(val) => {
                 let mut result_str = "".to_string();
-                let (range, step) = val.as_range();
-                if step > self.s.len() {
-                    return Value::String(StringValue { s: result_str });
-                }
-                for i in range.step_by(step) {
-                    if i >= self.s.len() {
-                        break;
+                match val.as_range() {
+                    Ok((range, step)) => {
+                        if step > self.s.len() {
+                            return Ok(Value::String(StringValue { s: result_str }));
+                        }
+                        for i in range.step_by(step) {
+                            if i >= self.s.len() {
+                                break;
+                            }
+                            result_str.push_str(self.s.get(i..i + 1).unwrap());
+                        }
+                        Ok(Value::String(StringValue { s: result_str }))
                     }
-                    result_str.push_str(self.s.get(i..i + 1).unwrap());
+                    Err(e) => Err(e),
                 }
-                Value::String(StringValue { s: result_str })
             }
             _ => unimplemented!(),
         }
@@ -503,28 +507,34 @@ pub struct ListValue {
 }
 
 impl ListValue {
-    pub fn access(&self, accesor: Value) -> Value {
+    pub fn access(&self, accesor: Value) -> Result<Value, RuntimeErr> {
         // println!("accessor = {:#?}", accesor);
         match accesor {
             Value::Number(val) => {
                 if self.elements.is_empty() {
-                    return Value::List(MutValue::new(ListValue { elements: vec![] }));
+                    return Ok(Value::List(MutValue::new(ListValue { elements: vec![] })));
                 }
-                return self.elements[val.n as usize].clone();
+                return Ok(self.elements[val.n as usize].clone());
             }
             Value::Slice(slice) => {
                 let mut elements = vec![];
-                let (range, step) = slice.as_range();
-                if step > self.elements.len() {
-                    return Value::List(MutValue::new(ListValue { elements: elements }));
-                }
-                for i in range.step_by(step) {
-                    if i >= self.elements.len() {
-                        break;
+                match slice.as_range() {
+                    Ok((range, step)) => {
+                        if step > self.elements.len() {
+                            return Ok(Value::List(MutValue::new(ListValue {
+                                elements: elements,
+                            })));
+                        }
+                        for i in range.step_by(step) {
+                            if i >= self.elements.len() {
+                                break;
+                            }
+                            elements.push(self.elements[i].clone());
+                        }
+                        return Ok(Value::List(MutValue::new(ListValue { elements: elements })));
                     }
-                    elements.push(self.elements[i].clone());
+                    Err(e) => Err(e),
                 }
-                return Value::List(MutValue::new(ListValue { elements: elements }));
             }
             _ => unimplemented!(),
         }
@@ -555,19 +565,24 @@ pub struct SliceValue {
 }
 
 impl SliceValue {
-    fn as_range(&self) -> (Range<usize>, usize) {
-        let mut first: Option<usize> = None;
+    fn as_range(&self) -> Result<(Range<usize>, usize), RuntimeErr> {
         let mut second: Option<usize> = None;
         let mut third: usize = 1;
-        if let Value::Number(val) = &*self.first {
-            first = Some(val.n as usize);
-        }
-        if let Value::Number(val) = &*self.second {
-            second = Some(val.n as usize);
-        }
-        if let Value::Number(val) = &*self.third {
-            third = val.n as usize;
-        }
+        let first = match &*self.first {
+            Value::Number(val) => Some(val.n as usize),
+            Value::Nil => None,
+            _ => return Err(ERR_ONLY_NUMBERS),
+        };
+        let second = match &*self.second {
+            Value::Number(val) => Some(val.n as usize),
+            Value::Nil => None,
+            _ => return Err(ERR_ONLY_NUMBERS),
+        };
+        let mut third = match &*self.third {
+            Value::Number(val) => val.n as usize,
+            Value::Nil => 1,
+            _ => return Err(ERR_ONLY_NUMBERS),
+        };
         let range = if first.is_some() && second.is_some() {
             first.unwrap()..second.unwrap()
         } else if first.is_some() && second.is_none() {
@@ -580,7 +595,7 @@ impl SliceValue {
         if third <= 1 {
             third = 1;
         }
-        return (range, third);
+        return Ok((range, third));
     }
 }
 

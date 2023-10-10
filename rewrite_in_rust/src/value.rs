@@ -98,6 +98,9 @@ impl Value {
         if let Value::Number(n) = self {
             return Err(ERR_UNDEFINED_PROP);
         }
+        if let Value::Bool(b) = self {
+            return Err(ERR_UNDEFINED_PROP);
+        }
         if let Value::List(l) = self {
             if prop == "length" {
                 return Ok(Value::Number(NumberValue {

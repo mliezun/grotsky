@@ -679,6 +679,9 @@ impl VM {
                         Value::Number(n) => {
                             self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
                         }
+                        Value::Bool(b) => {
+                            self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
+                        }
                         Value::String(s) => {
                             self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
                         }

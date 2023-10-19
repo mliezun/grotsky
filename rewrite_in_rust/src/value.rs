@@ -616,7 +616,7 @@ impl SliceValue {
 #[derive(Clone)]
 pub struct NativeValue {
     pub props: HashMap<String, Value>,
-    pub callable: Option<&'static dyn Fn(Vec<Value>) -> Value>,
+    pub callable: Option<&'static dyn Fn(Vec<Value>) -> Result<Value, RuntimeErr>>,
 }
 
 impl core::fmt::Debug for NativeValue {

@@ -151,8 +151,15 @@ impl VM {
                                 args.push(val);
                             }
                             let result = callable(args);
-                            self.activation_records[sp + inst.c as usize - 1] =
-                                Record::Val(result.clone());
+                            match result {
+                                Ok(v) => {
+                                    self.activation_records[sp + inst.c as usize - 1] =
+                                        Record::Val(v.clone());
+                                }
+                                Err(e) => {
+                                    self.exception(e, self.instructions_data[pc].clone());
+                                }
+                            }
                             pc += 1;
                         } else {
                             self.exception(ERR_ONLY_FUNCTION, self.instructions_data[pc].clone());

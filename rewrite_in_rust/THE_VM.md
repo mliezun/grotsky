@@ -270,4 +270,7 @@ ClassStMeth (A, B, C) R(A).R(B) := R(C)
 GetObj (A, B, C) R(A) := R(B).R(C)
 SetObj (A, B, C) R(A).R(B) := R(C)
 Addi (A, B, Imm) R(A) := R(B) + Imm
+GetIter (A, B, C) R(A) := R(B)[R(C)]
+GetIteri (A, B, Imm) R(A) := R(B)[Imm]
+Length (A, B) R(A) := R(B).length
 ```

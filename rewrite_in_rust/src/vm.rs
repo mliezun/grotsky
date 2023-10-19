@@ -2,8 +2,9 @@
 
 use crate::compiler::FnPrototype;
 use crate::errors::{
-    RuntimeErr, ERR_EXPECTED_OBJECT, ERR_INVALID_ACCESS, ERR_INVALID_NUMBER_ARGUMENTS,
-    ERR_ONLY_FUNCTION, ERR_READ_ONLY,
+    RuntimeErr, ERR_EXPECTED_COLLECTION, ERR_EXPECTED_NUMBER, ERR_EXPECTED_OBJECT,
+    ERR_INVALID_ACCESS, ERR_INVALID_NUMBER_ARGUMENTS, ERR_ONLY_FUNCTION, ERR_READ_ONLY,
+    ERR_WRONG_NUMBER_OF_VALUES,
 };
 use crate::instruction::*;
 use crate::token::TokenData;
@@ -712,6 +713,124 @@ impl VM {
                         }
                         Err(e) => {
                             self.exception(e, self.instructions_data[pc].clone());
+                        }
+                    }
+                    pc += 1;
+                }
+                OpCode::GetIter => {
+                    let val_b = self
+                        .activation_records
+                        .get_mut(sp + inst.b as usize)
+                        .unwrap()
+                        .clone();
+                    let val_c = self
+                        .activation_records
+                        .get_mut(sp + inst.c as usize)
+                        .unwrap()
+                        .clone();
+                    let n = if let Value::Number(n) = val_c.as_val() {
+                        n.n as usize
+                    } else {
+                        self.exception(ERR_EXPECTED_NUMBER, self.instructions_data[pc].clone());
+                        0
+                    };
+                    match val_b.as_val() {
+                        Value::Dict(d) => {
+                            let dict = d.0.borrow();
+                            let mut iter = dict.elements.iter().skip(n).peekable();
+                            let elms = iter.peek().unwrap();
+                            self.activation_records[sp + inst.a as usize] =
+                                Record::Val(Value::List(MutValue::new(ListValue {
+                                    elements: vec![elms.0.clone(), elms.1.clone()],
+                                })));
+                        }
+                        Value::List(l) => {
+                            let list = l.0.borrow();
+                            let mut iter = list.elements.iter().skip(n).peekable();
+                            let elms = iter.peek().unwrap();
+                            self.activation_records[sp + inst.a as usize] =
+                                Record::Val(elms.clone().clone())
+                        }
+                        _ => {
+                            self.exception(
+                                ERR_EXPECTED_COLLECTION,
+                                self.instructions_data[pc].clone(),
+                            );
+                        }
+                    }
+                    pc += 1;
+                }
+                OpCode::GetIteri => {
+                    let val_b = self
+                        .activation_records
+                        .get_mut(sp + inst.b as usize)
+                        .unwrap()
+                        .clone();
+                    let n = inst.c as usize;
+                    match val_b.as_val() {
+                        Value::Dict(d) => {
+                            let dict = d.0.borrow();
+                            let mut iter = dict.elements.iter().skip(n).peekable();
+                            let elms = iter.peek();
+                            if let Some(e) = elms {
+                                self.activation_records[sp + inst.a as usize] =
+                                    Record::Val(Value::List(MutValue::new(ListValue {
+                                        elements: vec![e.0.clone(), e.1.clone()],
+                                    })));
+                            } else {
+                                self.exception(
+                                    ERR_WRONG_NUMBER_OF_VALUES,
+                                    self.instructions_data[pc].clone(),
+                                );
+                            }
+                        }
+                        Value::List(l) => {
+                            let list = l.0.borrow();
+                            let mut iter = list.elements.iter().skip(n).peekable();
+                            let elms = iter.peek();
+                            if let Some(e) = elms {
+                                self.activation_records[sp + inst.a as usize] =
+                                    Record::Val(e.clone().clone());
+                            } else {
+                                self.exception(
+                                    ERR_WRONG_NUMBER_OF_VALUES,
+                                    self.instructions_data[pc].clone(),
+                                );
+                            }
+                        }
+                        _ => {
+                            self.exception(
+                                ERR_EXPECTED_COLLECTION,
+                                self.instructions_data[pc].clone(),
+                            );
+                        }
+                    }
+                    pc += 1;
+                }
+                OpCode::Length => {
+                    let val_b = self
+                        .activation_records
+                        .get_mut(sp + inst.b as usize)
+                        .unwrap()
+                        .clone();
+                    match val_b.as_val() {
+                        Value::Dict(d) => {
+                            self.activation_records[sp + inst.a as usize] =
+                                Record::Val(Value::Number(NumberValue {
+                                    n: d.0.borrow().elements.len() as f64,
+                                }));
+                        }
+                        Value::List(l) => {
+                            self.activation_records[sp + inst.a as usize] =
+                                Record::Val(Value::Number(NumberValue {
+                                    n: l.0.borrow().elements.len() as f64,
+                                }));
+                        }
+                        _ => {
+                            self.exception(
+                                ERR_EXPECTED_COLLECTION,
+                                self.instructions_data[pc].clone(),
+                            );
                         }
                     }
                     pc += 1;

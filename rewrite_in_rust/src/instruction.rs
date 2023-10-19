@@ -38,6 +38,9 @@ pub enum OpCode {
     GetObj,
     SetObj,
     Addi,
+    GetIter,
+    GetIteri,
+    Length,
 }
 
 // To indicate if the JMP is a continue or break inside

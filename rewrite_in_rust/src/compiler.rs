@@ -87,6 +87,10 @@ impl Compiler {
 
     fn result_register(&self) -> u8 {
         let current_context = self.contexts.last().unwrap();
+        if current_context.chunks.is_empty() {
+            // TODO: why is this needed?
+            return 0;
+        }
         return current_context.chunks.last().unwrap().result_register;
     }
 
@@ -294,36 +298,95 @@ impl StmtVisitor<Chunk> for Compiler {
 
     fn visit_enhanced_for_stmt(&mut self, stmt: &EnhancedForStmt) -> Chunk {
         let counter_reg = self.next_register();
+        let length_reg = self.next_register();
+        let cond_reg = self.next_register();
+        let element_reg = self.next_register();
+        let constant_ix = self.constants.len() as u16;
+        self.constants.push(Value::Number(NumberValue { n: 0.0 }));
         let mut chunk = Chunk {
             result_register: 0,
-            instructions: vec![],
+            instructions: vec![InstSrc {
+                inst: Instruction {
+                    opcode: OpCode::LoadK,
+                    a: counter_reg,
+                    b: (constant_ix >> 8) as u8,
+                    c: constant_ix as u8,
+                },
+                src: Some(stmt.keyword.clone()),
+            }],
         };
+        let collection_chunk = stmt.collection.accept(self);
         let cond_chunk = Chunk {
-            result_register: counter_reg,
+            result_register: cond_reg,
+            instructions: vec![
+                InstSrc {
+                    inst: Instruction {
+                        opcode: OpCode::Length,
+                        a: length_reg,
+                        b: collection_chunk.result_register,
+                        c: 0,
+                    },
+                    src: Some(stmt.keyword.clone()),
+                },
+                InstSrc {
+                    inst: Instruction {
+                        opcode: OpCode::Lt,
+                        a: cond_reg,
+                        b: counter_reg,
+                        c: length_reg,
+                    },
+                    src: Some(stmt.keyword.clone()),
+                },
+            ],
+        };
+        let mut body_chunk = Chunk {
+            result_register: 0,
             instructions: vec![InstSrc {
                 inst: Instruction {
-                    opcode: OpCode::Lt,
-                    a: counter_reg,
-                    b: 0,
-                    c: 0,
+                    opcode: OpCode::GetIter,
+                    a: element_reg,
+                    b: collection_chunk.result_register,
+                    c: counter_reg,
                 },
                 src: Some(stmt.keyword.clone()),
             }],
         };
-        let mut body_chunk = stmt.body.accept(self);
-        let inc_chunk: Chunk = Chunk {
-            result_register: counter_reg,
-            instructions: vec![InstSrc {
-                inst: Instruction {
-                    opcode: OpCode::Addi,
-                    a: counter_reg,
-                    b: counter_reg,
-                    c: 1,
-                },
-                src: Some(stmt.keyword.clone()),
-            }],
-        };
-        body_chunk.append(&mut inc_chunk.instructions.clone());
+        if stmt.identifiers.len() > 1 {
+            for (i, tk) in stmt.identifiers.iter().enumerate() {
+                let var_reg = self.next_register();
+                self.allocate_register(tk.lexeme.to_string(), var_reg);
+                body_chunk.push(
+                    Instruction {
+                        opcode: OpCode::GetIteri,
+                        a: var_reg,
+                        b: element_reg,
+                        c: i as u8,
+                    },
+                    Some(tk.clone()),
+                )
+            }
+        } else {
+            let tk = stmt.identifiers.first().unwrap();
+            self.allocate_register(tk.lexeme.to_string(), element_reg);
+        }
+        let loop_chunk = stmt.body.accept(self);
+        body_chunk.result_register = loop_chunk.result_register;
+        body_chunk.append(&mut loop_chunk.instructions.clone());
+        body_chunk.push(
+            Instruction {
+                opcode: OpCode::Addi,
+                a: counter_reg,
+                b: counter_reg,
+                c: 1,
+            },
+            Some(stmt.keyword.clone()),
+        );
+
+        // Build final chunk
+        // 1. Collection chunk: evaluate collection and have value available to use
+        // 2. Condition chunk: check that we haven't reached the end of the collection
+        // 3. Body: body of the loop, handle break and continue
+        chunk.append(&mut collection_chunk.instructions.clone());
         chunk.append(&mut cond_chunk.instructions.clone());
         chunk.push(
             Instruction {

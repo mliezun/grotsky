@@ -5,8 +5,9 @@ use std::ops::Range;
 use std::rc::Rc;
 
 use crate::errors::{
-    RuntimeErr, ERR_EXPECTED_DICT, ERR_EXPECTED_LIST, ERR_EXPECTED_NUMBER, ERR_EXPECTED_OBJECT,
-    ERR_EXPECTED_STEP, ERR_EXPECTED_STRING, ERR_ONLY_NUMBERS, ERR_UNDEFINED_OP, ERR_UNDEFINED_PROP,
+    RuntimeErr, ERR_EXPECTED_DICT, ERR_EXPECTED_KEY, ERR_EXPECTED_LIST, ERR_EXPECTED_NUMBER,
+    ERR_EXPECTED_OBJECT, ERR_EXPECTED_STEP, ERR_EXPECTED_STRING, ERR_ONLY_NUMBERS,
+    ERR_UNDEFINED_OP, ERR_UNDEFINED_PROP,
 };
 
 #[derive(Debug, Clone)]
@@ -559,13 +560,16 @@ pub struct DictValue {
 }
 
 impl DictValue {
-    pub fn access(&self, accesor: Value) -> Value {
+    pub fn access(&self, accesor: Value) -> Result<Value, RuntimeErr> {
         if self.elements.is_empty() {
-            return Value::Dict(MutValue::new(DictValue {
+            return Ok(Value::Dict(MutValue::new(DictValue {
                 elements: HashMap::new(),
-            }));
+            })));
         }
-        self.elements.get(&accesor).unwrap().clone()
+        match accesor {
+            Value::Slice(_) => Err(ERR_EXPECTED_KEY),
+            _ => Ok(self.elements.get(&accesor).unwrap().clone()),
+        }
     }
 }
 

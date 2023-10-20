@@ -140,9 +140,11 @@ impl Compiler {
         let io_reg = self.next_register();
         let strings_reg = self.next_register();
         let type_reg = self.next_register();
+        let env_reg = self.next_register();
         self.allocate_register("io".to_string(), io_reg);
         self.allocate_register("strings".to_string(), strings_reg);
         self.allocate_register("type".to_string(), type_reg);
+        self.allocate_register("env".to_string(), env_reg);
         for stmt in stmts {
             let chunk = stmt.accept(self);
             self.add_chunk(chunk);

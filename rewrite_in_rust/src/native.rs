@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::SystemTime};
+use std::{collections::HashMap, env, time::SystemTime};
 
 use crate::{
     errors::ERR_INVALID_NUMBER_ARGUMENTS,
@@ -248,5 +248,61 @@ impl Type {
             callable: Some(&Type::type_fn),
         };
         return type_fn;
+    }
+}
+
+pub struct Env {}
+
+impl Env {
+    pub fn get(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 1 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let string_value = match values.first().unwrap() {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let result = env::var(string_value.s.as_str()).unwrap_or("".to_string());
+        return Ok(Value::String(StringValue { s: result }));
+    }
+
+    pub fn set(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 2 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let env_var = match values.first().unwrap() {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let val = match values.get(1).unwrap() {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        env::set_var(env_var.s.as_str(), val.s.as_str());
+        return Ok(Value::Nil);
+    }
+
+    pub fn build() -> NativeValue {
+        let mut env_mod = NativeValue {
+            props: HashMap::new(),
+            callable: None,
+        };
+        let get = NativeValue {
+            props: HashMap::new(),
+            callable: Some(&Env::get),
+        };
+        let set = NativeValue {
+            props: HashMap::new(),
+            callable: Some(&Env::set),
+        };
+        env_mod.props.insert("get".to_string(), Value::Native(get));
+        env_mod.props.insert("set".to_string(), Value::Native(set));
+        return env_mod;
     }
 }

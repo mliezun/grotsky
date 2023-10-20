@@ -107,6 +107,7 @@ fn run_bytecode_interpreter(source: String) {
     my_mv.activation_records[0] = vm::Record::Val(value::Value::Native(native::IO::build()));
     my_mv.activation_records[1] = vm::Record::Val(value::Value::Native(native::Strings::build()));
     my_mv.activation_records[2] = vm::Record::Val(value::Value::Native(native::Type::build()));
+    my_mv.activation_records[3] = vm::Record::Val(value::Value::Native(native::Env::build()));
     // println!("{:#?}", my_mv.activation_records);
     // println!("{:#?}", my_mv.instructions);
     // println!("{:#?}", my_mv.constants);

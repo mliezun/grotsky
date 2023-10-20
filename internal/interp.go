@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"io"
 	"sync"
 )
@@ -10,6 +11,19 @@ type IPrinter interface {
 	Println(a ...interface{}) (n int, err error)
 	Fprintf(w io.Writer, format string, a ...interface{}) (n int, err error)
 	Fprintln(w io.Writer, a ...interface{}) (n int, err error)
+}
+
+func LexSource(source string) {
+	state := interpreterState[R]{
+		source: source,
+		errors: make([]parseError, 0),
+	}
+	lexer := &lexer[R]{
+		line:  1,
+		state: &state,
+	}
+	lexer.scan()
+	fmt.Println(state.tokens)
 }
 
 // RunSourceWithPrinter runs source code on a fresh interpreter instance

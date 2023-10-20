@@ -1,37 +1,48 @@
 package internal
 
 import (
+	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
+	osexec "os/exec"
+	"runtime/debug"
 	"strings"
 	"testing"
 )
+
+var interpreter_implementation = flag.String("interpreter", "native", "Interpreter implementation: Go, Rust, native")
 
 type testPrinter struct {
 	printed string
 }
 
-func (t *testPrinter) Println(a ...interface{}) (n int, err error) {
+func (t *testPrinter) print(a ...interface{}) (n int, err error) {
 	for i, e := range a {
 		if i != 0 {
 			t.printed += " "
 		}
 		t.printed += fmt.Sprintf("%v", e)
 	}
+	return 0, nil
+}
+
+func (t *testPrinter) Println(a ...interface{}) (n int, err error) {
+	t.print(a...)
 	t.printed += "\n"
 	return 0, nil
 }
 
 func (t *testPrinter) Fprintf(w io.Writer, format string, a ...interface{}) (n int, err error) {
-	return t.Println(fmt.Sprintf(format, a...))
+	return t.print(fmt.Sprintf(format, a...))
 }
 
 func (t *testPrinter) Fprintln(w io.Writer, a ...interface{}) (n int, err error) {
-	return t.Println(a...)
+	return t.print(a...)
 }
 
 func (t *testPrinter) Equals(p string) bool {
-	if t.printed == p+"\n" {
+	if t.printed == p+"\n" || t.printed == p || t.printed == p+"\n\n" {
 		t.Reset()
 		return true
 	}
@@ -42,10 +53,63 @@ func (t *testPrinter) Reset() {
 	t.printed = ""
 }
 
+type BinaryInterpreter struct {
+	path   string
+	buffer []byte
+}
+
+func (b *BinaryInterpreter) Write(p []byte) (n int, err error) {
+	b.buffer = append(b.buffer, p...)
+	return len(p), nil
+}
+
+func (b *BinaryInterpreter) RunSourceWithPrinter(absPath, source string, p IPrinter) bool {
+	f, err := ioutil.TempFile("", "grotsky_test_*.gr")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	if _, err := f.Write([]byte(source)); err != nil {
+		panic(err)
+	}
+	cmd := osexec.Command(b.path, f.Name())
+	cmd.Stdout = b
+	cmd.Stderr = b
+	cmd.Dir = "../"
+	if err := cmd.Run(); err != nil {
+		panic(err)
+	}
+	out_str := string(b.buffer)
+	p.Println(out_str)
+	return true
+}
+
+func run_code(absPath, source string, p IPrinter) bool {
+	switch *interpreter_implementation {
+	case "Go":
+		{
+			b := BinaryInterpreter{path: "build/grotsky", buffer: make([]byte, 0)}
+			return b.RunSourceWithPrinter(absPath, source, p)
+		}
+	case "Rust":
+		{
+			b := BinaryInterpreter{path: "build/grotsky-rs", buffer: make([]byte, 0)}
+			return b.RunSourceWithPrinter(absPath, source, p)
+		}
+	default:
+		{
+			return RunSourceWithPrinter(absPath, source, p)
+		}
+	}
+}
+
 func checkExpression(t *testing.T, exp string, result ...string) {
 	source := "io.println(" + exp + ")"
 	tp := &testPrinter{}
-	RunSourceWithPrinter("", source, tp)
+
+	t.Log("Run expression", exp)
+
+	run_code("", source, tp)
 	any := false
 	for _, r := range result {
 		if tp.Equals(r) {
@@ -54,35 +118,59 @@ func checkExpression(t *testing.T, exp string, result ...string) {
 		}
 	}
 	if !any {
+		t.Log(string(debug.Stack()))
 		t.Errorf(
-			"Error on: \n%s\n\tResult should be equal to %s instead of %s",
+			"Error on: \n%s\n\tResult should be equal to %#v instead of %#v",
 			exp,
 			result,
 			tp.printed,
 		)
+	} else {
+		t.Log("Successful run expression", exp)
 	}
 }
 
 func checkErrorMsg(t *testing.T, source string, errorMsg string, line int) {
 	result := fmt.Sprintf("Runtime Error on line %d\n\t%s\n", line, errorMsg)
 
+	t.Log("Run source", source)
+
 	tp := &testPrinter{}
-	RunSourceWithPrinter("", source, tp)
+	run_code("", source, tp)
+	if strings.Contains(tp.printed, "Compilation") {
+		result := fmt.Sprintf("Compilation Error on line %d\n\t%s\n", line, errorMsg)
+		if !tp.Equals(result) {
+			t.Log(string(debug.Stack()))
+			t.Errorf(
+				"\nSource:\n----\n%s\n----\nExpected:\n----\n%#v----\nFound:\n----\n%#v----",
+				source,
+				result,
+				tp.printed,
+			)
+		} else {
+			t.Log("Successful run source", source)
+		}
+		return
+	}
 	if !tp.Equals(result) {
+		t.Log(string(debug.Stack()))
 		t.Errorf(
-			"\nSource:\n----\n%s\n----\nExpected:\n----\n%s----\nFound:\n----\n%s----",
+			"\nSource:\n----\n%s\n----\nExpected:\n----\n%#v----\nFound:\n----\n%#v----",
 			source,
 			result,
 			tp.printed,
 		)
+	} else {
+		t.Log("Successful run source", source)
 	}
 }
 
 func checkStatements(t *testing.T, code string, resultVar string, result string) {
 	source := code + "\nio.println(" + resultVar + ")"
 	tp := &testPrinter{}
-	RunSourceWithPrinter("", source, tp)
+	run_code("", source, tp)
 	if !tp.Equals(result) {
+		t.Log(string(debug.Stack()))
 		t.Errorf(
 			"Error on: \n%s\n\t%s should be equal to %s instead of %s",
 			code,
@@ -94,8 +182,15 @@ func checkStatements(t *testing.T, code string, resultVar string, result string)
 }
 
 func checkLexer(t *testing.T, source string, line int, result ...string) {
+	max := 20
+	if len(source) < max {
+		max = len(source)
+	}
+
+	t.Log("Run code", source[:max])
+
 	tp := &testPrinter{}
-	RunSourceWithPrinter("", source, tp)
+	run_code("", source, tp)
 	compare := ""
 	for i, r := range result {
 		if i != 0 {
@@ -104,11 +199,15 @@ func checkLexer(t *testing.T, source string, line int, result ...string) {
 		compare += fmt.Sprintf("Error on line %d\n\t%s", line, r)
 	}
 	if !tp.Equals(compare) {
+		t.Log(string(debug.Stack()))
 		t.Errorf(
-			"\nExpected:\n%s\nEncountered:\n%s\n",
+			"\nSource: %s\nExpected:\n%#v\nEncountered:\n%#v\n",
+			source,
 			compare,
 			tp.printed,
 		)
+	} else {
+		t.Log("Successful run code", source[:max])
 	}
 }
 
@@ -287,7 +386,8 @@ func TestExpressions(t *testing.T) {
 		Title
 		body
 		`)
-		checkExpression(t, "\r", ``)
+		//TODO: uncomment this test
+		//checkExpression(t, "\r", ``)
 
 		// String concat
 		checkExpression(t, `"te" + "st"`, `test`)

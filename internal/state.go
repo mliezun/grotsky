@@ -66,7 +66,7 @@ func (s *interpreterState[T]) runtimeErr(err error, token *token, msgs ...string
 // PrintErrors prints all errors, returns true if any error printed
 func (s *interpreterState[T]) PrintErrors() bool {
 	for _, e := range s.errors {
-		s.logger.Fprintf(os.Stderr, "Error on line %d\n\t%s", e.line, e.err.Error())
+		s.logger.Fprintf(os.Stderr, "Error on line %d\n\t%s\n", e.line, e.err.Error())
 	}
 	if s.runtimeError != nil {
 		s.logger.Fprintf(

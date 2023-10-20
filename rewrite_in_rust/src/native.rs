@@ -200,3 +200,53 @@ impl Strings {
         return strings;
     }
 }
+
+pub struct Type {}
+
+impl Type {
+    pub fn type_fn(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 1 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        match values[0] {
+            Value::Class(_) => Ok(Value::String(StringValue {
+                s: "class".to_string(),
+            })),
+            Value::Dict(_) => Ok(Value::String(StringValue {
+                s: "dict".to_string(),
+            })),
+            Value::List(_) => Ok(Value::String(StringValue {
+                s: "list".to_string(),
+            })),
+            Value::Fn(_) => Ok(Value::String(StringValue {
+                s: "function".to_string(),
+            })),
+            Value::Native(_) => Ok(Value::String(StringValue {
+                s: "native".to_string(),
+            })),
+            Value::Number(_) => Ok(Value::String(StringValue {
+                s: "number".to_string(),
+            })),
+            Value::String(_) => Ok(Value::String(StringValue {
+                s: "string".to_string(),
+            })),
+            Value::Bool(_) => Ok(Value::String(StringValue {
+                s: "bool".to_string(),
+            })),
+            Value::Slice(_) => Ok(Value::String(StringValue {
+                s: "slice".to_string(),
+            })),
+            Value::Nil => Ok(Value::String(StringValue {
+                s: "nil".to_string(),
+            })),
+        }
+    }
+
+    pub fn build() -> NativeValue {
+        let type_fn = NativeValue {
+            props: HashMap::new(),
+            callable: Some(&Type::type_fn),
+        };
+        return type_fn;
+    }
+}

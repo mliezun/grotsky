@@ -758,11 +758,8 @@ impl VM {
                                 })));
                         }
                         Value::List(l) => {
-                            let list = l.0.borrow();
-                            let mut iter = list.elements.iter().skip(n).peekable();
-                            let elms = iter.peek().unwrap();
                             self.activation_records[sp + inst.a as usize] =
-                                Record::Val(elms.clone().clone())
+                                Record::Val(l.0.borrow().elements[n].clone())
                         }
                         _ => {
                             self.exception(
@@ -798,12 +795,9 @@ impl VM {
                             }
                         }
                         Value::List(l) => {
-                            let list = l.0.borrow();
-                            let mut iter = list.elements.iter().skip(n).peekable();
-                            let elms = iter.peek();
-                            if let Some(e) = elms {
+                            if let Some(e) = l.0.borrow().elements.get(n) {
                                 self.activation_records[sp + inst.a as usize] =
-                                    Record::Val(e.clone().clone());
+                                    Record::Val(e.clone());
                             } else {
                                 self.exception(
                                     ERR_WRONG_NUMBER_OF_VALUES,

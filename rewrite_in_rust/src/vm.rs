@@ -2,9 +2,9 @@
 
 use crate::compiler::FnPrototype;
 use crate::errors::{
-    RuntimeErr, ERR_EXPECTED_COLLECTION, ERR_EXPECTED_NUMBER, ERR_EXPECTED_OBJECT,
-    ERR_INVALID_ACCESS, ERR_INVALID_NUMBER_ARGUMENTS, ERR_ONLY_FUNCTION, ERR_READ_ONLY,
-    ERR_WRONG_NUMBER_OF_VALUES,
+    RuntimeErr, ERR_CANNOT_UNPACK, ERR_EXPECTED_COLLECTION, ERR_EXPECTED_IDENTIFIERS_DICT,
+    ERR_EXPECTED_NUMBER, ERR_EXPECTED_OBJECT, ERR_INVALID_ACCESS, ERR_INVALID_NUMBER_ARGUMENTS,
+    ERR_ONLY_FUNCTION, ERR_READ_ONLY, ERR_WRONG_NUMBER_OF_VALUES,
 };
 use crate::instruction::*;
 use crate::token::TokenData;
@@ -752,10 +752,23 @@ impl VM {
                             let dict = d.0.borrow();
                             let mut iter = dict.elements.iter().skip(n).peekable();
                             let elms = iter.peek().unwrap();
+                            let mut dict_value = DictValue {
+                                elements: HashMap::new(),
+                            };
+                            dict_value.elements.insert(
+                                Value::String(StringValue {
+                                    s: "key".to_string(),
+                                }),
+                                elms.0.clone(),
+                            );
+                            dict_value.elements.insert(
+                                Value::String(StringValue {
+                                    s: "value".to_string(),
+                                }),
+                                elms.1.clone(),
+                            );
                             self.activation_records[sp + inst.a as usize] =
-                                Record::Val(Value::List(MutValue::new(ListValue {
-                                    elements: vec![elms.0.clone(), elms.1.clone()],
-                                })));
+                                Record::Val(Value::Dict(MutValue::new(dict_value)));
                         }
                         Value::List(l) => {
                             self.activation_records[sp + inst.a as usize] =
@@ -779,17 +792,21 @@ impl VM {
                     let n = inst.c as usize;
                     match val_b.as_val() {
                         Value::Dict(d) => {
-                            let dict = d.0.borrow();
-                            let mut iter = dict.elements.iter().skip(n).peekable();
-                            let elms = iter.peek();
-                            if let Some(e) = elms {
+                            let k = Value::String(StringValue {
+                                s: "key".to_string(),
+                            });
+                            let v = Value::String(StringValue {
+                                s: "value".to_string(),
+                            });
+                            if n == 0 {
                                 self.activation_records[sp + inst.a as usize] =
-                                    Record::Val(Value::List(MutValue::new(ListValue {
-                                        elements: vec![e.0.clone(), e.1.clone()],
-                                    })));
+                                    Record::Val(d.0.borrow().elements.get(&k).unwrap().clone());
+                            } else if n == 1 {
+                                self.activation_records[sp + inst.a as usize] =
+                                    Record::Val(d.0.borrow().elements.get(&v).unwrap().clone());
                             } else {
                                 self.exception(
-                                    ERR_WRONG_NUMBER_OF_VALUES,
+                                    ERR_EXPECTED_IDENTIFIERS_DICT,
                                     self.instructions_data[pc].clone(),
                                 );
                             }
@@ -806,10 +823,7 @@ impl VM {
                             }
                         }
                         _ => {
-                            self.exception(
-                                ERR_EXPECTED_COLLECTION,
-                                self.instructions_data[pc].clone(),
-                            );
+                            self.exception(ERR_CANNOT_UNPACK, self.instructions_data[pc].clone());
                         }
                     }
                     pc += 1;

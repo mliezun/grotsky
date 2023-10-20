@@ -368,7 +368,7 @@ impl StmtVisitor<Chunk> for Compiler {
                         b: element_reg,
                         c: i as u8,
                     },
-                    Some(tk.clone()),
+                    Some(stmt.keyword.clone()),
                 )
             }
         } else {

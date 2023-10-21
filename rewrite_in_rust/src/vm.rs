@@ -2,9 +2,9 @@
 
 use crate::compiler::FnPrototype;
 use crate::errors::{
-    RuntimeErr, ERR_CANNOT_UNPACK, ERR_EXPECTED_COLLECTION, ERR_EXPECTED_IDENTIFIERS_DICT,
-    ERR_EXPECTED_NUMBER, ERR_EXPECTED_OBJECT, ERR_INVALID_ACCESS, ERR_INVALID_NUMBER_ARGUMENTS,
-    ERR_ONLY_FUNCTION, ERR_READ_ONLY, ERR_WRONG_NUMBER_OF_VALUES,
+    RuntimeErr, ERR_CANNOT_UNPACK, ERR_EXPECTED_CLASS, ERR_EXPECTED_COLLECTION,
+    ERR_EXPECTED_IDENTIFIERS_DICT, ERR_EXPECTED_NUMBER, ERR_EXPECTED_OBJECT, ERR_INVALID_ACCESS,
+    ERR_INVALID_NUMBER_ARGUMENTS, ERR_ONLY_FUNCTION, ERR_READ_ONLY, ERR_WRONG_NUMBER_OF_VALUES,
 };
 use crate::instruction::*;
 use crate::token::TokenData;
@@ -584,7 +584,10 @@ impl VM {
                             class.superclass = Some(superclass_val);
                         }
                         Value::Nil => {}
-                        _ => panic!("Cannot inherit from non-class"),
+                        _ => {
+                            self.exception(ERR_EXPECTED_CLASS, self.instructions_data[pc].clone());
+                            unreachable!();
+                        }
                     }
                     self.activation_records[sp + inst.a as usize] =
                         Record::Val(Value::Class(MutValue::new(class)));

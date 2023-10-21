@@ -783,6 +783,44 @@ impl VM {
                     }
                     pc += 1;
                 }
+                OpCode::GetIterk => {
+                    let val_b = self
+                        .activation_records
+                        .get_mut(sp + inst.b as usize)
+                        .unwrap()
+                        .clone();
+                    let val_c = self
+                        .activation_records
+                        .get_mut(sp + inst.c as usize)
+                        .unwrap()
+                        .clone();
+                    let n = if let Value::Number(n) = val_c.as_val() {
+                        n.n as usize
+                    } else {
+                        self.exception(ERR_EXPECTED_NUMBER, self.instructions_data[pc].clone());
+                        0
+                    };
+                    match val_b.as_val() {
+                        Value::Dict(d) => {
+                            let dict = d.0.borrow();
+                            let mut iter = dict.elements.iter().skip(n).peekable();
+                            let elms = iter.peek().unwrap();
+                            self.activation_records[sp + inst.a as usize] =
+                                Record::Val(elms.0.clone());
+                        }
+                        Value::List(l) => {
+                            self.activation_records[sp + inst.a as usize] =
+                                Record::Val(l.0.borrow().elements[n].clone())
+                        }
+                        _ => {
+                            self.exception(
+                                ERR_EXPECTED_COLLECTION,
+                                self.instructions_data[pc].clone(),
+                            );
+                        }
+                    }
+                    pc += 1;
+                }
                 OpCode::GetIteri => {
                     let val_b = self
                         .activation_records

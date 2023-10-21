@@ -347,17 +347,18 @@ impl StmtVisitor<Chunk> for Compiler {
         };
         let mut body_chunk = Chunk {
             result_register: 0,
-            instructions: vec![InstSrc {
-                inst: Instruction {
+            instructions: vec![],
+        };
+        if stmt.identifiers.len() > 1 {
+            body_chunk.push(
+                Instruction {
                     opcode: OpCode::GetIter,
                     a: element_reg,
                     b: collection_chunk.result_register,
                     c: counter_reg,
                 },
-                src: Some(stmt.keyword.clone()),
-            }],
-        };
-        if stmt.identifiers.len() > 1 {
+                Some(stmt.keyword.clone()),
+            );
             for (i, tk) in stmt.identifiers.iter().enumerate() {
                 let var_reg = self.next_register();
                 self.allocate_register(tk.lexeme.to_string(), var_reg);
@@ -374,6 +375,15 @@ impl StmtVisitor<Chunk> for Compiler {
         } else {
             let tk = stmt.identifiers.first().unwrap();
             self.allocate_register(tk.lexeme.to_string(), element_reg);
+            body_chunk.push(
+                Instruction {
+                    opcode: OpCode::GetIterk,
+                    a: element_reg,
+                    b: collection_chunk.result_register,
+                    c: counter_reg,
+                },
+                Some(stmt.keyword.clone()),
+            );
         }
         let loop_chunk = stmt.body.accept(self);
         body_chunk.result_register = loop_chunk.result_register;

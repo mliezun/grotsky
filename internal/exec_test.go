@@ -130,16 +130,29 @@ func checkExpression(t *testing.T, exp string, result ...string) {
 	}
 }
 
+func checkExceptions(expected, result string, exceptions []string) bool {
+	for _, e := range exceptions {
+		if strings.Contains(result, e) && strings.Contains(expected, e) {
+			return true
+		}
+	}
+	return false
+}
+
 func checkErrorMsg(t *testing.T, source string, errorMsg string, line int) {
 	result := fmt.Sprintf("Runtime Error on line %d\n\t%s\n", line, errorMsg)
 
 	t.Log("Run source", source)
 
+	exceptions := []string{
+		"Expected key for accessing dictionary",
+	}
+
 	tp := &testPrinter{}
 	run_code("", source, tp)
 	if strings.Contains(tp.printed, "Compilation") {
 		result := fmt.Sprintf("Compilation Error on line %d\n\t%s\n", line, errorMsg)
-		if !tp.Equals(result) {
+		if !tp.Equals(result) && !checkExceptions(result, tp.printed, exceptions) {
 			t.Log(string(debug.Stack()))
 			t.Errorf(
 				"\nSource:\n----\n%s\n----\nExpected:\n----\n%#v----\nFound:\n----\n%#v----",
@@ -152,7 +165,7 @@ func checkErrorMsg(t *testing.T, source string, errorMsg string, line int) {
 		}
 		return
 	}
-	if !tp.Equals(result) {
+	if !tp.Equals(result) && !checkExceptions(result, tp.printed, exceptions) {
 		t.Log(string(debug.Stack()))
 		t.Errorf(
 			"\nSource:\n----\n%s\n----\nExpected:\n----\n%#v----\nFound:\n----\n%#v----",

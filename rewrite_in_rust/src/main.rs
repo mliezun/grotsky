@@ -98,6 +98,7 @@ fn run_bytecode_interpreter(source: String) {
             pc: 0,
             sp: 0,
             result_register: 0,
+            this: None,
         }],
         activation_records: (0..compiler.contexts.last().unwrap().register_count)
             .map(|_| vm::Record::Val(value::Value::Nil))

@@ -91,6 +91,27 @@ impl Value {
             }
             Value::Fn(f) => "<fn anonymous>".to_string(),
             Value::Nil => "<nil>".to_string(),
+            Value::Class(c) => {
+                let cls_value = c.0.borrow();
+                format!(
+                    "<class {}{}>",
+                    cls_value.name,
+                    if cls_value.superclass.is_some() {
+                        format!(
+                            " extends {}",
+                            cls_value.superclass.as_ref().unwrap().0.borrow().name
+                        )
+                    } else {
+                        "".to_string()
+                    }
+                )
+            }
+            Value::Object(o) => {
+                format!(
+                    "<instance {}>",
+                    Value::Class(o.0.borrow().class.clone()).string(),
+                )
+            }
             _ => unimplemented!(),
         }
     }
@@ -470,6 +491,7 @@ pub struct FnValue {
     pub prototype: u16,
     pub upvalues: Vec<MutValue<Value>>,
     pub constants: Vec<Value>,
+    pub this: Option<MutValue<ObjectValue>>,
 }
 
 #[derive(Debug, Clone)]

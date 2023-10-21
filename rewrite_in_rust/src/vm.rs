@@ -19,6 +19,7 @@ pub struct StackEntry {
     pub pc: usize,                           // Return location
     pub sp: usize,                           // Stack pointer inside activation record
     pub result_register: u8,
+    pub this: Option<MutValue<ObjectValue>>,
 }
 
 #[derive(Debug, Clone)]
@@ -53,6 +54,7 @@ impl VM {
         let mut instructions = &self.instructions;
         let mut pc = self.pc;
         let mut sp = self.stack[self.stack.len() - 1].sp;
+        let mut this: Option<MutValue<ObjectValue>> = None;
         while pc < instructions.len() {
             let inst = &instructions[pc];
             // println!("Executing {:#?}", inst);
@@ -97,6 +99,7 @@ impl VM {
                             prototype: inst.bx(),
                             upvalues: fn_upvalues,
                             constants: vec![],
+                            this: this.clone(),
                         })));
                     pc += 1;
                 }
@@ -112,6 +115,7 @@ impl VM {
                                 pc: pc + 1,
                                 sp: sp,
                                 result_register: inst.c,
+                                this: this.clone(),
                             };
                             let previous_sp = sp;
                             sp = self.activation_records.len();
@@ -140,6 +144,10 @@ impl VM {
                                     self.activation_records[previous_sp + reg as usize + 1].clone();
                             }
 
+                            // Set current object
+                            this = fn_value.0.borrow().this.clone();
+
+                            // Jump to new section of code
                             instructions = &prototype.instructions;
                             pc = 0;
                         }
@@ -172,16 +180,57 @@ impl VM {
                             }
                         }
                         Value::Class(c) => {
-                            // let obj = Value::Object(MutValue::new(ObjectValue {
-                            //     class: c,
-                            //     fields: HashMap::new(),
-                            // }));
-                            // if let Some(init) = c.0.borrow().methods.get(&"init".to_string()) {
-                            //     init.0.borrow();
-                            // }
-                            // self.activation_records[sp + inst.c as usize - 1] = Record::Val(obj);
-                            // pc += 1;
-                            todo!();
+                            let object_value = MutValue::new(ObjectValue {
+                                class: c.clone(),
+                                fields: HashMap::new(),
+                            });
+                            self.activation_records[sp + inst.c as usize - 1] =
+                                Record::Val(Value::Object(object_value));
+                            if let Some(fn_value) = c.0.borrow().methods.get(&"init".to_string()) {
+                                let stack = StackEntry {
+                                    function: Some(fn_value.clone()),
+                                    pc: pc + 1,
+                                    sp: sp,
+                                    result_register: 0,
+                                    this: this,
+                                };
+                                let previous_sp = sp;
+                                sp = self.activation_records.len();
+                                self.stack.push(stack);
+
+                                let prototype =
+                                    &self.prototypes[fn_value.0.borrow().prototype as usize];
+
+                                // Expand activation records
+                                self.activation_records.append(
+                                    &mut (0..prototype.register_count)
+                                        .map(|_| Record::Val(Value::Nil))
+                                        .collect(),
+                                );
+
+                                // Copy input arguments
+                                let input_range = (inst.a + 1)..(inst.a + inst.b);
+                                if input_range.len() != prototype.param_count {
+                                    self.exception(
+                                        ERR_INVALID_NUMBER_ARGUMENTS,
+                                        self.instructions_data[pc].clone(),
+                                    );
+                                }
+                                for (i, reg) in input_range.enumerate() {
+                                    self.activation_records[sp + i + 1] = self.activation_records
+                                        [previous_sp + reg as usize + 1]
+                                        .clone();
+                                }
+
+                                // Set current object
+                                this = fn_value.0.borrow().this.clone();
+
+                                // Jump to new section of code
+                                instructions = &prototype.instructions;
+                                pc = 0;
+                            } else {
+                                pc += 1;
+                            }
                         }
                         _ => {
                             self.exception(ERR_ONLY_FUNCTION, self.instructions_data[pc].clone());
@@ -193,13 +242,21 @@ impl VM {
                         return;
                     }
                     let stack = self.stack.pop().unwrap();
+
+                    // Store return values
                     if inst.b == inst.a + 2 && stack.result_register > 0 {
-                        // Store return values
                         self.activation_records[stack.sp + (stack.result_register - 1) as usize] =
                             self.activation_records[sp + inst.a as usize].clone();
                     }
+
+                    // Drop current stack frame
                     self.activation_records
                         .drain(sp..self.activation_records.len());
+
+                    // Restore previous object
+                    this = stack.this;
+
+                    // Restore pointers to previous section of code
                     pc = stack.pc;
                     sp = stack.sp;
                     if let Some(func) = &self.stack.last().unwrap().function {

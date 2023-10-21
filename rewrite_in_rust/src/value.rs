@@ -22,7 +22,7 @@ impl<T> MutValue<T> {
 #[derive(Debug, Clone)]
 pub enum Value {
     Class(MutValue<ClassValue>),
-    // Object(MutValue<ObjectValue>),
+    Object(MutValue<ObjectValue>),
     Dict(MutValue<DictValue>),
     List(MutValue<ListValue>),
     Fn(MutValue<FnValue>),
@@ -627,4 +627,10 @@ impl core::fmt::Debug for NativeValue {
             write!(f, "NativeValue({:#?})", self.props)
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct ObjectValue {
+    pub class: MutValue<ClassValue>,
+    pub fields: HashMap<String, Value>,
 }

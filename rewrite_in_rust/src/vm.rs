@@ -105,67 +105,87 @@ impl VM {
                         Record::Ref(v) => v.0.borrow().clone(),
                         Record::Val(v) => v.clone(),
                     };
-                    if let Value::Fn(fn_value) = val {
-                        let stack = StackEntry {
-                            function: Some(fn_value.clone()),
-                            pc: pc + 1,
-                            sp: sp,
-                            result_register: inst.c,
-                        };
-                        let previous_sp = sp;
-                        sp = self.activation_records.len();
-                        self.stack.push(stack);
+                    match val {
+                        Value::Fn(fn_value) => {
+                            let stack = StackEntry {
+                                function: Some(fn_value.clone()),
+                                pc: pc + 1,
+                                sp: sp,
+                                result_register: inst.c,
+                            };
+                            let previous_sp = sp;
+                            sp = self.activation_records.len();
+                            self.stack.push(stack);
 
-                        let prototype = &self.prototypes[fn_value.0.borrow().prototype as usize];
+                            let prototype =
+                                &self.prototypes[fn_value.0.borrow().prototype as usize];
 
-                        // Expand activation records
-                        self.activation_records.append(
-                            &mut (0..prototype.register_count)
-                                .map(|_| Record::Val(Value::Nil))
-                                .collect(),
-                        );
-
-                        // Copy input arguments
-                        let input_range = (inst.a + 1)..(inst.a + inst.b);
-                        if input_range.len() != prototype.param_count {
-                            self.exception(
-                                ERR_INVALID_NUMBER_ARGUMENTS,
-                                self.instructions_data[pc].clone(),
+                            // Expand activation records
+                            self.activation_records.append(
+                                &mut (0..prototype.register_count)
+                                    .map(|_| Record::Val(Value::Nil))
+                                    .collect(),
                             );
-                        }
-                        for (i, reg) in input_range.enumerate() {
-                            self.activation_records[sp + i + 1] =
-                                self.activation_records[previous_sp + reg as usize + 1].clone();
-                        }
 
-                        instructions = &prototype.instructions;
-                        pc = 0;
-                    } else if let Value::Native(n) = val {
-                        if let Some(callable) = n.callable {
-                            let mut args: Vec<Value> = vec![];
-                            for reg in (inst.a + 1)..(inst.a + inst.b) {
-                                let val = match &self.activation_records[sp + reg as usize] {
-                                    Record::Ref(v) => v.0.borrow().clone(),
-                                    Record::Val(v) => v.clone(),
-                                };
-                                args.push(val);
+                            // Copy input arguments
+                            let input_range = (inst.a + 1)..(inst.a + inst.b);
+                            if input_range.len() != prototype.param_count {
+                                self.exception(
+                                    ERR_INVALID_NUMBER_ARGUMENTS,
+                                    self.instructions_data[pc].clone(),
+                                );
                             }
-                            let result = callable(args);
-                            match result {
-                                Ok(v) => {
-                                    self.activation_records[sp + inst.c as usize - 1] =
-                                        Record::Val(v.clone());
-                                }
-                                Err(e) => {
-                                    self.exception(e, self.instructions_data[pc].clone());
-                                }
+                            for (i, reg) in input_range.enumerate() {
+                                self.activation_records[sp + i + 1] =
+                                    self.activation_records[previous_sp + reg as usize + 1].clone();
                             }
-                            pc += 1;
-                        } else {
+
+                            instructions = &prototype.instructions;
+                            pc = 0;
+                        }
+                        Value::Native(n) => {
+                            if let Some(callable) = n.callable {
+                                let mut args: Vec<Value> = vec![];
+                                for reg in (inst.a + 1)..(inst.a + inst.b) {
+                                    let val = match &self.activation_records[sp + reg as usize] {
+                                        Record::Ref(v) => v.0.borrow().clone(),
+                                        Record::Val(v) => v.clone(),
+                                    };
+                                    args.push(val);
+                                }
+                                let result = callable(args);
+                                match result {
+                                    Ok(v) => {
+                                        self.activation_records[sp + inst.c as usize - 1] =
+                                            Record::Val(v.clone());
+                                    }
+                                    Err(e) => {
+                                        self.exception(e, self.instructions_data[pc].clone());
+                                    }
+                                }
+                                pc += 1;
+                            } else {
+                                self.exception(
+                                    ERR_ONLY_FUNCTION,
+                                    self.instructions_data[pc].clone(),
+                                );
+                            }
+                        }
+                        Value::Class(c) => {
+                            // let obj = Value::Object(MutValue::new(ObjectValue {
+                            //     class: c,
+                            //     fields: HashMap::new(),
+                            // }));
+                            // if let Some(init) = c.0.borrow().methods.get(&"init".to_string()) {
+                            //     init.0.borrow();
+                            // }
+                            // self.activation_records[sp + inst.c as usize - 1] = Record::Val(obj);
+                            // pc += 1;
+                            todo!();
+                        }
+                        _ => {
                             self.exception(ERR_ONLY_FUNCTION, self.instructions_data[pc].clone());
                         }
-                    } else {
-                        self.exception(ERR_ONLY_FUNCTION, self.instructions_data[pc].clone());
                     }
                 }
                 OpCode::Return => {

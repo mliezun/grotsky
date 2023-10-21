@@ -400,6 +400,30 @@ impl VM {
                         Record::Val(val_b.as_val().nequal(&mut val_c.as_val()));
                     pc += 1;
                 }
+                OpCode::Neg => {
+                    let val_b = self
+                        .activation_records
+                        .get_mut(sp + inst.b as usize)
+                        .unwrap()
+                        .clone();
+                    match val_b.as_val().neg() {
+                        Ok(v) => {
+                            self.activation_records[sp + inst.a as usize] = Record::Val(v);
+                        }
+                        Err(e) => self.exception(e, self.instructions_data[pc].clone()),
+                    }
+                    pc += 1;
+                }
+                OpCode::Not => {
+                    let val_b = self
+                        .activation_records
+                        .get_mut(sp + inst.b as usize)
+                        .unwrap()
+                        .clone();
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(val_b.as_val().not());
+                    pc += 1;
+                }
                 OpCode::GetUpval => {
                     let current_func = self.stack.last_mut().unwrap().function.clone().unwrap();
                     let upval = &current_func.0.borrow().upvalues[inst.b as usize];
@@ -897,29 +921,8 @@ impl VM {
                     }
                     pc += 1;
                 }
-                OpCode::Neg => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    match val_b.as_val().neg() {
-                        Ok(v) => {
-                            self.activation_records[sp + inst.a as usize] = Record::Val(v);
-                        }
-                        Err(e) => self.exception(e, self.instructions_data[pc].clone()),
-                    }
-                    pc += 1;
-                }
-                OpCode::Not => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    self.activation_records[sp + inst.a as usize] =
-                        Record::Val(val_b.as_val().not());
-                    pc += 1;
+                OpCode::Super => {
+                    todo!();
                 }
             }
         }

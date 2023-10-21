@@ -274,4 +274,5 @@ GetIter (A, B, C) R(A) := R(B)[R(C)]
 GetIterk (A, B, C) R(A) := if (R(B) is dict) then R(B)[R(C)]["key"] else R(B)[R(C)]
 GetIteri (A, B, Imm) R(A) := R(B)[Imm]
 Length (A, B) R(A) := R(B).length
+Super (A, B) R(A) := super(OBJ).R(B)
 ```

@@ -42,6 +42,7 @@ pub enum OpCode {
     GetIterk,
     GetIteri,
     Length,
+    Super,
 }
 
 // To indicate if the JMP is a continue or break inside

@@ -1404,7 +1404,33 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_super_expr(&mut self, expr: &SuperExpr) -> Chunk {
-        todo!()
+        let mut chunk = Chunk {
+            instructions: vec![],
+            result_register: self.next_register(),
+        };
+        let constant_ix = self.constants.len() as u16;
+        self.constants.push(Value::String(StringValue {
+            s: expr.method.lexeme.to_string(),
+        }));
+        chunk.push(
+            Instruction {
+                opcode: OpCode::LoadK,
+                a: chunk.result_register,
+                b: (constant_ix >> 8) as u8,
+                c: constant_ix as u8,
+            },
+            Some(expr.method.clone()),
+        );
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Super,
+                a: chunk.result_register,
+                b: chunk.result_register,
+                c: 0,
+            },
+            Some(expr.method.clone()),
+        );
+        return chunk;
     }
 
     fn visit_grouping_expr(&mut self, expr: &GroupingExpr) -> Chunk {

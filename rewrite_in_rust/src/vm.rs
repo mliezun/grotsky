@@ -4,8 +4,8 @@ use crate::compiler::FnPrototype;
 use crate::errors::{
     RuntimeErr, ERR_CANNOT_UNPACK, ERR_EXPECTED_CLASS, ERR_EXPECTED_COLLECTION,
     ERR_EXPECTED_IDENTIFIERS_DICT, ERR_EXPECTED_NUMBER, ERR_EXPECTED_OBJECT, ERR_EXPECTED_STRING,
-    ERR_INVALID_ACCESS, ERR_INVALID_NUMBER_ARGUMENTS, ERR_ONLY_FUNCTION, ERR_READ_ONLY,
-    ERR_WRONG_NUMBER_OF_VALUES,
+    ERR_EXPECTED_SUPERCLASS, ERR_INVALID_ACCESS, ERR_INVALID_NUMBER_ARGUMENTS,
+    ERR_METHOD_NOT_FOUND, ERR_ONLY_FUNCTION, ERR_READ_ONLY, ERR_WRONG_NUMBER_OF_VALUES,
 };
 use crate::instruction::*;
 use crate::token::TokenData;
@@ -1017,7 +1017,32 @@ impl VM {
                     pc += 1;
                 }
                 OpCode::Super => {
-                    todo!();
+                    let val_b = self
+                        .activation_records
+                        .get_mut(sp + inst.b as usize)
+                        .unwrap()
+                        .clone();
+                    let prop = if let Value::String(s) = val_b.as_val() {
+                        s.s
+                    } else {
+                        self.exception(ERR_EXPECTED_STRING, self.instructions_data[pc].clone());
+                        unreachable!();
+                    };
+                    let _obj = this.as_ref().unwrap().clone();
+                    let o = _obj.0.borrow();
+                    let cls = o.class.0.borrow();
+                    if let Some(supercls) = &cls.superclass {
+                        let scls = supercls.0.borrow();
+                        if let Some(m) = scls.find_method(prop) {
+                            self.activation_records[sp + inst.a as usize] =
+                                Record::Val(m.0.borrow().bind(_obj.clone()));
+                        } else {
+                            self.exception(ERR_METHOD_NOT_FOUND, self.instructions_data[pc].clone())
+                        }
+                    } else {
+                        self.exception(ERR_EXPECTED_SUPERCLASS, self.instructions_data[pc].clone());
+                    }
+                    pc += 1;
                 }
                 OpCode::This => {
                     self.activation_records[sp + inst.a as usize] =

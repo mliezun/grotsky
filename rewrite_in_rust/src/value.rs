@@ -154,13 +154,10 @@ impl Value {
                     Ok(p.clone())
                 } else {
                     let cls = obj.class.0.borrow();
-                    if let Some(meth) = cls.methods.get(&prop) {
-                        let fn_value = meth.0.borrow();
-                        Ok(fn_value.bind(o.clone()))
-                    } else {
-                        //TODO: handle superclasses
-                        Err(ERR_UNDEFINED_PROP)
+                    if let Some(meth) = cls.find_method(prop) {
+                        return Ok(meth.0.borrow().bind(o.clone()));
                     }
+                    Err(ERR_UNDEFINED_PROP)
                 }
             }
             _ => Err(ERR_EXPECTED_OBJECT),
@@ -506,7 +503,7 @@ pub struct FnValue {
 }
 
 impl FnValue {
-    fn bind(&self, object: MutValue<ObjectValue>) -> Value {
+    pub fn bind(&self, object: MutValue<ObjectValue>) -> Value {
         Value::Fn(MutValue::new(FnValue {
             prototype: self.prototype,
             upvalues: self.upvalues.clone(),
@@ -556,6 +553,18 @@ pub struct ClassValue {
     pub superclass: Option<MutValue<ClassValue>>,
     pub methods: HashMap<String, MutValue<FnValue>>,
     pub classmethods: HashMap<String, MutValue<FnValue>>,
+}
+
+impl ClassValue {
+    pub fn find_method(&self, method: String) -> Option<MutValue<FnValue>> {
+        if let Some(meth) = self.methods.get(&method) {
+            return Some(meth.clone());
+        }
+        if let Some(superclass) = &self.superclass {
+            return superclass.0.borrow().find_method(method);
+        }
+        return None;
+    }
 }
 
 #[derive(Debug, Clone)]

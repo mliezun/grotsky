@@ -117,43 +117,54 @@ impl Value {
     }
 
     pub fn get(&self, prop: String) -> Result<Value, RuntimeErr> {
-        if let Value::Number(n) = self {
-            return Err(ERR_UNDEFINED_PROP);
-        }
-        if let Value::Bool(b) = self {
-            return Err(ERR_UNDEFINED_PROP);
-        }
-        if let Value::List(l) = self {
-            if prop == "length" {
-                return Ok(Value::Number(NumberValue {
-                    n: l.0.borrow().elements.len() as f64,
-                }));
-            } else {
-                return Err(ERR_UNDEFINED_PROP);
+        match self {
+            Value::Number(n) => Err(ERR_UNDEFINED_PROP),
+            Value::Bool(b) => Err(ERR_UNDEFINED_PROP),
+            Value::List(l) => {
+                if prop == "length" {
+                    Ok(Value::Number(NumberValue {
+                        n: l.0.borrow().elements.len() as f64,
+                    }))
+                } else {
+                    Err(ERR_UNDEFINED_PROP)
+                }
             }
-        }
-        if let Value::String(s) = self {
-            if prop == "length" {
-                return Ok(Value::Number(NumberValue {
-                    n: s.s.len() as f64,
-                }));
-            } else {
-                return Err(ERR_UNDEFINED_PROP);
+            Value::String(s) => {
+                if prop == "length" {
+                    Ok(Value::Number(NumberValue {
+                        n: s.s.len() as f64,
+                    }))
+                } else {
+                    Err(ERR_UNDEFINED_PROP)
+                }
             }
-        }
-        if let Value::Dict(d) = self {
-            if prop == "length" {
-                return Ok(Value::Number(NumberValue {
-                    n: d.0.borrow().elements.len() as f64,
-                }));
-            } else {
-                return Err(ERR_UNDEFINED_PROP);
+            Value::Dict(d) => {
+                if prop == "length" {
+                    Ok(Value::Number(NumberValue {
+                        n: d.0.borrow().elements.len() as f64,
+                    }))
+                } else {
+                    Err(ERR_UNDEFINED_PROP)
+                }
             }
+            Value::Native(n) => Ok(n.props.get(&prop).unwrap().clone()),
+            Value::Object(o) => {
+                let obj = o.0.borrow();
+                if let Some(p) = obj.fields.get(&prop) {
+                    Ok(p.clone())
+                } else {
+                    let cls = obj.class.0.borrow();
+                    if let Some(meth) = cls.methods.get(&prop) {
+                        let fn_value = meth.0.borrow();
+                        Ok(fn_value.bind(o.clone()))
+                    } else {
+                        //TODO: handle superclasses
+                        Err(ERR_UNDEFINED_PROP)
+                    }
+                }
+            }
+            _ => Err(ERR_EXPECTED_OBJECT),
         }
-        if let Value::Native(n) = self {
-            return Ok(n.props.get(&prop).unwrap().clone());
-        }
-        return Err(ERR_EXPECTED_OBJECT);
     }
 
     pub fn add(&mut self, other: &mut Value) -> Result<Value, RuntimeErr> {
@@ -492,6 +503,17 @@ pub struct FnValue {
     pub upvalues: Vec<MutValue<Value>>,
     pub constants: Vec<Value>,
     pub this: Option<MutValue<ObjectValue>>,
+}
+
+impl FnValue {
+    fn bind(&self, object: MutValue<ObjectValue>) -> Value {
+        Value::Fn(MutValue::new(FnValue {
+            prototype: self.prototype,
+            upvalues: self.upvalues.clone(),
+            constants: self.constants.clone(),
+            this: Some(object),
+        }))
+    }
 }
 
 #[derive(Debug, Clone)]

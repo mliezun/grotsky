@@ -1537,7 +1537,19 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_this_expr(&mut self, expr: &ThisExpr) -> Chunk {
-        todo!()
+        let reg = self.next_register();
+        Chunk {
+            instructions: vec![InstSrc {
+                inst: Instruction {
+                    opcode: OpCode::This,
+                    a: reg,
+                    b: 0,
+                    c: 0,
+                },
+                src: Some(expr.keyword.clone()),
+            }],
+            result_register: reg,
+        }
     }
 
     fn visit_unary_expr(&mut self, expr: &UnaryExpr) -> Chunk {

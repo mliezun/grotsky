@@ -3,8 +3,9 @@
 use crate::compiler::FnPrototype;
 use crate::errors::{
     RuntimeErr, ERR_CANNOT_UNPACK, ERR_EXPECTED_CLASS, ERR_EXPECTED_COLLECTION,
-    ERR_EXPECTED_IDENTIFIERS_DICT, ERR_EXPECTED_NUMBER, ERR_EXPECTED_OBJECT, ERR_INVALID_ACCESS,
-    ERR_INVALID_NUMBER_ARGUMENTS, ERR_ONLY_FUNCTION, ERR_READ_ONLY, ERR_WRONG_NUMBER_OF_VALUES,
+    ERR_EXPECTED_IDENTIFIERS_DICT, ERR_EXPECTED_NUMBER, ERR_EXPECTED_OBJECT, ERR_EXPECTED_STRING,
+    ERR_INVALID_ACCESS, ERR_INVALID_NUMBER_ARGUMENTS, ERR_ONLY_FUNCTION, ERR_READ_ONLY,
+    ERR_WRONG_NUMBER_OF_VALUES,
 };
 use crate::instruction::*;
 use crate::token::TokenData;
@@ -185,7 +186,7 @@ impl VM {
                                 fields: HashMap::new(),
                             });
                             self.activation_records[sp + inst.c as usize - 1] =
-                                Record::Val(Value::Object(object_value));
+                                Record::Val(Value::Object(object_value.clone()));
                             if let Some(fn_value) = c.0.borrow().methods.get(&"init".to_string()) {
                                 let stack = StackEntry {
                                     function: Some(fn_value.clone()),
@@ -223,7 +224,7 @@ impl VM {
                                 }
 
                                 // Set current object
-                                this = fn_value.0.borrow().this.clone();
+                                this = Some(object_value);
 
                                 // Jump to new section of code
                                 instructions = &prototype.instructions;
@@ -792,7 +793,14 @@ impl VM {
                         Record::Ref(v) => v.0.borrow().clone(),
                         Record::Val(v) => v.clone(),
                     };
-                    // TODO: implement
+                    let val_b = match &self.activation_records[sp + inst.b as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
+                    let val_c: Value = match &self.activation_records[sp + inst.c as usize] {
+                        Record::Ref(v) => v.0.borrow().clone(),
+                        Record::Val(v) => v.clone(),
+                    };
                     match val_a {
                         Value::Number(n) => {
                             self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
@@ -808,6 +816,16 @@ impl VM {
                         }
                         Value::Dict(d) => {
                             self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
+                        }
+                        Value::Object(o) => {
+                            if let Value::String(s) = val_b {
+                                o.0.borrow_mut().fields.insert(s.s.clone(), val_c);
+                            } else {
+                                self.exception(
+                                    ERR_EXPECTED_STRING,
+                                    self.instructions_data[pc].clone(),
+                                );
+                            }
                         }
                         _ => {
                             self.exception(ERR_EXPECTED_OBJECT, self.instructions_data[pc].clone());
@@ -1000,6 +1018,11 @@ impl VM {
                 }
                 OpCode::Super => {
                     todo!();
+                }
+                OpCode::This => {
+                    self.activation_records[sp + inst.a as usize] =
+                        Record::Val(Value::Object(this.as_ref().unwrap().clone()));
+                    pc += 1;
                 }
             }
         }

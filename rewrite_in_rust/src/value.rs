@@ -112,6 +112,13 @@ impl Value {
                     Value::Class(o.0.borrow().class.clone()).string(),
                 )
             }
+            Value::Native(n) => {
+                if n.callable.is_some() {
+                    "<fn native>".to_string()
+                } else {
+                    "<instance native>".to_string()
+                }
+            }
             _ => unimplemented!(),
         }
     }
@@ -157,6 +164,13 @@ impl Value {
                     if let Some(meth) = cls.find_method(prop) {
                         return Ok(meth.0.borrow().bind(o.clone()));
                     }
+                    Err(ERR_UNDEFINED_PROP)
+                }
+            }
+            Value::Class(c) => {
+                if let Some(cls_method) = c.0.borrow().find_class_method(prop) {
+                    Ok(Value::Fn(cls_method))
+                } else {
                     Err(ERR_UNDEFINED_PROP)
                 }
             }
@@ -572,6 +586,16 @@ impl ClassValue {
         }
         if let Some(superclass) = &self.superclass {
             return superclass.0.borrow().find_method(method);
+        }
+        return None;
+    }
+
+    pub fn find_class_method(&self, method: String) -> Option<MutValue<FnValue>> {
+        if let Some(meth) = self.classmethods.get(&method) {
+            return Some(meth.clone());
+        }
+        if let Some(superclass) = &self.superclass {
+            return superclass.0.borrow().find_class_method(method);
         }
         return None;
     }

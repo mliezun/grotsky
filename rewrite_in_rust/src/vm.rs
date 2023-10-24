@@ -54,6 +54,9 @@ macro_rules! make_call {
         // Jump to new section of code
         $instructions = &prototype.instructions;
         $pc = 0;
+        // Point to new instructions metadata
+        // TODO: use reference instead of cloning
+        $self.instructions_data = prototype.instruction_data.clone();
     }};
 }
 
@@ -99,6 +102,7 @@ impl VM {
         let mut pc = self.pc;
         let mut sp = self.stack[self.stack.len() - 1].sp;
         let mut this: Option<MutValue<ObjectValue>> = None;
+        let original_instructions_data = self.instructions_data.clone();
         while pc < instructions.len() {
             let inst = &instructions[pc];
             // println!("Executing {:#?}", inst);
@@ -246,10 +250,14 @@ impl VM {
                     pc = stack.pc;
                     sp = stack.sp;
                     if let Some(func) = &self.stack.last().unwrap().function {
-                        instructions =
-                            &self.prototypes[func.0.borrow().prototype as usize].instructions;
+                        let proto = &self.prototypes[func.0.borrow().prototype as usize];
+                        instructions = &proto.instructions;
+                        // TODO: use reference instead of cloning
+                        self.instructions_data = proto.instruction_data.clone();
                     } else {
                         instructions = &self.instructions;
+                        // TODO: use reference instead of cloning
+                        self.instructions_data = original_instructions_data.clone();
                     }
                 }
 
@@ -821,6 +829,12 @@ impl VM {
                             self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
                         }
                         Value::Dict(d) => {
+                            self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
+                        }
+                        Value::Native(n) => {
+                            self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
+                        }
+                        Value::Class(c) => {
                             self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
                         }
                         Value::Object(o) => {

@@ -15,13 +15,13 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 macro_rules! make_call {
-    ( $self:expr, $fn_value:expr, $this:expr, $instructions:expr, $pc:expr, $sp:expr, $result_register:expr, $input_range:expr ) => {{
+    ( $self:expr, $fn_value:expr, $current_this:expr, $bind_to:expr, $instructions:expr, $pc:expr, $sp:expr, $result_register:expr, $input_range:expr ) => {{
         let stack = StackEntry {
             function: Some($fn_value.clone()),
             pc: $pc + 1,
             sp: $sp,
             result_register: $result_register,
-            this: $this.clone(),
+            this: $current_this.clone(),
         };
         let previous_sp = $sp;
         $sp = $self.activation_records.len();
@@ -49,7 +49,7 @@ macro_rules! make_call {
         }
 
         // Set current object
-        $this = $fn_value.0.borrow().this.clone();
+        $current_this = $bind_to;
 
         // Jump to new section of code
         $instructions = &prototype.instructions;
@@ -158,6 +158,7 @@ impl VM {
                                 self,
                                 fn_value,
                                 this,
+                                fn_value.0.borrow().this.clone(),
                                 instructions,
                                 pc,
                                 sp,
@@ -201,47 +202,18 @@ impl VM {
                             self.activation_records[sp + inst.c as usize - 1] =
                                 Record::Val(Value::Object(object_value.clone()));
                             if let Some(fn_value) = c.0.borrow().methods.get(&"init".to_string()) {
-                                let stack = StackEntry {
-                                    function: Some(fn_value.clone()),
-                                    pc: pc + 1,
-                                    sp: sp,
-                                    result_register: 0,
-                                    this: this,
-                                };
-                                let previous_sp = sp;
-                                sp = self.activation_records.len();
-                                self.stack.push(stack);
-
-                                let prototype =
-                                    &self.prototypes[fn_value.0.borrow().prototype as usize];
-
-                                // Expand activation records
-                                self.activation_records.append(
-                                    &mut (0..prototype.register_count)
-                                        .map(|_| Record::Val(Value::Nil))
-                                        .collect(),
+                                let cloned_fn_value = fn_value.clone();
+                                make_call!(
+                                    self,
+                                    cloned_fn_value,
+                                    this,
+                                    Some(object_value),
+                                    instructions,
+                                    pc,
+                                    sp,
+                                    0,
+                                    (inst.a + 1)..(inst.a + inst.b)
                                 );
-
-                                // Copy input arguments
-                                let input_range = (inst.a + 1)..(inst.a + inst.b);
-                                if input_range.len() != prototype.param_count {
-                                    self.exception(
-                                        ERR_INVALID_NUMBER_ARGUMENTS,
-                                        self.instructions_data[pc].clone(),
-                                    );
-                                }
-                                for (i, reg) in input_range.enumerate() {
-                                    self.activation_records[sp + i + 1] = self.activation_records
-                                        [previous_sp + reg as usize + 1]
-                                        .clone();
-                                }
-
-                                // Set current object
-                                this = Some(object_value);
-
-                                // Jump to new section of code
-                                instructions = &prototype.instructions;
-                                pc = 0;
                             } else {
                                 pc += 1;
                             }

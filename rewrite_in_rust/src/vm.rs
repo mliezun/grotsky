@@ -3,8 +3,8 @@
 use crate::compiler::FnPrototype;
 use crate::errors::{
     RuntimeErr, ERR_CANNOT_UNPACK, ERR_EXPECTED_CLASS, ERR_EXPECTED_COLLECTION,
-    ERR_EXPECTED_IDENTIFIERS_DICT, ERR_EXPECTED_NUMBER, ERR_EXPECTED_OBJECT, ERR_EXPECTED_STRING,
-    ERR_EXPECTED_SUPERCLASS, ERR_INVALID_ACCESS, ERR_INVALID_NUMBER_ARGUMENTS,
+    ERR_EXPECTED_FUNCTION, ERR_EXPECTED_IDENTIFIERS_DICT, ERR_EXPECTED_NUMBER, ERR_EXPECTED_OBJECT,
+    ERR_EXPECTED_STRING, ERR_EXPECTED_SUPERCLASS, ERR_INVALID_ACCESS, ERR_INVALID_NUMBER_ARGUMENTS,
     ERR_METHOD_NOT_FOUND, ERR_ONLY_FUNCTION, ERR_READ_ONLY, ERR_WRONG_NUMBER_OF_VALUES,
 };
 use crate::instruction::*;
@@ -283,12 +283,33 @@ impl VM {
                     match val_b.as_val().add(&mut val_c.as_val()) {
                         Ok(v) => {
                             self.activation_records[sp + inst.a as usize] = Record::Val(v);
+                            pc += 1;
                         }
                         Err(e) => {
-                            self.exception(e, self.instructions_data[pc].clone());
+                            if let Some(signal) = e.signal {
+                                if let Value::Fn(fn_value) = signal {
+                                    make_call!(
+                                        self,
+                                        fn_value,
+                                        this,
+                                        fn_value.0.borrow().this.clone(),
+                                        instructions,
+                                        pc,
+                                        sp,
+                                        inst.a + 1,
+                                        (inst.c - 1)..(inst.c)
+                                    );
+                                } else {
+                                    self.exception(
+                                        ERR_EXPECTED_FUNCTION,
+                                        self.instructions_data[pc].clone(),
+                                    );
+                                }
+                            } else {
+                                self.exception(e, self.instructions_data[pc].clone());
+                            }
                         }
                     }
-                    pc += 1;
                 }
                 OpCode::Sub => {
                     let val_b = self
@@ -760,9 +781,9 @@ impl VM {
                     let prop = if let Value::String(s) = val_c {
                         s.s
                     } else {
-                        panic!("Prop has to be a string")
+                        self.exception(ERR_EXPECTED_STRING, self.instructions_data[pc].clone());
+                        unreachable!();
                     };
-                    // println!("{:#?} {}", val_b, prop);
                     match val_b.get(prop) {
                         Ok(v) => {
                             self.activation_records[sp + inst.a as usize] = Record::Val(v);

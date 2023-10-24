@@ -222,8 +222,8 @@ impl Value {
             let cls = obj.class.0.borrow();
             let meth_name = "add".to_string();
             if let Some(meth) = cls.find_method(meth_name) {
-                let signal = RuntimeErr::new_signal(meth.0.borrow().bind(object_val.clone()));
-                return Err(signal);
+                let signal_fn = RuntimeErr::new_signal(meth.0.borrow().bind(object_val.clone()));
+                return Err(signal_fn);
             }
             return Err(ERR_UNDEFINED_OPERATOR);
         }

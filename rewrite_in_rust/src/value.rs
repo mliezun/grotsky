@@ -7,7 +7,7 @@ use std::rc::Rc;
 use crate::errors::{
     RuntimeErr, ERR_EXPECTED_DICT, ERR_EXPECTED_KEY, ERR_EXPECTED_LIST, ERR_EXPECTED_NUMBER,
     ERR_EXPECTED_OBJECT, ERR_EXPECTED_STEP, ERR_EXPECTED_STRING, ERR_ONLY_NUMBERS,
-    ERR_UNDEFINED_OP, ERR_UNDEFINED_PROP,
+    ERR_UNDEFINED_OP, ERR_UNDEFINED_OPERATOR, ERR_UNDEFINED_PROP,
 };
 
 #[derive(Debug, Clone)]
@@ -216,6 +216,16 @@ impl Value {
             } else {
                 return Err(ERR_EXPECTED_DICT);
             }
+        }
+        if let Value::Object(object_val) = self {
+            let obj = object_val.0.borrow();
+            let cls = obj.class.0.borrow();
+            let meth_name = "add".to_string();
+            if let Some(meth) = cls.find_method(meth_name) {
+                let signal = RuntimeErr::new_signal(meth.0.borrow().bind(object_val.clone()));
+                return Err(signal);
+            }
+            return Err(ERR_UNDEFINED_OPERATOR);
         }
         return Err(ERR_UNDEFINED_OP);
     }

@@ -1,11 +1,28 @@
+use crate::value::Value;
+
 #[derive(Clone)]
 pub struct RuntimeErr {
     pub msg: &'static str,
+
+    // Signaling of events that should be handled by the VM
+    pub signal: Option<Value>,
 }
+
+const _SINGAL_MSG: &'static str = "";
 
 impl RuntimeErr {
     pub const fn new(msg: &'static str) -> RuntimeErr {
-        RuntimeErr { msg: msg }
+        RuntimeErr {
+            msg: msg,
+            signal: None,
+        }
+    }
+
+    pub fn new_signal(v: Value) -> RuntimeErr {
+        RuntimeErr {
+            msg: _SINGAL_MSG,
+            signal: Some(v),
+        }
     }
 }
 

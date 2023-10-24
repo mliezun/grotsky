@@ -14,6 +14,49 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::Rc;
 
+macro_rules! make_call {
+    ( $self:expr, $fn_value:expr, $this:expr, $instructions:expr, $pc:expr, $sp:expr, $result_register:expr, $input_range:expr ) => {{
+        let stack = StackEntry {
+            function: Some($fn_value.clone()),
+            pc: $pc + 1,
+            sp: $sp,
+            result_register: $result_register,
+            this: $this.clone(),
+        };
+        let previous_sp = $sp;
+        $sp = $self.activation_records.len();
+        $self.stack.push(stack);
+
+        let prototype = &$self.prototypes[$fn_value.0.borrow().prototype as usize];
+
+        // Expand activation records
+        $self.activation_records.append(
+            &mut (0..prototype.register_count)
+                .map(|_| Record::Val(Value::Nil))
+                .collect(),
+        );
+
+        // Copy input arguments
+        if $input_range.len() != prototype.param_count {
+            $self.exception(
+                ERR_INVALID_NUMBER_ARGUMENTS,
+                $self.instructions_data[$pc].clone(),
+            );
+        }
+        for (i, reg) in $input_range.enumerate() {
+            $self.activation_records[$sp + i + 1] =
+                $self.activation_records[previous_sp + reg as usize + 1].clone();
+        }
+
+        // Set current object
+        $this = $fn_value.0.borrow().this.clone();
+
+        // Jump to new section of code
+        $instructions = &prototype.instructions;
+        $pc = 0;
+    }};
+}
+
 #[derive(Debug, Clone)]
 pub struct StackEntry {
     pub function: Option<MutValue<FnValue>>, // Empty when main function
@@ -111,46 +154,16 @@ impl VM {
                     };
                     match val {
                         Value::Fn(fn_value) => {
-                            let stack = StackEntry {
-                                function: Some(fn_value.clone()),
-                                pc: pc + 1,
-                                sp: sp,
-                                result_register: inst.c,
-                                this: this.clone(),
-                            };
-                            let previous_sp = sp;
-                            sp = self.activation_records.len();
-                            self.stack.push(stack);
-
-                            let prototype =
-                                &self.prototypes[fn_value.0.borrow().prototype as usize];
-
-                            // Expand activation records
-                            self.activation_records.append(
-                                &mut (0..prototype.register_count)
-                                    .map(|_| Record::Val(Value::Nil))
-                                    .collect(),
+                            make_call!(
+                                self,
+                                fn_value,
+                                this,
+                                instructions,
+                                pc,
+                                sp,
+                                inst.c,
+                                (inst.a + 1)..(inst.a + inst.b)
                             );
-
-                            // Copy input arguments
-                            let input_range = (inst.a + 1)..(inst.a + inst.b);
-                            if input_range.len() != prototype.param_count {
-                                self.exception(
-                                    ERR_INVALID_NUMBER_ARGUMENTS,
-                                    self.instructions_data[pc].clone(),
-                                );
-                            }
-                            for (i, reg) in input_range.enumerate() {
-                                self.activation_records[sp + i + 1] =
-                                    self.activation_records[previous_sp + reg as usize + 1].clone();
-                            }
-
-                            // Set current object
-                            this = fn_value.0.borrow().this.clone();
-
-                            // Jump to new section of code
-                            instructions = &prototype.instructions;
-                            pc = 0;
                         }
                         Value::Native(n) => {
                             if let Some(callable) = n.callable {

@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"testing"
+	"time"
 )
 
 var interpreter_implementation = flag.String("interpreter", "native", "Interpreter implementation: Go, Rust, native")
@@ -72,7 +74,11 @@ func (b *BinaryInterpreter) RunSourceWithPrinter(absPath, source string, p IPrin
 	if _, err := f.Write([]byte(source)); err != nil {
 		panic(err)
 	}
-	cmd := osexec.Command(b.path, f.Name())
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Second)
+	defer cancel()
+
+	cmd := osexec.CommandContext(ctx, b.path, f.Name())
 	cmd.Stdout = b
 	cmd.Stderr = b
 	cmd.Dir = "../"

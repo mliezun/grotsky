@@ -22,4 +22,4 @@ grotsky:
 	@ mv main $(BUILD_DIR)/grotsky
 
 grotsky-rs:
-	@ cd rewrite_in_rust && cargo build --release && cp target/release/grotsky-rs ../$(BUILD_DIR)/grotsky-rs
+	@ cd rewrite_in_rust && cargo build --release

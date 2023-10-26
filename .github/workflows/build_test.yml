@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Install latest nightly
+      - name: Install latest stable
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Install latest nightly
+      - name: Install latest stable
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -77,15 +77,15 @@ jobs:
           cargo build --release
           mv target/release/grotsky-rs ../grotsky-rs-linux
 
-      - name: Prepare Release Linux
-        run: |
-          mv grotsky-rs-linux grotsky
-          tar -czvf grotsky-rs-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz grotsky
-
       - name: Extract branch name
         shell: bash
         run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
         id: extract_branch
+
+      - name: Prepare Release Linux
+        run: |
+          mv grotsky-rs-linux grotsky
+          tar -czvf grotsky-rs-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz grotsky
 
       - name: Create Release
         id: create_release

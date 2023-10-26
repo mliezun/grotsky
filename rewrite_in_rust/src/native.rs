@@ -212,6 +212,9 @@ impl Type {
             Value::Class(_) => Ok(Value::String(StringValue {
                 s: "class".to_string(),
             })),
+            Value::Object(_) => Ok(Value::String(StringValue {
+                s: "object".to_string(),
+            })),
             Value::Dict(_) => Ok(Value::String(StringValue {
                 s: "dict".to_string(),
             })),

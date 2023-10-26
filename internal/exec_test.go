@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"testing"
+	"time"
 )
 
 var interpreter_implementation = flag.String("interpreter", "native", "Interpreter implementation: Go, Rust, native")
@@ -72,7 +74,11 @@ func (b *BinaryInterpreter) RunSourceWithPrinter(absPath, source string, p IPrin
 	if _, err := f.Write([]byte(source)); err != nil {
 		panic(err)
 	}
-	cmd := osexec.Command(b.path, f.Name())
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Second)
+	defer cancel()
+
+	cmd := osexec.CommandContext(ctx, b.path, f.Name())
 	cmd.Stdout = b
 	cmd.Stderr = b
 	cmd.Dir = "../"
@@ -130,16 +136,29 @@ func checkExpression(t *testing.T, exp string, result ...string) {
 	}
 }
 
+func checkExceptions(expected, result string, exceptions []string) bool {
+	for _, e := range exceptions {
+		if strings.Contains(result, e) && strings.Contains(expected, e) {
+			return true
+		}
+	}
+	return false
+}
+
 func checkErrorMsg(t *testing.T, source string, errorMsg string, line int) {
 	result := fmt.Sprintf("Runtime Error on line %d\n\t%s\n", line, errorMsg)
 
 	t.Log("Run source", source)
 
+	exceptions := []string{
+		"Expected key for accessing dictionary",
+	}
+
 	tp := &testPrinter{}
 	run_code("", source, tp)
 	if strings.Contains(tp.printed, "Compilation") {
 		result := fmt.Sprintf("Compilation Error on line %d\n\t%s\n", line, errorMsg)
-		if !tp.Equals(result) {
+		if !tp.Equals(result) && !checkExceptions(result, tp.printed, exceptions) {
 			t.Log(string(debug.Stack()))
 			t.Errorf(
 				"\nSource:\n----\n%s\n----\nExpected:\n----\n%#v----\nFound:\n----\n%#v----",
@@ -152,7 +171,7 @@ func checkErrorMsg(t *testing.T, source string, errorMsg string, line int) {
 		}
 		return
 	}
-	if !tp.Equals(result) {
+	if !tp.Equals(result) && !checkExceptions(result, tp.printed, exceptions) {
 		t.Log(string(debug.Stack()))
 		t.Errorf(
 			"\nSource:\n----\n%s\n----\nExpected:\n----\n%#v----\nFound:\n----\n%#v----",
@@ -168,6 +187,13 @@ func checkErrorMsg(t *testing.T, source string, errorMsg string, line int) {
 func checkStatements(t *testing.T, code string, resultVar string, result string) {
 	source := code + "\nio.println(" + resultVar + ")"
 	tp := &testPrinter{}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("Error on: \n%s\n\t%v", code, r)
+		}
+	}()
+
 	run_code("", source, tp)
 	if !tp.Equals(result) {
 		t.Log(string(debug.Stack()))

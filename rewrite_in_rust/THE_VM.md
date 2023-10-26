@@ -271,6 +271,11 @@ GetObj (A, B, C) R(A) := R(B).R(C)
 SetObj (A, B, C) R(A).R(B) := R(C)
 Addi (A, B, Imm) R(A) := R(B) + Imm
 GetIter (A, B, C) R(A) := R(B)[R(C)]
+GetIterk (A, B, C) R(A) := if (R(B) is dict) then R(B)[R(C)]["key"] else R(B)[R(C)]
 GetIteri (A, B, Imm) R(A) := R(B)[Imm]
 Length (A, B) R(A) := R(B).length
+Super (A, B) R(A) := super(this).R(B)
+This (A) R(A) := this
+GetGlobal (A, Bx) R(A) := G[K(Bx)]
+GetCurrentFunc (A) R(A) := func
 ```

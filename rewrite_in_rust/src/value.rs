@@ -7,7 +7,7 @@ use std::rc::Rc;
 use crate::errors::{
     RuntimeErr, ERR_EXPECTED_DICT, ERR_EXPECTED_KEY, ERR_EXPECTED_LIST, ERR_EXPECTED_NUMBER,
     ERR_EXPECTED_OBJECT, ERR_EXPECTED_STEP, ERR_EXPECTED_STRING, ERR_ONLY_NUMBERS,
-    ERR_UNDEFINED_OP, ERR_UNDEFINED_PROP,
+    ERR_UNDEFINED_OP, ERR_UNDEFINED_OPERATOR, ERR_UNDEFINED_PROP,
 };
 
 #[derive(Debug, Clone)]
@@ -22,7 +22,7 @@ impl<T> MutValue<T> {
 #[derive(Debug, Clone)]
 pub enum Value {
     Class(MutValue<ClassValue>),
-    // Object(MutValue<ObjectValue>),
+    Object(MutValue<ObjectValue>),
     Dict(MutValue<DictValue>),
     List(MutValue<ListValue>),
     Fn(MutValue<FnValue>),
@@ -89,50 +89,103 @@ impl Value {
                         .unwrap_or("".to_string())
                 )
             }
-            Value::Fn(f) => "<fn anonymous>".to_string(),
+            Value::Fn(f) => {
+                let name = f.0.borrow().name.clone();
+                format!(
+                    "<fn {}>",
+                    if name == "" {
+                        "anonymous".to_string()
+                    } else {
+                        name
+                    }
+                )
+            }
             Value::Nil => "<nil>".to_string(),
+            Value::Class(c) => {
+                let cls_value = c.0.borrow();
+                format!(
+                    "<class {}{}>",
+                    cls_value.name,
+                    if cls_value.superclass.is_some() {
+                        format!(
+                            " extends {}",
+                            cls_value.superclass.as_ref().unwrap().0.borrow().name
+                        )
+                    } else {
+                        "".to_string()
+                    }
+                )
+            }
+            Value::Object(o) => {
+                format!(
+                    "<instance {}>",
+                    Value::Class(o.0.borrow().class.clone()).string(),
+                )
+            }
+            Value::Native(n) => {
+                if n.callable.is_some() {
+                    "<fn native>".to_string()
+                } else {
+                    "<instance native>".to_string()
+                }
+            }
             _ => unimplemented!(),
         }
     }
 
     pub fn get(&self, prop: String) -> Result<Value, RuntimeErr> {
-        if let Value::Number(n) = self {
-            return Err(ERR_UNDEFINED_PROP);
-        }
-        if let Value::Bool(b) = self {
-            return Err(ERR_UNDEFINED_PROP);
-        }
-        if let Value::List(l) = self {
-            if prop == "length" {
-                return Ok(Value::Number(NumberValue {
-                    n: l.0.borrow().elements.len() as f64,
-                }));
-            } else {
-                return Err(ERR_UNDEFINED_PROP);
+        match self {
+            Value::Number(n) => Err(ERR_UNDEFINED_PROP),
+            Value::Bool(b) => Err(ERR_UNDEFINED_PROP),
+            Value::List(l) => {
+                if prop == "length" {
+                    Ok(Value::Number(NumberValue {
+                        n: l.0.borrow().elements.len() as f64,
+                    }))
+                } else {
+                    Err(ERR_UNDEFINED_PROP)
+                }
             }
-        }
-        if let Value::String(s) = self {
-            if prop == "length" {
-                return Ok(Value::Number(NumberValue {
-                    n: s.s.len() as f64,
-                }));
-            } else {
-                return Err(ERR_UNDEFINED_PROP);
+            Value::String(s) => {
+                if prop == "length" {
+                    Ok(Value::Number(NumberValue {
+                        n: s.s.len() as f64,
+                    }))
+                } else {
+                    Err(ERR_UNDEFINED_PROP)
+                }
             }
-        }
-        if let Value::Dict(d) = self {
-            if prop == "length" {
-                return Ok(Value::Number(NumberValue {
-                    n: d.0.borrow().elements.len() as f64,
-                }));
-            } else {
-                return Err(ERR_UNDEFINED_PROP);
+            Value::Dict(d) => {
+                if prop == "length" {
+                    Ok(Value::Number(NumberValue {
+                        n: d.0.borrow().elements.len() as f64,
+                    }))
+                } else {
+                    Err(ERR_UNDEFINED_PROP)
+                }
             }
+            Value::Native(n) => Ok(n.props.get(&prop).unwrap().clone()),
+            Value::Object(o) => {
+                let obj = o.0.borrow();
+                if let Some(p) = obj.fields.get(&prop) {
+                    Ok(p.clone())
+                } else {
+                    let cls = obj.class.0.borrow();
+                    if let Some(meth) = cls.find_method(prop) {
+                        return Ok(meth.0.borrow().bind(o.clone()));
+                    }
+                    Err(ERR_UNDEFINED_PROP)
+                }
+            }
+            Value::Class(c) => {
+                if let Some(cls_method) = c.0.borrow().find_class_method(prop) {
+                    Ok(Value::Fn(cls_method))
+                } else {
+                    Err(ERR_UNDEFINED_PROP)
+                }
+            }
+            _ => Err(ERR_EXPECTED_OBJECT),
         }
-        if let Value::Native(n) = self {
-            return Ok(n.props.get(&prop).unwrap().clone());
-        }
-        return Err(ERR_EXPECTED_OBJECT);
     }
 
     pub fn add(&mut self, other: &mut Value) -> Result<Value, RuntimeErr> {
@@ -187,6 +240,16 @@ impl Value {
             } else {
                 return Err(ERR_EXPECTED_DICT);
             }
+        }
+        if let Value::Object(object_val) = self {
+            let obj = object_val.0.borrow();
+            let cls = obj.class.0.borrow();
+            let meth_name = "add".to_string();
+            if let Some(meth) = cls.find_method(meth_name) {
+                let signal_fn = RuntimeErr::new_signal(meth.0.borrow().bind(object_val.clone()));
+                return Err(signal_fn);
+            }
+            return Err(ERR_UNDEFINED_OPERATOR);
         }
         return Err(ERR_UNDEFINED_OP);
     }
@@ -470,6 +533,20 @@ pub struct FnValue {
     pub prototype: u16,
     pub upvalues: Vec<MutValue<Value>>,
     pub constants: Vec<Value>,
+    pub this: Option<MutValue<ObjectValue>>,
+    pub name: String,
+}
+
+impl FnValue {
+    pub fn bind(&self, object: MutValue<ObjectValue>) -> Value {
+        Value::Fn(MutValue::new(FnValue {
+            prototype: self.prototype,
+            upvalues: self.upvalues.clone(),
+            constants: self.constants.clone(),
+            this: Some(object),
+            name: self.name.clone(),
+        }))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -512,6 +589,28 @@ pub struct ClassValue {
     pub superclass: Option<MutValue<ClassValue>>,
     pub methods: HashMap<String, MutValue<FnValue>>,
     pub classmethods: HashMap<String, MutValue<FnValue>>,
+}
+
+impl ClassValue {
+    pub fn find_method(&self, method: String) -> Option<MutValue<FnValue>> {
+        if let Some(meth) = self.methods.get(&method) {
+            return Some(meth.clone());
+        }
+        if let Some(superclass) = &self.superclass {
+            return superclass.0.borrow().find_method(method);
+        }
+        return None;
+    }
+
+    pub fn find_class_method(&self, method: String) -> Option<MutValue<FnValue>> {
+        if let Some(meth) = self.classmethods.get(&method) {
+            return Some(meth.clone());
+        }
+        if let Some(superclass) = &self.superclass {
+            return superclass.0.borrow().find_class_method(method);
+        }
+        return None;
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -627,4 +726,10 @@ impl core::fmt::Debug for NativeValue {
             write!(f, "NativeValue({:#?})", self.props)
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct ObjectValue {
+    pub class: MutValue<ClassValue>,
+    pub fields: HashMap<String, Value>,
 }

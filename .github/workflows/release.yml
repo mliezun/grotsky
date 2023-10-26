@@ -116,8 +116,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.extract_branch.outputs.branch }}
-          release_name: Release ${{ steps.extract_branch.outputs.branch }}
+          tag_name: ${{ steps.extract_branch.outputs.branch }}-rs
+          release_name: Release ${{ steps.extract_branch.outputs.branch }}-rs
           body: |
             Automated Release
           draft: false

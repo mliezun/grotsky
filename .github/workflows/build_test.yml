@@ -53,3 +53,38 @@ jobs:
 
       - name: Test
         run: make test_grotsky-rs
+
+  build_rust:
+    name: Rust project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+
+      - name: Install deps
+        run: |
+          sudo apt-get install make
+          rustup target add x86_64-apple-darwin
+
+      - name: Build for mac and linux
+        run: |
+          cd rewrite_in_rust
+          cargo build --release --target x86_64-apple-darwin
+          mv rewrite_in_rust/target/release/grotsky-rs grotsky-rs-macos
+          cargo build --release
+          mv rewrite_in_rust/target/release/grotsky-rs grotsky-rs-linux
+
+      - name: Prepare Release Linux
+        run: |
+          mv grotsky-rs-linux grotsky
+          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz grotsky
+
+      - name: Prepare Release Mac
+        run: |
+          mv grotsky-rs-macos grotsky
+          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-macos-x86_64.tar.gz grotsky

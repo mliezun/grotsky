@@ -76,15 +76,8 @@ jobs:
           cd rewrite_in_rust
           cargo build --release --target x86_64-apple-darwin
           mv rewrite_in_rust/target/release/grotsky-rs grotsky-rs-macos
-          cargo build --release
-          mv rewrite_in_rust/target/release/grotsky-rs grotsky-rs-linux
-
-      - name: Prepare Release Linux
-        run: |
-          mv grotsky-rs-linux grotsky
-          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz grotsky
 
       - name: Prepare Release Mac
         run: |
           mv grotsky-rs-macos grotsky
-          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-macos-x86_64.tar.gz grotsky
+          tar -czvf grotsky-rs-${{ steps.extract_branch.outputs.branch }}-macos-x86_64.tar.gz grotsky

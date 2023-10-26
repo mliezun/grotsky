@@ -180,6 +180,186 @@ impl Compiler {
         }
         std::process::exit(0);
     }
+
+    fn access_collection(&mut self, expr: &AccessExpr, access_op: OpCode) -> Chunk {
+        // println!("{:#?}", expr);
+        let mut chunk = Chunk {
+            result_register: self.next_register(),
+            instructions: vec![],
+        };
+        let obj_chunk = expr.object.accept(self);
+        let token_data = if expr.second_colon.token != Token::Nil {
+            Some(expr.second_colon.clone())
+        } else {
+            Some(expr.brace.clone())
+        };
+        chunk
+            .instructions
+            .append(&mut obj_chunk.instructions.clone());
+        if !expr.first.is_empty()
+            && expr.first_colon.token == Token::Nil
+            && expr.second.is_empty()
+            && expr.second_colon.token == Token::Nil
+            && expr.third.is_empty()
+        {
+            let first_chunk = expr.first.accept(self);
+            chunk
+                .instructions
+                .append(&mut first_chunk.instructions.clone());
+            if access_op == OpCode::Access {
+                chunk.push(
+                    Instruction {
+                        opcode: access_op,
+                        a: chunk.result_register,
+                        b: obj_chunk.result_register,
+                        c: first_chunk.result_register,
+                    },
+                    token_data.clone(),
+                );
+            } else {
+                chunk.push(
+                    Instruction {
+                        opcode: access_op,
+                        a: obj_chunk.result_register,
+                        b: first_chunk.result_register,
+                        c: 0,
+                    },
+                    token_data.clone(),
+                );
+            }
+        } else {
+            let list_register = self.next_register();
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::List,
+                    a: list_register,
+                    b: 0,
+                    c: 0,
+                },
+                token_data.clone(),
+            );
+            let nil_register = self.next_register();
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::LoadNil,
+                    a: nil_register,
+                    b: 0,
+                    c: 0,
+                },
+                token_data.clone(),
+            );
+            let one_register = self.next_register();
+            let constant_ix = self.constants.len() as u16;
+            self.constants.push(Value::Number(NumberValue { n: 1.0 }));
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::LoadK,
+                    a: one_register,
+                    b: (constant_ix >> 8) as u8,
+                    c: constant_ix as u8,
+                },
+                token_data.clone(),
+            );
+            if !expr.first.is_empty() {
+                let first_chunk = expr.first.accept(self);
+                chunk.append(&mut first_chunk.instructions.clone());
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::PushList,
+                        a: list_register,
+                        b: first_chunk.result_register,
+                        c: 0,
+                    },
+                    token_data.clone(),
+                );
+            } else {
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::PushList,
+                        a: list_register,
+                        b: nil_register,
+                        c: 0,
+                    },
+                    token_data.clone(),
+                );
+            }
+            if !expr.second.is_empty() {
+                let second_chunk = expr.second.accept(self);
+                chunk.append(&mut second_chunk.instructions.clone());
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::PushList,
+                        a: list_register,
+                        b: second_chunk.result_register,
+                        c: 0,
+                    },
+                    token_data.clone(),
+                );
+            } else {
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::PushList,
+                        a: list_register,
+                        b: nil_register,
+                        c: 0,
+                    },
+                    token_data.clone(),
+                );
+            }
+            if !expr.third.is_empty() {
+                let third_chunk = expr.third.accept(self);
+                chunk.append(&mut third_chunk.instructions.clone());
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::PushList,
+                        a: list_register,
+                        b: third_chunk.result_register,
+                        c: 0,
+                    },
+                    token_data.clone(),
+                );
+            } else if expr.second_colon.token == Token::Nil {
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::PushList,
+                        a: list_register,
+                        b: one_register,
+                        c: 0,
+                    },
+                    token_data.clone(),
+                );
+            } else {
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::PushList,
+                        a: list_register,
+                        b: nil_register,
+                        c: 0,
+                    },
+                    token_data.clone(),
+                );
+            }
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::Slice,
+                    a: list_register,
+                    b: list_register,
+                    c: 0,
+                },
+                token_data.clone(),
+            );
+            chunk.push(
+                Instruction {
+                    opcode: access_op,
+                    a: chunk.result_register,
+                    b: obj_chunk.result_register,
+                    c: list_register,
+                },
+                token_data.clone(),
+            );
+        }
+        return chunk;
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1160,171 +1340,7 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_access_expr(&mut self, expr: &AccessExpr) -> Chunk {
-        // println!("{:#?}", expr);
-        let mut chunk = Chunk {
-            result_register: self.next_register(),
-            instructions: vec![],
-        };
-        let obj_chunk = expr.object.accept(self);
-        let token_data = if expr.second_colon.token != Token::Nil {
-            Some(expr.second_colon.clone())
-        } else {
-            Some(expr.brace.clone())
-        };
-        chunk
-            .instructions
-            .append(&mut obj_chunk.instructions.clone());
-        if !expr.first.is_empty()
-            && expr.first_colon.token == Token::Nil
-            && expr.second.is_empty()
-            && expr.second_colon.token == Token::Nil
-            && expr.third.is_empty()
-        {
-            let first_chunk = expr.first.accept(self);
-            chunk
-                .instructions
-                .append(&mut first_chunk.instructions.clone());
-            chunk.push(
-                Instruction {
-                    opcode: OpCode::Access,
-                    a: chunk.result_register,
-                    b: obj_chunk.result_register,
-                    c: first_chunk.result_register,
-                },
-                token_data.clone(),
-            );
-        } else {
-            let list_register = self.next_register();
-            chunk.push(
-                Instruction {
-                    opcode: OpCode::List,
-                    a: list_register,
-                    b: 0,
-                    c: 0,
-                },
-                token_data.clone(),
-            );
-            let nil_register = self.next_register();
-            chunk.push(
-                Instruction {
-                    opcode: OpCode::LoadNil,
-                    a: nil_register,
-                    b: 0,
-                    c: 0,
-                },
-                token_data.clone(),
-            );
-            let one_register = self.next_register();
-            let constant_ix = self.constants.len() as u16;
-            self.constants.push(Value::Number(NumberValue { n: 1.0 }));
-            chunk.push(
-                Instruction {
-                    opcode: OpCode::LoadK,
-                    a: one_register,
-                    b: (constant_ix >> 8) as u8,
-                    c: constant_ix as u8,
-                },
-                token_data.clone(),
-            );
-            if !expr.first.is_empty() {
-                let first_chunk = expr.first.accept(self);
-                chunk.append(&mut first_chunk.instructions.clone());
-                chunk.push(
-                    Instruction {
-                        opcode: OpCode::PushList,
-                        a: list_register,
-                        b: first_chunk.result_register,
-                        c: 0,
-                    },
-                    token_data.clone(),
-                );
-            } else {
-                chunk.push(
-                    Instruction {
-                        opcode: OpCode::PushList,
-                        a: list_register,
-                        b: nil_register,
-                        c: 0,
-                    },
-                    token_data.clone(),
-                );
-            }
-            if !expr.second.is_empty() {
-                let second_chunk = expr.second.accept(self);
-                chunk.append(&mut second_chunk.instructions.clone());
-                chunk.push(
-                    Instruction {
-                        opcode: OpCode::PushList,
-                        a: list_register,
-                        b: second_chunk.result_register,
-                        c: 0,
-                    },
-                    token_data.clone(),
-                );
-            } else {
-                chunk.push(
-                    Instruction {
-                        opcode: OpCode::PushList,
-                        a: list_register,
-                        b: nil_register,
-                        c: 0,
-                    },
-                    token_data.clone(),
-                );
-            }
-            if !expr.third.is_empty() {
-                let third_chunk = expr.third.accept(self);
-                chunk.append(&mut third_chunk.instructions.clone());
-                chunk.push(
-                    Instruction {
-                        opcode: OpCode::PushList,
-                        a: list_register,
-                        b: third_chunk.result_register,
-                        c: 0,
-                    },
-                    token_data.clone(),
-                );
-            } else if expr.second_colon.token == Token::Nil {
-                chunk.push(
-                    Instruction {
-                        opcode: OpCode::PushList,
-                        a: list_register,
-                        b: one_register,
-                        c: 0,
-                    },
-                    token_data.clone(),
-                );
-            } else {
-                chunk.push(
-                    Instruction {
-                        opcode: OpCode::PushList,
-                        a: list_register,
-                        b: nil_register,
-                        c: 0,
-                    },
-                    token_data.clone(),
-                );
-            }
-            chunk.push(
-                Instruction {
-                    opcode: OpCode::Slice,
-                    a: list_register,
-                    b: list_register,
-                    c: 0,
-                },
-                token_data.clone(),
-            );
-            chunk.push(
-                Instruction {
-                    opcode: OpCode::Access,
-                    a: chunk.result_register,
-                    b: obj_chunk.result_register,
-                    c: list_register,
-                },
-                token_data.clone(),
-            );
-        }
-        return chunk;
+        return self.access_collection(expr, OpCode::Access);
     }
 
     fn visit_binary_expr(&mut self, expr: &BinaryExpr) -> Chunk {
@@ -1447,36 +1463,48 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_set_expr(&mut self, expr: &SetExpr) -> Chunk {
-        let mut chunk = expr.object.accept(self);
-        // TODO: handle expr.access
+        let mut chunk = Chunk {
+            instructions: vec![],
+            result_register: 0,
+        };
         let value_chunk = expr.value.accept(self);
         chunk
             .instructions
             .append(&mut value_chunk.instructions.clone());
-        let tmp_register = self.next_register();
-        let constant_ix = self.constants.len() as u16;
-        let val = Value::String(StringValue {
-            s: expr.name.lexeme.to_string(),
-        });
-        self.constants.push(val);
-        chunk.push(
-            Instruction {
-                opcode: OpCode::LoadK,
-                a: tmp_register,
-                b: (constant_ix >> 8) as u8,
-                c: constant_ix as u8,
-            },
-            Some(expr.name.clone()),
-        );
-        chunk.push(
-            Instruction {
-                opcode: OpCode::SetObj,
-                a: chunk.result_register,
-                b: tmp_register,
-                c: value_chunk.result_register,
-            },
-            Some(expr.name.clone()),
-        );
+        if let Some(access) = &expr.access {
+            let mut access_chunk = self.access_collection(access, OpCode::Set);
+            access_chunk.instructions.last_mut().unwrap().inst.c = value_chunk.result_register;
+            chunk.append(&mut access_chunk.instructions);
+            chunk.result_register = access_chunk.result_register;
+        } else {
+            let obj_chunk = expr.object.accept(self);
+            chunk.append(&mut obj_chunk.instructions.clone());
+            chunk.result_register = obj_chunk.result_register;
+            let tmp_register = self.next_register();
+            let constant_ix = self.constants.len() as u16;
+            let val = Value::String(StringValue {
+                s: expr.name.lexeme.to_string(),
+            });
+            self.constants.push(val);
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::LoadK,
+                    a: tmp_register,
+                    b: (constant_ix >> 8) as u8,
+                    c: constant_ix as u8,
+                },
+                Some(expr.name.clone()),
+            );
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::SetObj,
+                    a: chunk.result_register,
+                    b: tmp_register,
+                    c: value_chunk.result_register,
+                },
+                Some(expr.name.clone()),
+            );
+        }
         return chunk;
     }
 

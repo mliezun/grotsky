@@ -7,8 +7,8 @@ on:
       - feature/release-rust
 
 jobs:
-  build:
-    name: Build
+  test_go:
+    name: Test Go version
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go 1.x
@@ -37,7 +37,7 @@ jobs:
           bash <(curl -s https://codecov.io/bash)
 
   test_rust:
-    name: Rust project
+    name: Test Rust version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -55,7 +55,7 @@ jobs:
         run: make test_grotsky-rs
 
   build_rust:
-    name: Rust project
+    name: Build Rust version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -71,13 +71,42 @@ jobs:
           sudo apt-get install make
           rustup target add x86_64-apple-darwin
 
-      - name: Build for mac and linux
+      - name: Build for linux
         run: |
           cd rewrite_in_rust
-          cargo build --release --target x86_64-apple-darwin
-          mv rewrite_in_rust/target/release/grotsky-rs grotsky-rs-macos
+          cargo build --release
+          mv rewrite_in_rust/target/release/grotsky-rs grotsky-rs-linux
 
-      - name: Prepare Release Mac
+      - name: Prepare Release Linux
         run: |
-          mv grotsky-rs-macos grotsky
-          tar -czvf grotsky-rs-${{ steps.extract_branch.outputs.branch }}-macos-x86_64.tar.gz grotsky
+          mv grotsky-rs-linux grotsky
+          tar -czvf grotsky-rs-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz grotsky
+
+      - name: Extract branch name
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+        id: extract_branch
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.extract_branch.outputs.branch }}
+          release_name: Release ${{ steps.extract_branch.outputs.branch }}
+          body: |
+            Automated Release
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Linux
+        id: upload-release-linux
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: ./grotsky-rs-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz
+          asset_name: grotsky-rs-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz
+          asset_content_type: application/gzip

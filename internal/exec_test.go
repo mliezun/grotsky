@@ -187,6 +187,13 @@ func checkErrorMsg(t *testing.T, source string, errorMsg string, line int) {
 func checkStatements(t *testing.T, code string, resultVar string, result string) {
 	source := code + "\nio.println(" + resultVar + ")"
 	tp := &testPrinter{}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("Error on: \n%s\n\t%v", code, r)
+		}
+	}()
+
 	run_code("", source, tp)
 	if !tp.Equals(result) {
 		t.Log(string(debug.Stack()))

@@ -89,7 +89,17 @@ impl Value {
                         .unwrap_or("".to_string())
                 )
             }
-            Value::Fn(f) => "<fn anonymous>".to_string(),
+            Value::Fn(f) => {
+                let name = f.0.borrow().name.clone();
+                format!(
+                    "<fn {}>",
+                    if name == "" {
+                        "anonymous".to_string()
+                    } else {
+                        name
+                    }
+                )
+            }
             Value::Nil => "<nil>".to_string(),
             Value::Class(c) => {
                 let cls_value = c.0.borrow();
@@ -524,6 +534,7 @@ pub struct FnValue {
     pub upvalues: Vec<MutValue<Value>>,
     pub constants: Vec<Value>,
     pub this: Option<MutValue<ObjectValue>>,
+    pub name: String,
 }
 
 impl FnValue {
@@ -533,6 +544,7 @@ impl FnValue {
             upvalues: self.upvalues.clone(),
             constants: self.constants.clone(),
             this: Some(object),
+            name: self.name.clone(),
         }))
     }
 }

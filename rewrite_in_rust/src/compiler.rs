@@ -81,6 +81,7 @@ impl Compiler {
             upvalues: current_context.upvalues,
             instruction_data: instructions.iter().map(|i| i.src.clone()).collect(),
             param_count: param_count,
+            name: current_context.name,
         });
         return prototype_ix as u16;
     }
@@ -194,6 +195,7 @@ pub struct FnPrototype {
     pub upvalues: Vec<UpvalueRef>,
     pub instruction_data: Vec<Option<TokenData>>,
     pub param_count: usize,
+    pub name: String,
 }
 
 #[derive(Debug)]
@@ -783,7 +785,18 @@ impl StmtVisitor<Chunk> for Compiler {
         }
         self.enter_block();
         for s in &stmt.body {
-            let chunk = s.accept(self);
+            let mut chunk = s.accept(self);
+            if stmt.body.len() == 1 {
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::Return,
+                        a: chunk.result_register,
+                        b: chunk.result_register + 2,
+                        c: 0,
+                    },
+                    chunk.instructions.last().unwrap().src.clone(),
+                );
+            }
             self.add_chunk(chunk);
         }
         self.leave_block();
@@ -930,7 +943,18 @@ impl ExprVisitor<Chunk> for Compiler {
         }
         self.enter_block();
         for s in &expr.body {
-            let chunk = s.accept(self);
+            let mut chunk = s.accept(self);
+            if expr.body.len() == 1 {
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::Return,
+                        a: chunk.result_register,
+                        b: chunk.result_register + 2,
+                        c: 0,
+                    },
+                    chunk.instructions.last().unwrap().src.clone(),
+                );
+            }
             self.add_chunk(chunk);
         }
         self.leave_block();

@@ -144,6 +144,7 @@ impl VM {
                             upvalues: fn_upvalues,
                             constants: vec![],
                             this: this.clone(),
+                            name: prototype.name.clone(),
                         })));
                     pc += 1;
                 }
@@ -301,7 +302,7 @@ impl VM {
                                         pc,
                                         sp,
                                         inst.a + 1,
-                                        (inst.c - 1)..(inst.c)
+                                        (inst.c)..(inst.c + 1)
                                     );
                                 } else {
                                     self.exception(
@@ -666,7 +667,10 @@ impl VM {
                                 panic!("Index error");
                             }
                         }
-                        Value::Dict(dict) => unimplemented!(),
+                        Value::Dict(dict) => {
+                            dict.0.borrow_mut().elements.insert(accessor, val);
+                            pc += 1;
+                        }
                         Value::String(str) => unimplemented!(),
                         _ => panic!("Cannot access non iterable"),
                     }

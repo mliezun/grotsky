@@ -75,7 +75,7 @@ jobs:
         run: |
           cd rewrite_in_rust
           cargo build --release
-          mv rewrite_in_rust/target/release/grotsky-rs grotsky-rs-linux
+          mv target/release/grotsky-rs grotsky-rs-linux
 
       - name: Prepare Release Linux
         run: |

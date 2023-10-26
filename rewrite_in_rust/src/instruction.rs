@@ -45,6 +45,7 @@ pub enum OpCode {
     Super,
     This,
     GetGlobal,
+    GetCurrentFunc,
 }
 
 // To indicate if the JMP is a continue or break inside

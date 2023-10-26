@@ -1,21 +1,13 @@
 #![allow(dead_code)]
 
 use crate::compiler::FnPrototype;
-use crate::errors::{
-    RuntimeErr, ERR_CANNOT_UNPACK, ERR_EXPECTED_CLASS, ERR_EXPECTED_COLLECTION,
-    ERR_EXPECTED_FUNCTION, ERR_EXPECTED_IDENTIFIERS_DICT, ERR_EXPECTED_NUMBER, ERR_EXPECTED_OBJECT,
-    ERR_EXPECTED_STRING, ERR_EXPECTED_SUPERCLASS, ERR_INVALID_ACCESS, ERR_INVALID_NUMBER_ARGUMENTS,
-    ERR_METHOD_NOT_FOUND, ERR_ONLY_FUNCTION, ERR_READ_ONLY, ERR_WRONG_NUMBER_OF_VALUES,
-};
+use crate::errors::*;
 use crate::instruction::*;
 use crate::token::TokenData;
 use crate::value::*;
 use std::collections::HashMap;
-use std::f32::consts::E;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::thread::sleep;
-use std::time::Duration;
 
 macro_rules! make_call {
     ( $self:expr, $fn_value:expr, $current_this:expr, $bind_to:expr, $instructions:expr, $pc:expr, $sp:expr, $result_register:expr, $input_range:expr ) => {{
@@ -130,19 +122,20 @@ impl VM {
                         .upvalues
                         .iter()
                         .map(|u| {
-                            let base_sp = if u.depth == 0 {
-                                sp
+                            if u.is_local {
+                                let rec_ix = sp + u.index as usize;
+                                let record = match self.activation_records[rec_ix].clone() {
+                                    Record::Ref(v) => v,
+                                    Record::Val(v) => MutValue::new(v),
+                                };
+                                self.activation_records[rec_ix] = Record::Ref(record.clone());
+                                return record;
                             } else {
-                                let ix = self.stack.len() - 1 - u.depth as usize;
-                                self.stack[ix].sp
-                            };
-                            let rec_ix = base_sp + u.register as usize;
-                            let record = match self.activation_records[rec_ix].clone() {
-                                Record::Ref(v) => v,
-                                Record::Val(v) => MutValue::new(v),
-                            };
-                            self.activation_records[rec_ix] = Record::Ref(record.clone());
-                            return record;
+                                let current_func =
+                                    self.stack.last_mut().unwrap().function.clone().unwrap();
+                                let upval = &current_func.0.borrow().upvalues[u.index as usize];
+                                return upval.clone();
+                            }
                         })
                         .collect();
                     self.activation_records[sp + inst.a as usize] =
@@ -1079,6 +1072,12 @@ impl VM {
                     } else {
                         self.exception(ERR_EXPECTED_STRING, self.instructions_data[pc].clone());
                     }
+                    pc += 1;
+                }
+                OpCode::GetCurrentFunc => {
+                    self.activation_records[sp + inst.a as usize] = Record::Val(Value::Fn(
+                        self.stack.last().unwrap().function.clone().unwrap(),
+                    ));
                     pc += 1;
                 }
             }

@@ -118,22 +118,40 @@ impl Compiler {
         self.get_var_register_by_context(self.contexts.last().unwrap(), var_name)
     }
 
-    fn get_upvalue(&self, var_name: &String) -> Option<UpvalueRef> {
-        for (depth, context) in self.contexts.iter().rev().skip(1).enumerate() {
-            // println!("Looking upvalue {} {}", var_name, depth);
-            if let Some(reg) = self.get_var_register_by_context(context, var_name) {
-                return Some(UpvalueRef {
-                    depth: depth as u8,
-                    register: reg,
-                });
-            }
+    fn get_upvalue(&mut self, var_name: &String) -> Option<u8> {
+        // Edge case - when variable cannot be found
+        if self.contexts.is_empty() {
+            return None;
         }
-        return None;
+        let mut saved_context = self.contexts.pop().unwrap();
+        let upvalue = self._get_upvalue(&mut saved_context, var_name);
+        self.contexts.push(saved_context);
+        upvalue
     }
 
-    pub fn add_upvalue(&mut self, up_ref: UpvalueRef) -> u8 {
-        self.contexts.last_mut().unwrap().upvalues.push(up_ref);
-        return (self.contexts.last().unwrap().upvalues.len() - 1) as u8;
+    fn _get_upvalue(&mut self, previous_context: &mut FnContext, var_name: &String) -> Option<u8> {
+        // Edge case - when variable cannot be found
+        if self.contexts.is_empty() {
+            return None;
+        }
+        let mut context = self.contexts.pop().unwrap();
+        if let Some(reg) = self.get_var_register_by_context(&context, var_name) {
+            // Add upvalue to previous context
+            let upval_ix = previous_context.add_upvalue(reg, true);
+            // Restore context
+            self.contexts.push(context);
+            return Some(upval_ix);
+        }
+        if let Some(up) = self._get_upvalue(&mut context, var_name) {
+            // Add upvalue to previous context
+            let upvalue_ix = previous_context.add_upvalue(up, false);
+            // Restore context
+            self.contexts.push(context);
+            return Some(upvalue_ix);
+        }
+        // Restore context
+        self.contexts.push(context);
+        return None;
     }
 
     pub fn is_global(&self, var_name: String) -> bool {
@@ -165,8 +183,8 @@ impl Compiler {
 
 #[derive(Debug, Clone)]
 pub struct UpvalueRef {
-    pub depth: u8,
-    pub register: u8,
+    pub is_local: bool,
+    pub index: u8,
 }
 
 #[derive(Debug, Clone)]
@@ -186,6 +204,26 @@ pub struct FnContext {
     pub chunks: Vec<Chunk>,
     pub blocks: Vec<Block>,
     pub upvalues: Vec<UpvalueRef>,
+}
+
+impl FnContext {
+    pub fn add_upvalue(&mut self, index: u8, is_local: bool) -> u8 {
+        for (i, up) in self.upvalues.iter().enumerate() {
+            if up.is_local == is_local && up.index == index {
+                return i as u8;
+            }
+        }
+
+        if self.upvalues.len() == 255 {
+            panic!("Too many upvalues");
+        }
+
+        self.upvalues.push(UpvalueRef {
+            is_local: is_local,
+            index: index,
+        });
+        return (self.upvalues.len() - 1) as u8;
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -729,7 +767,7 @@ impl StmtVisitor<Chunk> for Compiler {
         self.add_chunk(Chunk {
             instructions: vec![InstSrc {
                 inst: Instruction {
-                    opcode: OpCode::Closure,
+                    opcode: OpCode::GetCurrentFunc,
                     a: self_fn_name_reg,
                     b: 0,
                     c: 0,
@@ -919,9 +957,8 @@ impl ExprVisitor<Chunk> for Compiler {
                 instructions: vec![],
                 result_register: reg,
             };
-        } else if let Some(up_ref) = self.get_upvalue(&var_name) {
+        } else if let Some(upvalue_ix) = self.get_upvalue(&var_name) {
             let reg = self.next_register();
-            let upvalue_ix = self.add_upvalue(up_ref);
             return Chunk {
                 instructions: vec![InstSrc {
                     inst: Instruction {
@@ -1053,7 +1090,7 @@ impl ExprVisitor<Chunk> for Compiler {
             }
 
             return chunk;
-        } else if let Some(up_ref) = self.get_upvalue(&expr.name.lexeme.to_string()) {
+        } else if let Some(upvalue_ix) = self.get_upvalue(&expr.name.lexeme.to_string()) {
             let reg = self.next_register();
             let mut chunk = expr.value.accept(self);
 
@@ -1080,7 +1117,6 @@ impl ExprVisitor<Chunk> for Compiler {
                         inst.inst.a = reg;
                     }
                 }
-                let upvalue_ix = self.add_upvalue(up_ref);
                 chunk.push(
                     Instruction {
                         opcode: OpCode::SetUpval,

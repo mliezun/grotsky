@@ -276,4 +276,5 @@ GetIteri (A, B, Imm) R(A) := R(B)[Imm]
 Length (A, B) R(A) := R(B).length
 Super (A, B) R(A) := super(this).R(B)
 This (A) R(A) := this
+GetGlobal (A, Bx) R(A) := G[K(Bx)]
 ```

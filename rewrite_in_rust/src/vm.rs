@@ -11,8 +11,11 @@ use crate::instruction::*;
 use crate::token::TokenData;
 use crate::value::*;
 use std::collections::HashMap;
+use std::f32::consts::E;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::thread::sleep;
+use std::time::Duration;
 
 macro_rules! make_call {
     ( $self:expr, $fn_value:expr, $current_this:expr, $bind_to:expr, $instructions:expr, $pc:expr, $sp:expr, $result_register:expr, $input_range:expr ) => {{
@@ -45,7 +48,7 @@ macro_rules! make_call {
         }
         for (i, reg) in $input_range.enumerate() {
             $self.activation_records[$sp + i + 1] =
-                $self.activation_records[previous_sp + reg as usize + 1].clone();
+                $self.activation_records[previous_sp + reg as usize].clone();
         }
 
         // Set current object
@@ -1067,6 +1070,15 @@ impl VM {
                 OpCode::This => {
                     self.activation_records[sp + inst.a as usize] =
                         Record::Val(Value::Object(this.as_ref().unwrap().clone()));
+                    pc += 1;
+                }
+                OpCode::GetGlobal => {
+                    if let Value::String(s) = &self.constants[inst.bx() as usize] {
+                        self.activation_records[sp + inst.a as usize] =
+                            Record::Val(self.globals.get(&s.s).unwrap().clone());
+                    } else {
+                        self.exception(ERR_EXPECTED_STRING, self.instructions_data[pc].clone());
+                    }
                     pc += 1;
                 }
             }

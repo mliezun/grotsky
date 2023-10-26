@@ -136,15 +136,14 @@ impl Compiler {
         return (self.contexts.last().unwrap().upvalues.len() - 1) as u8;
     }
 
+    pub fn is_global(&self, var_name: String) -> bool {
+        return var_name == "io".to_string()
+            || var_name == "strings".to_string()
+            || var_name == "type".to_string()
+            || var_name == "env".to_string();
+    }
+
     pub fn compile(&mut self, stmts: Vec<Stmt>) {
-        let io_reg = self.next_register();
-        let strings_reg = self.next_register();
-        let type_reg = self.next_register();
-        let env_reg = self.next_register();
-        self.allocate_register("io".to_string(), io_reg);
-        self.allocate_register("strings".to_string(), strings_reg);
-        self.allocate_register("type".to_string(), type_reg);
-        self.allocate_register("env".to_string(), env_reg);
         for stmt in stmts {
             let chunk = stmt.accept(self);
             self.add_chunk(chunk);
@@ -930,6 +929,24 @@ impl ExprVisitor<Chunk> for Compiler {
                         a: reg,
                         b: upvalue_ix,
                         c: 0,
+                    },
+                    src: expr.name.clone(),
+                }],
+                result_register: reg,
+            };
+        } else if self.is_global(var_name.clone()) {
+            let reg = self.next_register();
+            let constant_ix = self.constants.len();
+            self.constants.push(Value::String(StringValue {
+                s: var_name.clone(),
+            }));
+            return Chunk {
+                instructions: vec![InstSrc {
+                    inst: Instruction {
+                        opcode: OpCode::GetGlobal,
+                        a: reg,
+                        b: (constant_ix >> 8) as u8,
+                        c: constant_ix as u8,
                     },
                     src: expr.name.clone(),
                 }],

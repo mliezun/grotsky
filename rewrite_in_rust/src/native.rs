@@ -4,6 +4,7 @@ use crate::{
     errors::ERR_INVALID_NUMBER_ARGUMENTS,
     errors::{RuntimeErr, ERR_EXPECTED_STRING},
     value::{ListValue, MutValue, NativeValue, NumberValue, StringValue, Value},
+    vm::VM,
 };
 
 pub struct IO {}
@@ -307,5 +308,38 @@ impl Env {
         env_mod.props.insert("get".to_string(), Value::Native(get));
         env_mod.props.insert("set".to_string(), Value::Native(set));
         return env_mod;
+    }
+}
+
+pub struct Import {}
+
+impl Import {
+    pub fn import(
+        compile_source: &'static dyn Fn(String) -> VM,
+        values: Vec<Value>,
+    ) -> Result<Value, RuntimeErr> {
+        if values.len() != 1 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let string_value = match values.first().unwrap() {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let mut vm = compile_source(string_value.s.clone());
+        vm.interpret();
+        return Ok(Value::Native(NativeValue {
+            props: vm.globals,
+            callable: None,
+        }));
+    }
+
+    pub fn build(compile_source: &'static dyn Fn(String) -> VM) -> NativeValue {
+        let mut import_mod = NativeValue {
+            props: HashMap::new(),
+            callable: None,
+        };
+        return import_mod;
     }
 }

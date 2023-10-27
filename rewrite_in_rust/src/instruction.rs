@@ -45,6 +45,7 @@ pub enum OpCode {
     Super,
     This,
     GetGlobal,
+    SetGlobal,
     GetCurrentFunc,
     GetBuiltin,
 }

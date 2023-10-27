@@ -27,6 +27,7 @@ impl RuntimeErr {
 }
 
 pub const ERR_UNDEFINED_VAR: RuntimeErr = RuntimeErr::new("Undefined variable");
+pub const ERR_GLOBAL_ALREADY_DEFINED: RuntimeErr = RuntimeErr::new("Global already defined");
 pub const ERR_ONLY_NUMBERS: RuntimeErr =
     RuntimeErr::new("The operation is only defined for numbers");
 pub const ERR_UNDEFINED_OP: RuntimeErr = RuntimeErr::new("Undefined operation");

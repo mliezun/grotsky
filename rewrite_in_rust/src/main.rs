@@ -13,7 +13,7 @@ mod value;
 mod vm;
 
 use fnv::FnvHashMap;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use std::fs::read_to_string;
 use std::time::Instant;
@@ -76,6 +76,7 @@ fn run_bytecode_interpreter(source: String) {
             upvalues: vec![],
         }],
         prototypes: vec![],
+        globals: HashSet::new(),
     };
     // let start = Instant::now();
     compiler.compile(state.stmts.clone());
@@ -121,7 +122,7 @@ fn run_bytecode_interpreter(source: String) {
         "env".to_string(),
         value::Value::Native(native::Env::build()),
     );
-    // println!("{:#?}", my_mv);
+    println!("{:#?}", my_mv);
     // println!("{:#?}", my_mv.instructions);
     // println!("{:#?}", my_mv.constants);
     my_mv.interpret();

@@ -1,5 +1,7 @@
+use std::collections::HashSet;
+
 use crate::errors::RuntimeErr;
-use crate::errors::ERR_UNDEFINED_VAR;
+use crate::errors::{ERR_GLOBAL_ALREADY_DEFINED, ERR_UNDEFINED_VAR};
 use crate::expr::*;
 use crate::instruction::*;
 use crate::stmt::*;
@@ -12,6 +14,7 @@ pub struct Compiler {
     pub constants: Vec<Value>,
     pub contexts: Vec<FnContext>,
     pub prototypes: Vec<FnPrototype>,
+    pub globals: HashSet<String>,
 }
 
 impl Compiler {
@@ -121,7 +124,7 @@ impl Compiler {
 
     fn get_upvalue(&mut self, var_name: &String) -> Option<u8> {
         // Edge case - when variable cannot be found
-        if self.contexts.is_empty() {
+        if self.contexts.is_empty() || self.is_global_context() {
             return None;
         }
         let mut saved_context = self.contexts.pop().unwrap();
@@ -132,7 +135,7 @@ impl Compiler {
 
     fn _get_upvalue(&mut self, previous_context: &mut FnContext, var_name: &String) -> Option<u8> {
         // Edge case - when variable cannot be found
-        if self.contexts.is_empty() {
+        if self.contexts.is_empty() || self.is_global_context() {
             return None;
         }
         let mut context = self.contexts.pop().unwrap();
@@ -155,11 +158,19 @@ impl Compiler {
         return None;
     }
 
-    pub fn is_builtin(&self, var_name: String) -> bool {
+    pub fn is_builtin_var(&self, var_name: String) -> bool {
         return var_name == "io".to_string()
             || var_name == "strings".to_string()
             || var_name == "type".to_string()
             || var_name == "env".to_string();
+    }
+
+    pub fn is_global_var(&self, var_name: String) -> bool {
+        return self.globals.contains(&var_name);
+    }
+
+    pub fn is_global_context(&self) -> bool {
+        return self.contexts.len() == 1 && self.contexts.last().unwrap().blocks.len() == 1;
     }
 
     pub fn compile(&mut self, stmts: Vec<Stmt>) {
@@ -673,17 +684,68 @@ impl StmtVisitor<Chunk> for Compiler {
     }
 
     fn visit_let_stmt(&mut self, stmt: &LetStmt) -> Chunk {
-        if let Some(init) = &stmt.initializer {
-            let chunk = init.accept(self);
-            self.allocate_register(stmt.name.lexeme.to_string(), chunk.result_register);
+        if self.is_global_context() {
+            if self.globals.contains(&stmt.name.lexeme.to_string()) {
+                self.compilation_error(ERR_GLOBAL_ALREADY_DEFINED, Some(stmt.name.clone()));
+                unreachable!();
+            }
+            let mut chunk = Chunk {
+                result_register: 0,
+                instructions: vec![],
+            };
+            self.globals.insert(stmt.name.lexeme.to_string());
+            let constant_ix = self.constants.len() as u16;
+            self.constants.push(Value::String(StringValue {
+                s: stmt.name.lexeme.to_string(),
+            }));
+            if let Some(init) = &stmt.initializer {
+                let init_chunk = init.accept(self);
+                chunk.result_register = init_chunk.result_register;
+                chunk.append(&mut init_chunk.instructions.clone());
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::SetGlobal,
+                        a: init_chunk.result_register,
+                        b: (constant_ix >> 8) as u8,
+                        c: constant_ix as u8,
+                    },
+                    Some(stmt.name.clone()),
+                );
+            } else {
+                let reg = self.next_register();
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::LoadNil,
+                        a: reg,
+                        b: 0,
+                        c: 0,
+                    },
+                    Some(stmt.name.clone()),
+                );
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::SetGlobal,
+                        a: reg,
+                        b: (constant_ix >> 8) as u8,
+                        c: constant_ix as u8,
+                    },
+                    Some(stmt.name.clone()),
+                );
+            }
             return chunk;
         } else {
-            let reg = self.next_register();
-            self.allocate_register(stmt.name.lexeme.to_string(), reg);
-            return Chunk {
-                instructions: vec![],
-                result_register: reg,
-            };
+            if let Some(init) = &stmt.initializer {
+                let chunk = init.accept(self);
+                self.allocate_register(stmt.name.lexeme.to_string(), chunk.result_register);
+                return chunk;
+            } else {
+                let reg = self.next_register();
+                self.allocate_register(stmt.name.lexeme.to_string(), reg);
+                return Chunk {
+                    instructions: vec![],
+                    result_register: reg,
+                };
+            }
         }
     }
 
@@ -1175,7 +1237,7 @@ impl ExprVisitor<Chunk> for Compiler {
                 }],
                 result_register: reg,
             };
-        } else if self.is_builtin(var_name.clone()) {
+        } else if self.is_builtin_var(var_name.clone()) {
             let reg = self.next_register();
             let constant_ix = self.constants.len();
             self.constants.push(Value::String(StringValue {
@@ -1185,6 +1247,24 @@ impl ExprVisitor<Chunk> for Compiler {
                 instructions: vec![InstSrc {
                     inst: Instruction {
                         opcode: OpCode::GetBuiltin,
+                        a: reg,
+                        b: (constant_ix >> 8) as u8,
+                        c: constant_ix as u8,
+                    },
+                    src: expr.name.clone(),
+                }],
+                result_register: reg,
+            };
+        } else if self.is_global_var(var_name.clone()) {
+            let reg = self.next_register();
+            let constant_ix = self.constants.len();
+            self.constants.push(Value::String(StringValue {
+                s: var_name.clone(),
+            }));
+            return Chunk {
+                instructions: vec![InstSrc {
+                    inst: Instruction {
+                        opcode: OpCode::GetGlobal,
                         a: reg,
                         b: (constant_ix >> 8) as u8,
                         c: constant_ix as u8,
@@ -1327,6 +1407,50 @@ impl ExprVisitor<Chunk> for Compiler {
                         a: reg,
                         b: upvalue_ix,
                         c: 0,
+                    },
+                    token_data.clone(),
+                );
+                chunk.result_register = reg;
+            }
+
+            return chunk;
+        } else if self.is_global_var(expr.name.lexeme.to_string()) {
+            let reg = self.next_register();
+            let mut chunk = expr.value.accept(self);
+            let constant_ix = self.constants.len();
+            self.constants.push(Value::String(StringValue {
+                s: expr.name.lexeme.to_string(),
+            }));
+
+            if let Some(access) = &expr.access {
+                let obj_chunk = access.object.accept(self);
+                let access_chunk = access.first.accept(self);
+                chunk.append(&mut obj_chunk.instructions.clone());
+                chunk.append(&mut access_chunk.instructions.clone());
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::Set,
+                        a: obj_chunk.result_register,
+                        b: access_chunk.result_register,
+                        c: chunk.result_register,
+                    },
+                    token_data.clone(),
+                );
+            } else {
+                if !chunk.instructions.is_empty() {
+                    let inst = chunk.instructions.last_mut().unwrap();
+                    if inst.inst.opcode == OpCode::Call {
+                        inst.inst.c = reg + 1;
+                    } else {
+                        inst.inst.a = reg;
+                    }
+                }
+                chunk.push(
+                    Instruction {
+                        opcode: OpCode::SetGlobal,
+                        a: reg,
+                        b: (constant_ix >> 8) as u8,
+                        c: constant_ix as u8,
                     },
                     token_data.clone(),
                 );

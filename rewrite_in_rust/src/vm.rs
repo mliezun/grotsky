@@ -1072,8 +1072,22 @@ impl VM {
                 }
                 OpCode::GetGlobal => {
                     if let Value::String(s) = &self.constants[inst.bx() as usize] {
-                        self.activation_records[sp + inst.a as usize] =
-                            Record::Val(self.globals.get(&s.s).unwrap().clone());
+                        if let Some(g) = self.globals.get(&s.s) {
+                            self.activation_records[sp + inst.a as usize] = Record::Val(g.clone());
+                        } else {
+                            self.exception(ERR_UNDEFINED_VAR, self.instructions_data[pc].clone());
+                        }
+                    } else {
+                        self.exception(ERR_EXPECTED_STRING, self.instructions_data[pc].clone());
+                    }
+                    pc += 1;
+                }
+                OpCode::SetGlobal => {
+                    if let Value::String(s) = &self.constants[inst.bx() as usize] {
+                        self.globals.insert(
+                            s.s.clone(),
+                            self.activation_records[sp + inst.a as usize].as_val(),
+                        );
                     } else {
                         self.exception(ERR_EXPECTED_STRING, self.instructions_data[pc].clone());
                     }

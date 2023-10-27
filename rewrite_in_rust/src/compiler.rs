@@ -24,6 +24,7 @@ impl Compiler {
     }
 
     fn allocate_register(&mut self, var_name: String, reg: u8) {
+        // TODO: handle what to do here when we're in the global context
         let current_context = self.contexts.last_mut().unwrap();
         let current_block = current_context.blocks.last_mut().unwrap();
         current_block.locals.push(Local {
@@ -889,8 +890,6 @@ impl StmtVisitor<Chunk> for Compiler {
     }
 
     fn visit_if_stmt(&mut self, stmt: &IfStmt) -> Chunk {
-        let extra_jmp_insts: usize = 3;
-        let mut total_body_size: usize = 0;
         let mut if_cond_chunk = stmt.condition.accept(self);
         let mut if_body: Vec<InstSrc> = stmt
             .then_branch
@@ -898,9 +897,6 @@ impl StmtVisitor<Chunk> for Compiler {
             .map(|c| c.accept(self).instructions)
             .flatten()
             .collect();
-        total_body_size += if_cond_chunk.instructions.len();
-        total_body_size += if_body.len();
-        total_body_size += extra_jmp_insts;
         let mut elifs_cond_chunks: Vec<Chunk> = vec![];
         let mut elifs_body: Vec<Vec<InstSrc>> = vec![];
         for e in &stmt.elifs {
@@ -911,9 +907,6 @@ impl StmtVisitor<Chunk> for Compiler {
                 .map(|c| c.accept(self).instructions)
                 .flatten()
                 .collect();
-            total_body_size += elif_cond_chunk.instructions.len();
-            total_body_size += elifs_body.len();
-            total_body_size += extra_jmp_insts;
             elifs_cond_chunks.push(elif_cond_chunk);
             elifs_body.push(elif_body);
         }
@@ -923,7 +916,6 @@ impl StmtVisitor<Chunk> for Compiler {
             .map(|c| c.accept(self).instructions)
             .flatten()
             .collect();
-        total_body_size += else_body.len();
 
         // Add Test and Jump instructions
         let mut chunk = Chunk {
@@ -940,6 +932,7 @@ impl StmtVisitor<Chunk> for Compiler {
             },
             Some(stmt.keyword.clone()),
         );
+        // Body length + 2 jmps
         let mut jmp_offset = (if_body.len() + 2) as u16;
         chunk.push(
             Instruction {
@@ -951,13 +944,13 @@ impl StmtVisitor<Chunk> for Compiler {
             Some(stmt.keyword.clone()),
         );
         chunk.append(&mut if_body);
-        jmp_offset = (total_body_size - chunk.instructions.len() + 1) as u16;
+        // Jump to end, needs to be patched after adding all insts to chunk
         chunk.push(
             Instruction {
                 opcode: OpCode::Jmp,
                 a: 0,
-                b: (jmp_offset >> 8) as u8,
-                c: jmp_offset as u8,
+                b: 0,
+                c: 0,
             },
             Some(stmt.keyword.clone()),
         );
@@ -975,6 +968,7 @@ impl StmtVisitor<Chunk> for Compiler {
                 None,
             );
             let elif_body = &elifs_body[i];
+            // Body length + 2 jmps
             jmp_offset = (elif_body.len() + 2) as u16;
             chunk.push(
                 Instruction {
@@ -986,24 +980,35 @@ impl StmtVisitor<Chunk> for Compiler {
                 None,
             );
             chunk.append(&mut elif_body.clone());
-            jmp_offset = (total_body_size - chunk.instructions.len() + 1) as u16;
+            // Jump to end, needs to be patched after adding all insts to chunk
             chunk.push(
                 Instruction {
                     opcode: OpCode::Jmp,
                     a: 0,
-                    b: (jmp_offset >> 8) as u8,
-                    c: jmp_offset as u8,
+                    b: 0,
+                    c: 0,
                 },
                 None,
             );
         }
         chunk.append(&mut else_body.clone());
+        let chunk_size = chunk.instructions.len();
+        for (offset, inst) in chunk.instructions.iter_mut().enumerate() {
+            if inst.inst.opcode == OpCode::Jmp && inst.inst.b == 0 && inst.inst.c == 0 {
+                // Jump to the next instruction after this chunk
+                let jmp_offset = chunk_size - offset;
+                inst.inst.b = (jmp_offset >> 8) as u8;
+                inst.inst.c = jmp_offset as u8;
+            }
+        }
         return chunk;
     }
 
     fn visit_fn_stmt(&mut self, stmt: &FnStmt) -> Chunk {
         let result_register: u8 = self.next_register();
-        self.allocate_register(stmt.name.lexeme.to_string(), result_register);
+        if self.is_global_context() {
+            self.globals.insert(stmt.name.lexeme.to_string());
+        }
         self.enter_function(stmt.name.lexeme.to_string());
         // Register name inside function
         let self_fn_name_reg = self.next_register();
@@ -1043,13 +1048,8 @@ impl StmtVisitor<Chunk> for Compiler {
         }
         self.leave_block();
         let prototype_ix = self.leave_function(stmt.params.len());
-        let first_instruction = self.prototypes[prototype_ix as usize]
-            .instructions
-            .first_mut()
-            .unwrap();
-        first_instruction.b = (prototype_ix >> 8) as u8;
-        first_instruction.c = prototype_ix as u8;
-        return Chunk {
+
+        let mut chunk = Chunk {
             instructions: vec![InstSrc {
                 inst: Instruction {
                     opcode: OpCode::Closure,
@@ -1061,14 +1061,32 @@ impl StmtVisitor<Chunk> for Compiler {
             }],
             result_register: result_register,
         };
+        if self.is_global_context() {
+            let constant_ix = self.constants.len();
+            self.constants.push(Value::String(StringValue {
+                s: stmt.name.lexeme.to_string(),
+            }));
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::SetGlobal,
+                    a: chunk.result_register,
+                    b: (constant_ix >> 8) as u8,
+                    c: constant_ix as u8,
+                },
+                Some(stmt.name.clone()),
+            );
+        } else {
+            self.allocate_register(stmt.name.lexeme.to_string(), chunk.result_register);
+        }
+        return chunk;
     }
 
     fn visit_class_stmt(&mut self, stmt: &ClassStmt) -> Chunk {
         let result_register: u8 = self.next_register();
-        self.allocate_register(
-            stmt.name.clone().unwrap().lexeme.to_string(),
-            result_register,
-        );
+        if self.is_global_context() {
+            self.globals
+                .insert(stmt.name.clone().unwrap().lexeme.to_string());
+        }
         let mut chunk = Chunk {
             instructions: vec![],
             result_register: result_register,
@@ -1171,6 +1189,26 @@ impl StmtVisitor<Chunk> for Compiler {
             );
         }
         self.leave_block();
+        if self.is_global_context() {
+            let constant_ix = self.constants.len();
+            self.constants.push(Value::String(StringValue {
+                s: stmt.name.clone().unwrap().lexeme.to_string(),
+            }));
+            chunk.push(
+                Instruction {
+                    opcode: OpCode::SetGlobal,
+                    a: chunk.result_register,
+                    b: (constant_ix >> 8) as u8,
+                    c: constant_ix as u8,
+                },
+                stmt.name.clone(),
+            );
+        } else {
+            self.allocate_register(
+                stmt.name.clone().unwrap().lexeme.to_string(),
+                result_register,
+            );
+        }
         return chunk;
     }
 }

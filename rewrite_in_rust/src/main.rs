@@ -122,7 +122,7 @@ fn run_bytecode_interpreter(source: String) {
         "env".to_string(),
         value::Value::Native(native::Env::build()),
     );
-    println!("{:#?}", my_mv);
+    // println!("{:#?}", my_mv);
     // println!("{:#?}", my_mv.instructions);
     // println!("{:#?}", my_mv.constants);
     my_mv.interpret();

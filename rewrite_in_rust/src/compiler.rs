@@ -155,7 +155,7 @@ impl Compiler {
         return None;
     }
 
-    pub fn is_global(&self, var_name: String) -> bool {
+    pub fn is_builtin(&self, var_name: String) -> bool {
         return var_name == "io".to_string()
             || var_name == "strings".to_string()
             || var_name == "type".to_string()
@@ -1175,7 +1175,7 @@ impl ExprVisitor<Chunk> for Compiler {
                 }],
                 result_register: reg,
             };
-        } else if self.is_global(var_name.clone()) {
+        } else if self.is_builtin(var_name.clone()) {
             let reg = self.next_register();
             let constant_ix = self.constants.len();
             self.constants.push(Value::String(StringValue {
@@ -1184,7 +1184,7 @@ impl ExprVisitor<Chunk> for Compiler {
             return Chunk {
                 instructions: vec![InstSrc {
                     inst: Instruction {
-                        opcode: OpCode::GetGlobal,
+                        opcode: OpCode::GetBuiltin,
                         a: reg,
                         b: (constant_ix >> 8) as u8,
                         c: constant_ix as u8,

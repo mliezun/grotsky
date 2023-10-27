@@ -86,6 +86,7 @@ pub struct VM {
     pub prototypes: Vec<FnPrototype>,
     pub constants: Vec<Value>,
     pub globals: HashMap<String, Value>,
+    pub builtins: HashMap<String, Value>,
     pub stack: Vec<StackEntry>,
     pub activation_records: Vec<Record>,
     pub instructions_data: Vec<Option<TokenData>>,
@@ -1082,6 +1083,15 @@ impl VM {
                     self.activation_records[sp + inst.a as usize] = Record::Val(Value::Fn(
                         self.stack.last().unwrap().function.clone().unwrap(),
                     ));
+                    pc += 1;
+                }
+                OpCode::GetBuiltin => {
+                    if let Value::String(s) = &self.constants[inst.bx() as usize] {
+                        self.activation_records[sp + inst.a as usize] =
+                            Record::Val(self.builtins.get(&s.s).unwrap().clone());
+                    } else {
+                        self.exception(ERR_EXPECTED_STRING, self.instructions_data[pc].clone());
+                    }
                     pc += 1;
                 }
             }

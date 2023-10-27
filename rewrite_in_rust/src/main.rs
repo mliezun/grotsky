@@ -93,6 +93,7 @@ fn run_bytecode_interpreter(source: String) {
         prototypes: compiler.prototypes,
         constants: compiler.constants,
         globals: HashMap::new(),
+        builtins: HashMap::new(),
         stack: vec![vm::StackEntry {
             function: None,
             pc: 0,
@@ -106,17 +107,17 @@ fn run_bytecode_interpreter(source: String) {
         pc: 0,
     };
     my_mv
-        .globals
+        .builtins
         .insert("io".to_string(), value::Value::Native(native::IO::build()));
-    my_mv.globals.insert(
+    my_mv.builtins.insert(
         "strings".to_string(),
         value::Value::Native(native::Strings::build()),
     );
-    my_mv.globals.insert(
+    my_mv.builtins.insert(
         "type".to_string(),
         value::Value::Native(native::Type::build()),
     );
-    my_mv.globals.insert(
+    my_mv.builtins.insert(
         "env".to_string(),
         value::Value::Native(native::Env::build()),
     );

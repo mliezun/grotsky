@@ -46,19 +46,6 @@ fn tree_interpreter(source: String) {
     // println!("Duration tree: {:?}", duration.as_secs_f64());
 }
 
-fn run_bytecode_interpreter(source: String) {
-    let my_vm = interpreter::run_bytecode_interpreter(source);
-    // println!("{:#?}", my_mv);
-    // println!("{:#?}", my_mv.instructions);
-    // println!("{:#?}", my_mv.constants);
-    // let duration = start.elapsed();
-    // println!("{:#?}", my_mv.activation_records);
-    // println!(
-    //     "Duration compilation+execution: {:?}",
-    //     duration.as_secs_f64()
-    // );
-}
-
 fn string_to_static_str(s: String) -> &'static str {
     Box::leak(s.into_boxed_str())
 }
@@ -84,6 +71,5 @@ fn main() {
         // Disable rust backtrace
         panic::set_hook(Box::new(|_info| {}));
     }
-    // tree_interpreter(String::from(source));
-    run_bytecode_interpreter(String::from(source));
+    interpreter::run_bytecode_interpreter(String::from(source));
 }

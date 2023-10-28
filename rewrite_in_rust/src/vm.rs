@@ -1112,6 +1112,8 @@ impl VM {
         }
     }
 
+    // pub fn extern_call(&self, prototype: u16, values: Vec<Value>) -> Result<Value, RuntimeErr> {}
+
     pub fn exception(&self, error: RuntimeErr, token: Option<TokenData>) {
         match token {
             Some(tk) => {

@@ -1,11 +1,13 @@
-use std::{collections::HashMap, env, time::SystemTime};
+use std::{collections::HashMap, env, fs::canonicalize, time::SystemTime};
 
 use crate::{
     errors::ERR_INVALID_NUMBER_ARGUMENTS,
     errors::{RuntimeErr, ERR_EXPECTED_STRING},
+    interpreter,
     value::{ListValue, MutValue, NativeValue, NumberValue, StringValue, Value},
-    vm::VM,
 };
+use std::fs;
+use std::path::Path;
 
 pub struct IO {}
 
@@ -39,14 +41,17 @@ impl IO {
         let mut io = NativeValue {
             props: HashMap::new(),
             callable: None,
+            bind: false,
         };
         let println = NativeValue {
             props: HashMap::new(),
             callable: Some(&IO::println),
+            bind: false,
         };
         let clock = NativeValue {
             props: HashMap::new(),
             callable: Some(&IO::clock),
+            bind: false,
         };
         io.props
             .insert("println".to_string(), Value::Native(println));
@@ -159,30 +164,37 @@ impl Strings {
         let mut strings = NativeValue {
             props: HashMap::new(),
             callable: None,
+            bind: false,
         };
         let to_lower = NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::to_lower),
+            bind: false,
         };
         let to_upper = NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::to_upper),
+            bind: false,
         };
         let ord = NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::ord),
+            bind: false,
         };
         let chr = NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::chr),
+            bind: false,
         };
         let as_number = NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::as_number),
+            bind: false,
         };
         let split = NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::split),
+            bind: false,
         };
         strings
             .props
@@ -250,6 +262,7 @@ impl Type {
         let type_fn = NativeValue {
             props: HashMap::new(),
             callable: Some(&Type::type_fn),
+            bind: false,
         };
         return type_fn;
     }
@@ -296,14 +309,17 @@ impl Env {
         let mut env_mod = NativeValue {
             props: HashMap::new(),
             callable: None,
+            bind: false,
         };
         let get = NativeValue {
             props: HashMap::new(),
             callable: Some(&Env::get),
+            bind: false,
         };
         let set = NativeValue {
             props: HashMap::new(),
             callable: Some(&Env::set),
+            bind: false,
         };
         env_mod.props.insert("get".to_string(), Value::Native(get));
         env_mod.props.insert("set".to_string(), Value::Native(set));
@@ -314,10 +330,7 @@ impl Env {
 pub struct Import {}
 
 impl Import {
-    pub fn import(
-        compile_source: &'static dyn Fn(String) -> VM,
-        values: Vec<Value>,
-    ) -> Result<Value, RuntimeErr> {
+    pub fn import(values: Vec<Value>) -> Result<Value, RuntimeErr> {
         if values.len() != 1 {
             return Err(ERR_INVALID_NUMBER_ARGUMENTS);
         }
@@ -327,18 +340,38 @@ impl Import {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        let mut vm = compile_source(string_value.s.clone());
-        vm.interpret();
+        let path = Path::new(&string_value.s);
+        let full_path = if path.is_absolute() {
+            string_value.s.clone()
+        } else {
+            let abs_path = String::from(unsafe { interpreter::ABSOLUTE_PATH });
+            let mut path_buf_abs = canonicalize(abs_path).unwrap();
+            path_buf_abs.pop();
+            path_buf_abs.push(string_value.s.as_str());
+            String::from(path_buf_abs.canonicalize().unwrap().to_string_lossy())
+        };
+        let source = match fs::read_to_string(full_path) {
+            Ok(s) => s,
+            Err(_) => {
+                return Err(RuntimeErr {
+                    msg: "Cannot open file",
+                    signal: None,
+                });
+            }
+        };
+        let vm = interpreter::run_bytecode_interpreter(source);
         return Ok(Value::Native(NativeValue {
             props: vm.globals,
             callable: None,
+            bind: false,
         }));
     }
 
-    pub fn build(compile_source: &'static dyn Fn(String) -> VM) -> NativeValue {
-        let mut import_mod = NativeValue {
+    pub fn build() -> NativeValue {
+        let import_mod = NativeValue {
             props: HashMap::new(),
-            callable: None,
+            callable: Some(&Self::import),
+            bind: false,
         };
         return import_mod;
     }

@@ -2,6 +2,7 @@ mod compiler;
 mod errors;
 mod expr;
 mod instruction;
+mod interpreter;
 mod lexer;
 mod native;
 mod parser;
@@ -15,7 +16,7 @@ mod vm;
 use fnv::FnvHashMap;
 use std::collections::{HashMap, HashSet};
 
-use std::fs::read_to_string;
+use std::fs::{canonicalize, read_to_string};
 use std::time::Instant;
 use std::{env, panic};
 
@@ -46,86 +47,10 @@ fn tree_interpreter(source: String) {
 }
 
 fn run_bytecode_interpreter(source: String) {
-    let state = &mut state::InterpreterState::new(source);
-    let mut lex = lexer::Lexer::new(state);
-    lex.scan();
-    if !state.errors.is_empty() {
-        for err in &state.errors {
-            println!("Error on line {}\n\t{}", err.line, err.message);
-        }
-        return;
-    }
-    let mut parser = parser::Parser::new(state);
-    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-        parser.parse();
-    }));
-    if result.is_err() || !state.errors.is_empty() {
-        for err in &state.errors {
-            println!("Error on line {}\n\t{}", err.line, err.message);
-        }
-        return;
-    }
-    let mut compiler = compiler::Compiler {
-        constants: vec![],
-        contexts: vec![compiler::FnContext {
-            chunks: vec![],
-            register_count: 0,
-            name: "".to_string(),
-            loop_count: 0,
-            blocks: vec![compiler::Block { locals: vec![] }],
-            upvalues: vec![],
-        }],
-        prototypes: vec![],
-        globals: HashSet::new(),
-    };
-    // let start = Instant::now();
-    compiler.compile(state.stmts.clone());
-    let instructions: Vec<compiler::InstSrc> = compiler
-        .contexts
-        .iter()
-        .map(|c| c.chunks.iter())
-        .flatten()
-        .map(|c| c.instructions.clone())
-        .flatten()
-        .collect();
-    let mut my_mv = vm::VM {
-        instructions: instructions.iter().map(|i| i.inst.clone()).collect(),
-        instructions_data: instructions.iter().map(|i| i.src.clone()).collect(),
-        prototypes: compiler.prototypes,
-        constants: compiler.constants,
-        globals: HashMap::new(),
-        builtins: HashMap::new(),
-        stack: vec![vm::StackEntry {
-            function: None,
-            pc: 0,
-            sp: 0,
-            result_register: 0,
-            this: None,
-        }],
-        activation_records: (0..compiler.contexts.last().unwrap().register_count)
-            .map(|_| vm::Record::Val(value::Value::Nil))
-            .collect(),
-        pc: 0,
-    };
-    my_mv
-        .builtins
-        .insert("io".to_string(), value::Value::Native(native::IO::build()));
-    my_mv.builtins.insert(
-        "strings".to_string(),
-        value::Value::Native(native::Strings::build()),
-    );
-    my_mv.builtins.insert(
-        "type".to_string(),
-        value::Value::Native(native::Type::build()),
-    );
-    my_mv.builtins.insert(
-        "env".to_string(),
-        value::Value::Native(native::Env::build()),
-    );
+    let my_vm = interpreter::run_bytecode_interpreter(source);
     // println!("{:#?}", my_mv);
     // println!("{:#?}", my_mv.instructions);
     // println!("{:#?}", my_mv.constants);
-    my_mv.interpret();
     // let duration = start.elapsed();
     // println!("{:#?}", my_mv.activation_records);
     // println!(
@@ -134,12 +59,22 @@ fn run_bytecode_interpreter(source: String) {
     // );
 }
 
+fn string_to_static_str(s: String) -> &'static str {
+    Box::leak(s.into_boxed_str())
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     let content: String;
     let source: &str;
+    let abs_path = canonicalize(&args[1]).unwrap();
+    let abs_path_str = abs_path.to_string_lossy();
+    let abs_path_string = String::from(abs_path_str);
+    unsafe {
+        interpreter::ABSOLUTE_PATH = string_to_static_str(abs_path_string);
+    }
     if args.len() > 1 {
-        content = read_to_string(&args[1]).unwrap();
+        content = read_to_string(unsafe { interpreter::ABSOLUTE_PATH }).unwrap();
         source = content.as_str();
     } else {
         source = SOURCE;

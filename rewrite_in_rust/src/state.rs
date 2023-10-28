@@ -1,14 +1,14 @@
 use crate::stmt::*;
 use crate::token::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InterpreterError {
     pub message: String,
     pub line: i32,
     pub pos: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InterpreterState {
     pub source: String,
     pub tokens: Vec<TokenData>,

@@ -176,6 +176,16 @@ impl Compiler {
     }
 
     pub fn compile(&mut self, stmts: Vec<Stmt>) {
+        if self.contexts.is_empty() {
+            self.contexts.push(FnContext {
+                chunks: vec![],
+                register_count: 0,
+                name: "".to_string(),
+                loop_count: 0,
+                blocks: vec![Block { locals: vec![] }],
+                upvalues: vec![],
+            });
+        }
         for stmt in stmts {
             let chunk = stmt.accept(self);
             self.add_chunk(chunk);
@@ -391,7 +401,7 @@ pub struct FnPrototype {
     pub name: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FnContext {
     pub name: String,
     pub loop_count: u8,
@@ -438,7 +448,7 @@ pub struct InstSrc {
     pub src: Option<TokenData>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Chunk {
     pub instructions: Vec<InstSrc>,
     pub result_register: u8,

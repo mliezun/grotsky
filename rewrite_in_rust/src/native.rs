@@ -359,9 +359,8 @@ impl Import {
                 });
             }
         };
-        let vm = interpreter::run_bytecode_interpreter(source);
         return Ok(Value::Native(NativeValue {
-            props: vm.globals,
+            props: interpreter::import_module(source),
             callable: None,
             bind: false,
         }));

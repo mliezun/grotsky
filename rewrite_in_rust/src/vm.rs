@@ -47,7 +47,7 @@ macro_rules! make_call {
         $current_this = $bind_to;
 
         // Jump to new section of code
-        $instructions = &prototype.instructions;
+        $instructions = prototype.instructions.clone();
         $pc = 0;
         // Point to new instructions metadata
         // TODO: use reference instead of cloning
@@ -93,14 +93,13 @@ pub struct VM {
 
 impl VM {
     pub fn interpret(&mut self) {
-        let mut instructions = &self.instructions;
         let mut pc = self.stack[self.stack.len() - 1].pc;
         let mut sp = self.stack[self.stack.len() - 1].sp;
         let mut this: Option<MutValue<ObjectValue>> = None;
         let original_instructions_data = self.instructions_data.clone();
-        while pc < instructions.len() {
-            let inst = &instructions[pc];
-            // println!("Executing {:#?}", inst);
+        let original_instructions = self.instructions.clone();
+        while pc < self.instructions.len() {
+            let inst = self.instructions[pc].clone();
             match inst.opcode {
                 OpCode::LoadK => {
                     self.activation_records[sp + inst.a as usize] =
@@ -160,7 +159,7 @@ impl VM {
                                 fn_value,
                                 this,
                                 fn_value.0.borrow().this.clone(),
-                                instructions,
+                                self.instructions,
                                 pc,
                                 sp,
                                 inst.c,
@@ -180,8 +179,10 @@ impl VM {
                                 let result = callable(args);
                                 match result {
                                     Ok(v) => {
-                                        self.activation_records[sp + inst.c as usize - 1] =
-                                            Record::Val(v.clone());
+                                        if inst.c > 0 {
+                                            self.activation_records[sp + inst.c as usize - 1] =
+                                                Record::Val(v.clone());
+                                        }
                                     }
                                     Err(e) => {
                                         self.exception(e, self.instructions_data[pc].clone());
@@ -209,7 +210,7 @@ impl VM {
                                     cloned_fn_value,
                                     this,
                                     Some(object_value),
-                                    instructions,
+                                    self.instructions,
                                     pc,
                                     sp,
                                     0,
@@ -248,18 +249,17 @@ impl VM {
                     sp = stack.sp;
                     if let Some(func) = &self.stack.last().unwrap().function {
                         let proto = &self.prototypes[func.0.borrow().prototype as usize];
-                        instructions = &proto.instructions;
                         // TODO: use reference instead of cloning
+                        self.instructions = proto.instructions.clone();
                         self.instructions_data = proto.instruction_data.clone();
                     } else {
-                        instructions = &self.instructions;
                         // TODO: use reference instead of cloning
+                        self.instructions = original_instructions.clone();
                         self.instructions_data = original_instructions_data.clone();
                     }
                 }
 
                 OpCode::Jmp => {
-                    // println!("{:#?}", pc);
                     pc = pc.wrapping_add(inst.sbx() as usize);
                 }
                 OpCode::Test => {
@@ -298,7 +298,7 @@ impl VM {
                                         fn_value,
                                         this,
                                         fn_value.0.borrow().this.clone(),
-                                        instructions,
+                                        self.instructions,
                                         pc,
                                         sp,
                                         inst.a + 1,
@@ -604,8 +604,6 @@ impl VM {
                         Record::Ref(v) => v.0.borrow().clone(),
                         Record::Val(v) => v.clone(),
                     };
-                    // println!("{:#?}", val);
-                    // println!("{:#?}", accessor);
                     match val {
                         Value::List(list) => {
                             match list.0.borrow().access(accessor) {

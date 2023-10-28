@@ -81,7 +81,6 @@ impl Record {
 
 #[derive(Debug)]
 pub struct VM {
-    pub pc: usize,
     pub instructions: Vec<Instruction>,
     pub prototypes: Vec<FnPrototype>,
     pub constants: Vec<Value>,
@@ -95,7 +94,7 @@ pub struct VM {
 impl VM {
     pub fn interpret(&mut self) {
         let mut instructions = &self.instructions;
-        let mut pc = self.pc;
+        let mut pc = self.stack[self.stack.len() - 1].pc;
         let mut sp = self.stack[self.stack.len() - 1].sp;
         let mut this: Option<MutValue<ObjectValue>> = None;
         let original_instructions_data = self.instructions_data.clone();

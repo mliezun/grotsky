@@ -46,7 +46,7 @@ pub fn run_bytecode_interpreter(source: String) -> vm::VM {
         .map(|c| c.instructions.clone())
         .flatten()
         .collect();
-    let mut my_mv = vm::VM {
+    let mut my_vm = vm::VM {
         instructions: instructions.iter().map(|i| i.inst.clone()).collect(),
         instructions_data: instructions.iter().map(|i| i.src.clone()).collect(),
         prototypes: compiler.prototypes,
@@ -63,27 +63,26 @@ pub fn run_bytecode_interpreter(source: String) -> vm::VM {
         activation_records: (0..compiler.contexts.last().unwrap().register_count)
             .map(|_| vm::Record::Val(value::Value::Nil))
             .collect(),
-        pc: 0,
     };
-    my_mv
+    my_vm
         .builtins
         .insert("io".to_string(), value::Value::Native(native::IO::build()));
-    my_mv.builtins.insert(
+    my_vm.builtins.insert(
         "strings".to_string(),
         value::Value::Native(native::Strings::build()),
     );
-    my_mv.builtins.insert(
+    my_vm.builtins.insert(
         "type".to_string(),
         value::Value::Native(native::Type::build()),
     );
-    my_mv.builtins.insert(
+    my_vm.builtins.insert(
         "env".to_string(),
         value::Value::Native(native::Env::build()),
     );
-    my_mv.builtins.insert(
+    my_vm.builtins.insert(
         "import".to_string(),
         value::Value::Native(native::Import::build()),
     );
-    my_mv.interpret();
-    return my_mv;
+    my_vm.interpret();
+    return my_vm;
 }

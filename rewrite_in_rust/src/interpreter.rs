@@ -130,6 +130,7 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
 
     // Store current interpreter state
     let saved_fn_contexts = interpreter.compiler.contexts.clone();
+    let saved_compiler_globals = interpreter.compiler.globals.clone();
     let saved_instructions = interpreter.vm.instructions.clone();
     let saved_instructions_data = interpreter.vm.instructions_data.clone();
     let saved_activation_records = interpreter.vm.activation_records.clone();
@@ -138,6 +139,7 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
 
     let stmts = parse_source_code(source);
     interpreter.compiler.contexts = vec![];
+    interpreter.compiler.globals = HashSet::new();
     interpreter.compiler.compile(stmts);
 
     let instructions: Vec<compiler::InstSrc> = interpreter
@@ -164,6 +166,7 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
 
     // Restore saved state
     interpreter.compiler.contexts = saved_fn_contexts;
+    interpreter.compiler.globals = saved_compiler_globals;
     interpreter.vm.instructions = saved_instructions;
     interpreter.vm.instructions_data = saved_instructions_data;
     interpreter.vm.activation_records = saved_activation_records;

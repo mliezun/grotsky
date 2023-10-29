@@ -717,6 +717,7 @@ pub struct NativeValue {
     pub props: HashMap<String, Value>,
     pub callable: Option<&'static dyn Fn(Vec<Value>) -> Result<Value, RuntimeErr>>,
     pub bind: bool,
+    pub baggage: Option<Rc<RefCell<NativeBaggage>>>,
 }
 
 impl core::fmt::Debug for NativeValue {
@@ -727,6 +728,11 @@ impl core::fmt::Debug for NativeValue {
             write!(f, "NativeValue({:#?})", self.props)
         }
     }
+}
+
+#[derive(Debug)]
+pub enum NativeBaggage {
+    TcpSocket(socket2::Socket),
 }
 
 #[derive(Debug, Clone)]

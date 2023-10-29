@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 fnv = "1.0.7"
+socket2 = "0.5.5"
 
 
 [profile.release]

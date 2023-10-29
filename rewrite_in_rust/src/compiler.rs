@@ -164,7 +164,8 @@ impl Compiler {
             || var_name == "strings".to_string()
             || var_name == "type".to_string()
             || var_name == "env".to_string()
-            || var_name == "import".to_string();
+            || var_name == "import".to_string()
+            || var_name == "net".to_string();
     }
 
     pub fn is_global_var(&self, var_name: String) -> bool {

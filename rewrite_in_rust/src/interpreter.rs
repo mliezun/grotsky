@@ -63,6 +63,10 @@ fn setup_global_interpreter() {
             "import".to_string(),
             value::Value::Native(native::Import::build()),
         );
+        my_vm.builtins.insert(
+            "net".to_string(),
+            value::Value::Native(native::Net::build()),
+        );
         unsafe {
             GLOBAL_INTERPRETER = Some(Interpreter {
                 vm: my_vm,

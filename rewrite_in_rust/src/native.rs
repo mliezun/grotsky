@@ -1,10 +1,17 @@
-use std::{collections::HashMap, env, fs::canonicalize, time::SystemTime};
+use socket2::{Domain, Socket};
+use std::io::{Read, Write};
+use std::net::{Shutdown, SocketAddr, ToSocketAddrs};
+use std::ops::DerefMut;
+use std::{
+    cell::RefCell, collections::HashMap, env, fs::canonicalize, net::TcpListener, ops::Deref,
+    rc::Rc, time::SystemTime,
+};
 
 use crate::{
     errors::ERR_INVALID_NUMBER_ARGUMENTS,
-    errors::{RuntimeErr, ERR_EXPECTED_STRING},
+    errors::{RuntimeErr, ERR_EXPECTED_OBJECT, ERR_EXPECTED_STRING},
     interpreter,
-    value::{ListValue, MutValue, NativeValue, NumberValue, StringValue, Value},
+    value::{ListValue, MutValue, NativeBaggage, NativeValue, NumberValue, StringValue, Value},
 };
 use std::fs;
 use std::path::Path;
@@ -42,16 +49,19 @@ impl IO {
             props: HashMap::new(),
             callable: None,
             bind: false,
+            baggage: None,
         };
         let println = NativeValue {
             props: HashMap::new(),
             callable: Some(&IO::println),
             bind: false,
+            baggage: None,
         };
         let clock = NativeValue {
             props: HashMap::new(),
             callable: Some(&IO::clock),
             bind: false,
+            baggage: None,
         };
         io.props
             .insert("println".to_string(), Value::Native(println));
@@ -165,36 +175,43 @@ impl Strings {
             props: HashMap::new(),
             callable: None,
             bind: false,
+            baggage: None,
         };
         let to_lower = NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::to_lower),
             bind: false,
+            baggage: None,
         };
         let to_upper = NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::to_upper),
             bind: false,
+            baggage: None,
         };
         let ord = NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::ord),
             bind: false,
+            baggage: None,
         };
         let chr = NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::chr),
             bind: false,
+            baggage: None,
         };
         let as_number = NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::as_number),
             bind: false,
+            baggage: None,
         };
         let split = NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::split),
             bind: false,
+            baggage: None,
         };
         strings
             .props
@@ -263,6 +280,7 @@ impl Type {
             props: HashMap::new(),
             callable: Some(&Type::type_fn),
             bind: false,
+            baggage: None,
         };
         return type_fn;
     }
@@ -310,16 +328,19 @@ impl Env {
             props: HashMap::new(),
             callable: None,
             bind: false,
+            baggage: None,
         };
         let get = NativeValue {
             props: HashMap::new(),
             callable: Some(&Env::get),
             bind: false,
+            baggage: None,
         };
         let set = NativeValue {
             props: HashMap::new(),
             callable: Some(&Env::set),
             bind: false,
+            baggage: None,
         };
         env_mod.props.insert("get".to_string(), Value::Native(get));
         env_mod.props.insert("set".to_string(), Value::Native(set));
@@ -363,6 +384,7 @@ impl Import {
             props: interpreter::import_module(source),
             callable: None,
             bind: false,
+            baggage: None,
         }));
     }
 
@@ -371,7 +393,299 @@ impl Import {
             props: HashMap::new(),
             callable: Some(&Self::import),
             bind: false,
+            baggage: None,
         };
         return import_mod;
+    }
+}
+
+pub struct Net {}
+
+impl Net {
+    fn conn_address(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 1 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let native_value = match &values[0] {
+            Value::Native(n) => n,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let baggage = native_value.baggage.as_ref().unwrap();
+        let address_str = match baggage.borrow_mut().deref() {
+            NativeBaggage::TcpSocket(socket) => {
+                socket.peer_addr().unwrap().as_socket().unwrap().to_string()
+            }
+            _ => return Err(ERR_EXPECTED_OBJECT),
+        };
+        return Ok(Value::String(StringValue { s: address_str }));
+    }
+
+    fn conn_read(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 1 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let native_value = match &values[0] {
+            Value::Native(n) => n,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let baggage = native_value.baggage.as_ref().unwrap();
+        let mut buf = String::new();
+        match baggage.borrow_mut().deref_mut() {
+            NativeBaggage::TcpSocket(socket) => {
+                socket.read_to_string(&mut buf).expect("Read connection")
+            }
+            _ => return Err(ERR_EXPECTED_OBJECT),
+        };
+        return Ok(Value::String(StringValue { s: buf }));
+    }
+
+    fn conn_write(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 2 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let native_value = match &values[0] {
+            Value::Native(n) => n,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let str = match &values[1] {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let baggage = native_value.baggage.as_ref().unwrap();
+        match baggage.borrow_mut().deref_mut() {
+            NativeBaggage::TcpSocket(socket) => {
+                socket.write_all(str.s.as_bytes()).expect("Write to conn");
+            }
+            _ => return Err(ERR_EXPECTED_OBJECT),
+        };
+        return Ok(Value::Number(NumberValue {
+            n: str.s.len() as f64,
+        }));
+    }
+
+    fn address(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 1 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let native_value = match &values[0] {
+            Value::Native(n) => n,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let baggage = native_value.baggage.as_ref().unwrap();
+        let address_str = match baggage.borrow_mut().deref() {
+            NativeBaggage::TcpSocket(socket) => socket
+                .local_addr()
+                .unwrap()
+                .as_socket()
+                .unwrap()
+                .to_string(),
+            _ => return Err(ERR_EXPECTED_OBJECT),
+        };
+        return Ok(Value::String(StringValue { s: address_str }));
+    }
+
+    fn close(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 1 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let native_value = match &values[0] {
+            Value::Native(n) => n,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let baggage = native_value.baggage.as_ref().unwrap();
+        match baggage.borrow_mut().deref() {
+            NativeBaggage::TcpSocket(socket) => {
+                socket.shutdown(Shutdown::Both).expect("Socket shudown");
+            }
+            _ => return Err(ERR_EXPECTED_OBJECT),
+        }
+        return Ok(Value::Nil);
+    }
+
+    fn accept(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 1 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let native_value = match &values[0] {
+            Value::Native(n) => n,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let baggage = native_value.baggage.as_ref().unwrap();
+        let conn = match baggage.borrow_mut().deref() {
+            NativeBaggage::TcpSocket(socket) => {
+                let mut conn_obj = NativeValue {
+                    props: HashMap::new(),
+                    callable: None,
+                    bind: false,
+                    baggage: None,
+                };
+                let baggage = match socket.accept() {
+                    Err(_) => {
+                        return Err(RuntimeErr {
+                            msg: "Cannot accept connection",
+                            signal: None,
+                        });
+                    }
+                    Ok((conn, _)) => Some(Rc::new(RefCell::new(NativeBaggage::TcpSocket(conn)))),
+                };
+                conn_obj.props.insert(
+                    "address".to_string(),
+                    Value::Native(NativeValue {
+                        props: HashMap::new(),
+                        callable: Some(&Self::conn_address),
+                        bind: true,
+                        baggage: baggage.clone(),
+                    }),
+                );
+                conn_obj.props.insert(
+                    "close".to_string(),
+                    Value::Native(NativeValue {
+                        props: HashMap::new(),
+                        callable: Some(&Self::close),
+                        bind: true,
+                        baggage: baggage.clone(),
+                    }),
+                );
+                conn_obj.props.insert(
+                    "read".to_string(),
+                    Value::Native(NativeValue {
+                        props: HashMap::new(),
+                        callable: Some(&Self::conn_read),
+                        bind: true,
+                        baggage: baggage.clone(),
+                    }),
+                );
+                conn_obj.props.insert(
+                    "write".to_string(),
+                    Value::Native(NativeValue {
+                        props: HashMap::new(),
+                        callable: Some(&Self::conn_write),
+                        bind: true,
+                        baggage: baggage.clone(),
+                    }),
+                );
+                conn_obj
+            }
+            _ => return Err(ERR_EXPECTED_OBJECT),
+        };
+        return Ok(Value::Native(conn));
+    }
+
+    fn listen_tcp(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 1 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let string_value = match values.first().unwrap() {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let mut listen_tcp_module = NativeValue {
+            props: HashMap::new(),
+            callable: None,
+            bind: true,
+            baggage: None,
+        };
+
+        let socket = match Socket::new(Domain::IPV4, socket2::Type::STREAM, None) {
+            Ok(s) => s,
+            Err(_) => {
+                return Err(RuntimeErr {
+                    msg: "Cannot create a new socket",
+                    signal: None,
+                });
+            }
+        };
+        let mut address = string_value.s.to_socket_addrs();
+        let address = match &mut address {
+            Ok(a) => a.next().unwrap(),
+            Err(_) => {
+                return Err(RuntimeErr {
+                    msg: "Cannot parse bind address",
+                    signal: None,
+                });
+            }
+        };
+        match socket.bind(&address.into()) {
+            Err(_) => {
+                return Err(RuntimeErr {
+                    msg: "Cannot bind port",
+                    signal: None,
+                })
+            }
+            _ => {}
+        }
+        match socket.listen(128) {
+            Err(_) => {
+                return Err(RuntimeErr {
+                    msg: "Cannot listen on port",
+                    signal: None,
+                })
+            }
+            _ => {}
+        }
+        let baggage = Some(Rc::new(RefCell::new(NativeBaggage::TcpSocket(socket))));
+        listen_tcp_module.props.insert(
+            "address".to_string(),
+            Value::Native(NativeValue {
+                props: HashMap::new(),
+                callable: Some(&Self::address),
+                bind: true,
+                baggage: baggage.clone(),
+            }),
+        );
+        listen_tcp_module.props.insert(
+            "close".to_string(),
+            Value::Native(NativeValue {
+                props: HashMap::new(),
+                callable: Some(&Self::close),
+                bind: true,
+                baggage: baggage.clone(),
+            }),
+        );
+        listen_tcp_module.props.insert(
+            "accept".to_string(),
+            Value::Native(NativeValue {
+                props: HashMap::new(),
+                callable: Some(&Self::accept),
+                bind: true,
+                baggage: baggage.clone(),
+            }),
+        );
+        return Ok(Value::Native(listen_tcp_module));
+    }
+
+    pub fn build() -> NativeValue {
+        let mut net = NativeValue {
+            props: HashMap::new(),
+            callable: None,
+            bind: false,
+            baggage: None,
+        };
+        net.props.insert(
+            "listenTcp".to_string(),
+            Value::Native(NativeValue {
+                props: HashMap::new(),
+                callable: Some(&Self::listen_tcp),
+                bind: false,
+                baggage: None,
+            }),
+        );
+        return net;
     }
 }

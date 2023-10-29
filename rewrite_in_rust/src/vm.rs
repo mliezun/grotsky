@@ -152,7 +152,7 @@ impl VM {
                         Record::Ref(v) => v.0.borrow().clone(),
                         Record::Val(v) => v.clone(),
                     };
-                    match val {
+                    match &val {
                         Value::Fn(fn_value) => {
                             make_call!(
                                 self,
@@ -169,6 +169,9 @@ impl VM {
                         Value::Native(n) => {
                             if let Some(callable) = n.callable {
                                 let mut args: Vec<Value> = vec![];
+                                if n.bind {
+                                    args.push(val.clone());
+                                }
                                 for reg in (inst.a + 1)..(inst.a + inst.b) {
                                     let val = match &self.activation_records[sp + reg as usize] {
                                         Record::Ref(v) => v.0.borrow().clone(),

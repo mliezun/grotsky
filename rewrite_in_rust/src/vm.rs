@@ -55,6 +55,43 @@ macro_rules! make_call {
     }};
 }
 
+macro_rules! throw_exception {
+    ( $self:expr, $this:expr, $original_instructions:expr, $original_instructions_data:expr, $pc:expr, $sp:expr, $error:expr ) => {{
+        if let Some(catch_exc) = $self.catch_exceptions.last_mut() {
+            // Pop all frames
+            for i in ($self.stack.len()..catch_exc.stack_ix) {
+                if let Some(fn_value) = &$self.stack[i].function {
+                    let prototype = &$self.prototypes[fn_value.0.borrow().prototype as usize];
+                    let new_length =
+                        $self.activation_records.len() - prototype.register_count as usize;
+                    $self.activation_records.truncate(new_length);
+                }
+                $self.stack.pop();
+            }
+            let stack = &$self.stack[catch_exc.stack_ix];
+            $this = stack.this.clone();
+            $sp = stack.sp;
+            $pc = catch_exc.catch_block_pc;
+            catch_exc.exception = Some($error);
+
+            if let Some(func) = &stack.function {
+                let proto = &$self.prototypes[func.0.borrow().prototype as usize];
+                // TODO: use reference instead of cloning
+                $self.instructions = proto.instructions.clone();
+                $self.instructions_data = proto.instruction_data.clone();
+            } else {
+                // TODO: use reference instead of cloning
+                $self.instructions = $original_instructions.clone();
+                $self.instructions_data = $original_instructions_data.clone();
+            }
+            continue;
+        } else {
+            $self.exception($error, $self.instructions_data[$pc].clone());
+        }
+        unreachable!();
+    }};
+}
+
 #[derive(Debug, Clone)]
 pub struct StackEntry {
     pub function: Option<MutValue<FnValue>>, // Empty when main function
@@ -80,6 +117,13 @@ impl Record {
 }
 
 #[derive(Debug)]
+pub struct CatchException {
+    stack_ix: usize,
+    catch_block_pc: usize,
+    exception: Option<RuntimeErr>,
+}
+
+#[derive(Debug)]
 pub struct VM {
     pub instructions: Vec<Instruction>,
     pub prototypes: Vec<FnPrototype>,
@@ -89,6 +133,7 @@ pub struct VM {
     pub stack: Vec<StackEntry>,
     pub activation_records: Vec<Record>,
     pub instructions_data: Vec<Option<TokenData>>,
+    pub catch_exceptions: Vec<CatchException>,
 }
 
 impl VM {
@@ -188,14 +233,27 @@ impl VM {
                                         }
                                     }
                                     Err(e) => {
-                                        self.exception(e, self.instructions_data[pc].clone());
+                                        throw_exception!(
+                                            self,
+                                            this,
+                                            original_instructions,
+                                            original_instructions_data,
+                                            pc,
+                                            sp,
+                                            e
+                                        );
                                     }
                                 }
                                 pc += 1;
                             } else {
-                                self.exception(
-                                    ERR_ONLY_FUNCTION,
-                                    self.instructions_data[pc].clone(),
+                                throw_exception!(
+                                    self,
+                                    this,
+                                    original_instructions,
+                                    original_instructions_data,
+                                    pc,
+                                    sp,
+                                    ERR_ONLY_FUNCTION
                                 );
                             }
                         }
@@ -224,7 +282,15 @@ impl VM {
                             }
                         }
                         _ => {
-                            self.exception(ERR_ONLY_FUNCTION, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_ONLY_FUNCTION
+                            );
                         }
                     }
                 }
@@ -308,13 +374,26 @@ impl VM {
                                         (inst.c)..(inst.c + 1)
                                     );
                                 } else {
-                                    self.exception(
-                                        ERR_EXPECTED_FUNCTION,
-                                        self.instructions_data[pc].clone(),
+                                    throw_exception!(
+                                        self,
+                                        this,
+                                        original_instructions,
+                                        original_instructions_data,
+                                        pc,
+                                        sp,
+                                        ERR_EXPECTED_FUNCTION
                                     );
                                 }
                             } else {
-                                self.exception(e, self.instructions_data[pc].clone());
+                                throw_exception!(
+                                    self,
+                                    this,
+                                    original_instructions,
+                                    original_instructions_data,
+                                    pc,
+                                    sp,
+                                    e
+                                );
                             }
                         }
                     }
@@ -334,7 +413,15 @@ impl VM {
                             self.activation_records[sp + inst.a as usize] = Record::Val(v);
                         }
                         Err(e) => {
-                            self.exception(e, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                e
+                            );
                         }
                     }
 
@@ -355,7 +442,15 @@ impl VM {
                             self.activation_records[sp + inst.a as usize] = Record::Val(v);
                         }
                         Err(e) => {
-                            self.exception(e, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                e
+                            );
                         }
                     }
                     pc += 1;
@@ -431,7 +526,15 @@ impl VM {
                             self.activation_records[sp + inst.a as usize] = Record::Val(v);
                         }
                         Err(e) => {
-                            self.exception(e, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                e
+                            );
                         }
                     }
                     pc += 1;
@@ -502,7 +605,17 @@ impl VM {
                         Ok(v) => {
                             self.activation_records[sp + inst.a as usize] = Record::Val(v);
                         }
-                        Err(e) => self.exception(e, self.instructions_data[pc].clone()),
+                        Err(e) => {
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                e
+                            );
+                        }
                     }
                     pc += 1;
                 }
@@ -614,7 +727,15 @@ impl VM {
                                     self.activation_records[sp + inst.a as usize] = Record::Val(v);
                                 }
                                 Err(e) => {
-                                    self.exception(e, self.instructions_data[pc].clone());
+                                    throw_exception!(
+                                        self,
+                                        this,
+                                        original_instructions,
+                                        original_instructions_data,
+                                        pc,
+                                        sp,
+                                        e
+                                    );
                                 }
                             }
                             pc += 1;
@@ -625,7 +746,15 @@ impl VM {
                                     self.activation_records[sp + inst.a as usize] = Record::Val(v);
                                 }
                                 Err(e) => {
-                                    self.exception(e, self.instructions_data[pc].clone());
+                                    throw_exception!(
+                                        self,
+                                        this,
+                                        original_instructions,
+                                        original_instructions_data,
+                                        pc,
+                                        sp,
+                                        e
+                                    );
                                 }
                             }
                             pc += 1;
@@ -636,13 +765,29 @@ impl VM {
                                     self.activation_records[sp + inst.a as usize] = Record::Val(v);
                                 }
                                 Err(e) => {
-                                    self.exception(e, self.instructions_data[pc].clone());
+                                    throw_exception!(
+                                        self,
+                                        this,
+                                        original_instructions,
+                                        original_instructions_data,
+                                        pc,
+                                        sp,
+                                        e
+                                    );
                                 }
                             }
                             pc += 1;
                         }
                         _ => {
-                            self.exception(ERR_INVALID_ACCESS, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_INVALID_ACCESS
+                            );
                         }
                     }
                 }
@@ -702,8 +847,15 @@ impl VM {
                         }
                         Value::Nil => {}
                         _ => {
-                            self.exception(ERR_EXPECTED_CLASS, self.instructions_data[pc].clone());
-                            unreachable!();
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_EXPECTED_CLASS
+                            );
                         }
                     }
                     self.activation_records[sp + inst.a as usize] =
@@ -790,7 +942,15 @@ impl VM {
                     let prop = if let Value::String(s) = val_c {
                         s.s
                     } else {
-                        self.exception(ERR_EXPECTED_STRING, self.instructions_data[pc].clone());
+                        throw_exception!(
+                            self,
+                            this,
+                            original_instructions,
+                            original_instructions_data,
+                            pc,
+                            sp,
+                            ERR_EXPECTED_STRING
+                        );
                         unreachable!();
                     };
                     match val_b.get(prop) {
@@ -798,7 +958,15 @@ impl VM {
                             self.activation_records[sp + inst.a as usize] = Record::Val(v);
                         }
                         Err(e) => {
-                            self.exception(e, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                e
+                            );
                         }
                     }
                     pc += 1;
@@ -818,38 +986,107 @@ impl VM {
                     };
                     match val_a {
                         Value::Number(n) => {
-                            self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_READ_ONLY
+                            );
                         }
                         Value::Bool(b) => {
-                            self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_READ_ONLY
+                            );
                         }
                         Value::String(s) => {
-                            self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_READ_ONLY
+                            );
                         }
                         Value::List(l) => {
-                            self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_READ_ONLY
+                            );
                         }
                         Value::Dict(d) => {
-                            self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_READ_ONLY
+                            );
                         }
                         Value::Native(n) => {
-                            self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_READ_ONLY
+                            );
                         }
                         Value::Class(c) => {
-                            self.exception(ERR_READ_ONLY, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_READ_ONLY
+                            );
                         }
                         Value::Object(o) => {
                             if let Value::String(s) = val_b {
                                 o.0.borrow_mut().fields.insert(s.s.clone(), val_c);
                             } else {
-                                self.exception(
-                                    ERR_EXPECTED_STRING,
-                                    self.instructions_data[pc].clone(),
+                                throw_exception!(
+                                    self,
+                                    this,
+                                    original_instructions,
+                                    original_instructions_data,
+                                    pc,
+                                    sp,
+                                    ERR_EXPECTED_STRING
                                 );
                             }
                         }
                         _ => {
-                            self.exception(ERR_EXPECTED_OBJECT, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_EXPECTED_OBJECT
+                            );
                         }
                     };
                     pc += 1;
@@ -868,7 +1105,15 @@ impl VM {
                             self.activation_records[sp + inst.a as usize] = Record::Val(v);
                         }
                         Err(e) => {
-                            self.exception(e, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                e
+                            );
                         }
                     }
                     pc += 1;
@@ -887,7 +1132,15 @@ impl VM {
                     let n = if let Value::Number(n) = val_c.as_val() {
                         n.n as usize
                     } else {
-                        self.exception(ERR_EXPECTED_NUMBER, self.instructions_data[pc].clone());
+                        throw_exception!(
+                            self,
+                            this,
+                            original_instructions,
+                            original_instructions_data,
+                            pc,
+                            sp,
+                            ERR_EXPECTED_NUMBER
+                        );
                         0
                     };
                     match val_b.as_val() {
@@ -918,9 +1171,14 @@ impl VM {
                                 Record::Val(l.0.borrow().elements[n].clone())
                         }
                         _ => {
-                            self.exception(
-                                ERR_EXPECTED_COLLECTION,
-                                self.instructions_data[pc].clone(),
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_EXPECTED_COLLECTION
                             );
                         }
                     }
@@ -940,7 +1198,15 @@ impl VM {
                     let n = if let Value::Number(n) = val_c.as_val() {
                         n.n as usize
                     } else {
-                        self.exception(ERR_EXPECTED_NUMBER, self.instructions_data[pc].clone());
+                        throw_exception!(
+                            self,
+                            this,
+                            original_instructions,
+                            original_instructions_data,
+                            pc,
+                            sp,
+                            ERR_EXPECTED_NUMBER
+                        );
                         0
                     };
                     match val_b.as_val() {
@@ -956,9 +1222,14 @@ impl VM {
                                 Record::Val(l.0.borrow().elements[n].clone())
                         }
                         _ => {
-                            self.exception(
-                                ERR_EXPECTED_COLLECTION,
-                                self.instructions_data[pc].clone(),
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_EXPECTED_COLLECTION
                             );
                         }
                     }
@@ -986,9 +1257,14 @@ impl VM {
                                 self.activation_records[sp + inst.a as usize] =
                                     Record::Val(d.0.borrow().elements.get(&v).unwrap().clone());
                             } else {
-                                self.exception(
-                                    ERR_EXPECTED_IDENTIFIERS_DICT,
-                                    self.instructions_data[pc].clone(),
+                                throw_exception!(
+                                    self,
+                                    this,
+                                    original_instructions,
+                                    original_instructions_data,
+                                    pc,
+                                    sp,
+                                    ERR_EXPECTED_IDENTIFIERS_DICT
                                 );
                             }
                         }
@@ -997,14 +1273,27 @@ impl VM {
                                 self.activation_records[sp + inst.a as usize] =
                                     Record::Val(e.clone());
                             } else {
-                                self.exception(
-                                    ERR_WRONG_NUMBER_OF_VALUES,
-                                    self.instructions_data[pc].clone(),
+                                throw_exception!(
+                                    self,
+                                    this,
+                                    original_instructions,
+                                    original_instructions_data,
+                                    pc,
+                                    sp,
+                                    ERR_WRONG_NUMBER_OF_VALUES
                                 );
                             }
                         }
                         _ => {
-                            self.exception(ERR_CANNOT_UNPACK, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_CANNOT_UNPACK
+                            );
                         }
                     }
                     pc += 1;
@@ -1029,9 +1318,14 @@ impl VM {
                                 }));
                         }
                         _ => {
-                            self.exception(
-                                ERR_EXPECTED_COLLECTION,
-                                self.instructions_data[pc].clone(),
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_EXPECTED_COLLECTION
                             );
                         }
                     }
@@ -1046,8 +1340,15 @@ impl VM {
                     let prop = if let Value::String(s) = val_b.as_val() {
                         s.s
                     } else {
-                        self.exception(ERR_EXPECTED_STRING, self.instructions_data[pc].clone());
-                        unreachable!();
+                        throw_exception!(
+                            self,
+                            this,
+                            original_instructions,
+                            original_instructions_data,
+                            pc,
+                            sp,
+                            ERR_EXPECTED_STRING
+                        );
                     };
                     let _obj = this.as_ref().unwrap().clone();
                     let o = _obj.0.borrow();
@@ -1058,10 +1359,26 @@ impl VM {
                             self.activation_records[sp + inst.a as usize] =
                                 Record::Val(m.0.borrow().bind(_obj.clone()));
                         } else {
-                            self.exception(ERR_METHOD_NOT_FOUND, self.instructions_data[pc].clone())
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_METHOD_NOT_FOUND
+                            );
                         }
                     } else {
-                        self.exception(ERR_EXPECTED_SUPERCLASS, self.instructions_data[pc].clone());
+                        throw_exception!(
+                            self,
+                            this,
+                            original_instructions,
+                            original_instructions_data,
+                            pc,
+                            sp,
+                            ERR_EXPECTED_SUPERCLASS
+                        );
                     }
                     pc += 1;
                 }
@@ -1075,10 +1392,26 @@ impl VM {
                         if let Some(g) = self.globals.get(&s.s) {
                             self.activation_records[sp + inst.a as usize] = Record::Val(g.clone());
                         } else {
-                            self.exception(ERR_UNDEFINED_VAR, self.instructions_data[pc].clone());
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                ERR_UNDEFINED_VAR
+                            );
                         }
                     } else {
-                        self.exception(ERR_EXPECTED_STRING, self.instructions_data[pc].clone());
+                        throw_exception!(
+                            self,
+                            this,
+                            original_instructions,
+                            original_instructions_data,
+                            pc,
+                            sp,
+                            ERR_EXPECTED_STRING
+                        );
                     }
                     pc += 1;
                 }
@@ -1089,7 +1422,15 @@ impl VM {
                             self.activation_records[sp + inst.a as usize].as_val(),
                         );
                     } else {
-                        self.exception(ERR_EXPECTED_STRING, self.instructions_data[pc].clone());
+                        throw_exception!(
+                            self,
+                            this,
+                            original_instructions,
+                            original_instructions_data,
+                            pc,
+                            sp,
+                            ERR_EXPECTED_STRING
+                        );
                     }
                     pc += 1;
                 }
@@ -1104,8 +1445,45 @@ impl VM {
                         self.activation_records[sp + inst.a as usize] =
                             Record::Val(self.builtins.get(&s.s).unwrap().clone());
                     } else {
-                        self.exception(ERR_EXPECTED_STRING, self.instructions_data[pc].clone());
+                        throw_exception!(
+                            self,
+                            this,
+                            original_instructions,
+                            original_instructions_data,
+                            pc,
+                            sp,
+                            ERR_EXPECTED_STRING
+                        );
                     }
+                    pc += 1;
+                }
+                OpCode::RegisterTryCatch => {
+                    self.catch_exceptions.push(CatchException {
+                        catch_block_pc: pc + inst.bx() as usize,
+                        stack_ix: self.stack.len() - 1,
+                        exception: None,
+                    });
+                    pc += 1;
+                }
+                OpCode::DeregisterTryCatch => {
+                    if !self.catch_exceptions.is_empty() {
+                        self.catch_exceptions.pop().expect("Deregister try catch");
+                    }
+                    pc += 1;
+                }
+                OpCode::GetExcept => {
+                    self.activation_records[sp + inst.a as usize] =
+                        if let Some(catched_exception) = self.catch_exceptions.last() {
+                            if let Some(exc) = &catched_exception.exception {
+                                Record::Val(Value::String(StringValue {
+                                    s: exc.msg.to_string(),
+                                }))
+                            } else {
+                                Record::Val(Value::Nil)
+                            }
+                        } else {
+                            Record::Val(Value::Nil)
+                        };
                     pc += 1;
                 }
             }

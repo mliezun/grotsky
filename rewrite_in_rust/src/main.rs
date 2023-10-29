@@ -9,15 +9,11 @@ mod parser;
 mod state;
 mod stmt;
 mod token;
-mod tree_interp;
 mod value;
 mod vm;
 
-use fnv::FnvHashMap;
-use std::collections::{HashMap, HashSet};
-
 use std::fs::{canonicalize, read_to_string};
-use std::time::Instant;
+
 use std::{env, panic};
 
 const SOURCE: &str = "
@@ -26,25 +22,6 @@ while a < 1000000 {
     a = a + 1
 }
 ";
-
-fn tree_interpreter(source: String) {
-    let state = &mut state::InterpreterState::new(source);
-    let mut lex = lexer::Lexer::new(state);
-    lex.scan();
-    let mut parser = parser::Parser::new(state);
-    parser.parse();
-    // println!("{:#?}", state.tokens);
-    // println!("{:#?}", state.stmts);
-    let mut env = tree_interp::Env {
-        enclosing: None,
-        values: FnvHashMap::default(),
-    };
-    let mut exec = tree_interp::Exec::new(core::ptr::addr_of_mut!(env));
-    let start = Instant::now();
-    exec.interpret(&mut state.stmts);
-    let duration = start.elapsed();
-    // println!("Duration tree: {:?}", duration.as_secs_f64());
-}
 
 fn string_to_static_str(s: String) -> &'static str {
     Box::leak(s.into_boxed_str())

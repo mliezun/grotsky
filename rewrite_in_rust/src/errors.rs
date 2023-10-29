@@ -1,6 +1,6 @@
 use crate::value::Value;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct RuntimeErr {
     pub msg: &'static str,
 

@@ -43,6 +43,7 @@ fn setup_global_interpreter() {
                 this: None,
             }],
             activation_records: vec![],
+            catch_exceptions: vec![],
         };
         my_vm
             .builtins

@@ -471,7 +471,76 @@ impl StmtVisitor<Chunk> for Compiler {
     }
 
     fn visit_try_catch_stmt(&mut self, stmt: &TryCatchStmt) -> Chunk {
-        todo!()
+        let mut chunk = Chunk {
+            result_register: 0,
+            instructions: vec![],
+        };
+
+        // Stores the jump to the catch section, needs to be patched
+        chunk.push(
+            Instruction {
+                opcode: OpCode::RegisterTryCatch,
+                a: 0,
+                b: 0,
+                c: 0,
+            },
+            None,
+        );
+
+        let try_body_chunk = stmt.try_body.accept(self);
+        chunk.append(&mut try_body_chunk.instructions.clone());
+
+        // Jmp to end, needs to be patched
+        chunk.push(
+            Instruction {
+                opcode: OpCode::Jmp,
+                a: 0,
+                b: 0,
+                c: 0,
+            },
+            None,
+        );
+
+        let catch_offset = chunk.instructions.len();
+        chunk.instructions[0].inst.b = (catch_offset >> 8) as u8;
+        chunk.instructions[0].inst.c = catch_offset as u8;
+
+        self.enter_block();
+        let catch_var_name_reg = self.next_register();
+        self.allocate_register(stmt.name.lexeme.to_string(), catch_var_name_reg);
+        chunk.push(
+            Instruction {
+                opcode: OpCode::GetExcept,
+                a: catch_var_name_reg,
+                b: 0,
+                c: 0,
+            },
+            Some(stmt.name.clone()),
+        );
+        let catch_body_chunk = stmt.catch_body.accept(self);
+        self.leave_block();
+        chunk.append(&mut catch_body_chunk.instructions.clone());
+
+        let jmp_offset = chunk.instructions.len();
+        for inst in &mut chunk.instructions {
+            if inst.inst.opcode == OpCode::Jmp && inst.inst.b == 0 && inst.inst.c == 0 {
+                inst.inst.b = (jmp_offset >> 8) as u8;
+                inst.inst.c = jmp_offset as u8;
+                break;
+            }
+        }
+
+        chunk.push(
+            Instruction {
+                opcode: OpCode::DeregisterTryCatch,
+                a: 0,
+                b: 0,
+                c: 0,
+            },
+            None,
+        );
+
+        return chunk;
     }
 
     fn visit_classic_for_stmt(&mut self, stmt: &ClassicForStmt) -> Chunk {

@@ -2,9 +2,7 @@
 
 use crate::state::*;
 use crate::token::*;
-use fnv::FnvHashMap;
 use std::collections::HashMap;
-use std::time::Instant;
 
 pub struct Lexer<'a> {
     start: usize,

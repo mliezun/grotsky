@@ -280,4 +280,7 @@ GetGlobal (A, Bx) R(A) := G[K(Bx)]
 SetGlobal (A, Bx) G[K(Bx)] := R(A)
 GetCurrentFunc (A) R(A) := func
 GetBuiltin (A, Bx) R(A) := B[K(Bx)]
+RegisterTryCatch (Bx) TRY[] = {Bx}
+DeregisterTryCatch () pop(TRY)
+GetExcept (A) R(A) := exception
 ```

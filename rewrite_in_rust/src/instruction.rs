@@ -48,6 +48,9 @@ pub enum OpCode {
     SetGlobal,
     GetCurrentFunc,
     GetBuiltin,
+    RegisterTryCatch,
+    DeregisterTryCatch,
+    GetExcept,
 }
 
 // To indicate if the JMP is a continue or break inside

@@ -759,6 +759,25 @@ impl VM {
                             }
                             pc += 1;
                         }
+                        Value::Bytes(str) => {
+                            match str.access(accessor) {
+                                Ok(v) => {
+                                    self.activation_records[sp + inst.a as usize] = Record::Val(v);
+                                }
+                                Err(e) => {
+                                    throw_exception!(
+                                        self,
+                                        this,
+                                        original_instructions,
+                                        original_instructions_data,
+                                        pc,
+                                        sp,
+                                        e
+                                    );
+                                }
+                            }
+                            pc += 1;
+                        }
                         Value::Dict(dict) => {
                             match dict.0.borrow().access(accessor) {
                                 Ok(v) => {

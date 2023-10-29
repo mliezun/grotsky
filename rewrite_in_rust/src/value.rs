@@ -29,6 +29,7 @@ pub enum Value {
     Native(NativeValue),
     Number(NumberValue),
     String(StringValue),
+    Bytes(BytesValue),
     Bool(BoolValue),
     Slice(SliceValue),
     Nil,
@@ -65,6 +66,7 @@ impl Value {
     pub fn string(&self) -> String {
         match self {
             Value::String(s) => s.s.clone(),
+            Value::Bytes(s) => format!("{:#?}", s.s),
             Value::Number(n) => n.n.to_string(),
             Value::Bool(b) => b.b.to_string(),
             Value::List(l) => {
@@ -209,6 +211,26 @@ impl Value {
                 return Ok(Value::String(StringValue {
                     s: str_val.s.clone() + &other_val.s,
                 }));
+            } else if let Value::Bytes(other_val) = other {
+                let mut left_bytes = str_val.s.clone().into_bytes();
+                let mut right_bytes = other_val.s.clone();
+                left_bytes.append(&mut right_bytes);
+                return Ok(Value::Bytes(BytesValue { s: left_bytes }));
+            } else {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        }
+        if let Value::Bytes(bytes_val) = self {
+            if let Value::String(other_val) = other {
+                let mut left_bytes = bytes_val.s.clone();
+                let mut right_bytes = other_val.s.clone().into_bytes();
+                left_bytes.append(&mut right_bytes);
+                return Ok(Value::Bytes(BytesValue { s: left_bytes }));
+            } else if let Value::Bytes(other_val) = other {
+                let mut left_bytes = bytes_val.s.clone();
+                let mut right_bytes = other_val.s.clone();
+                left_bytes.append(&mut right_bytes);
+                return Ok(Value::Bytes(BytesValue { s: left_bytes }));
             } else {
                 return Err(ERR_EXPECTED_STRING);
             }
@@ -748,4 +770,38 @@ pub enum NativeBaggage {
 pub struct ObjectValue {
     pub class: MutValue<ClassValue>,
     pub fields: HashMap<String, Value>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BytesValue {
+    pub s: Vec<u8>,
+}
+
+impl BytesValue {
+    pub fn access(&self, accesor: Value) -> Result<Value, RuntimeErr> {
+        match accesor {
+            Value::Number(val) => Ok(Value::Bytes(BytesValue {
+                s: vec![self.s[val.n as usize]],
+            })),
+            Value::Slice(val) => {
+                let mut result_bytes: Vec<u8> = vec![];
+                match val.as_range() {
+                    Ok((range, step)) => {
+                        if step > self.s.len() {
+                            return Ok(Value::Bytes(BytesValue { s: result_bytes }));
+                        }
+                        for i in range.step_by(step) {
+                            if i >= self.s.len() {
+                                break;
+                            }
+                            result_bytes.push(self.s[i]);
+                        }
+                        Ok(Value::Bytes(BytesValue { s: result_bytes }))
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+            _ => unimplemented!(),
+        }
+    }
 }

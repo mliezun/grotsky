@@ -7,7 +7,7 @@ use std::{
     time::SystemTime,
 };
 
-use crate::value::{BoolValue, DictValue};
+use crate::value::{BoolValue, BytesValue, DictValue};
 use crate::{
     errors::ERR_INVALID_NUMBER_ARGUMENTS,
     errors::{RuntimeErr, ERR_EXPECTED_OBJECT, ERR_EXPECTED_STRING},
@@ -57,10 +57,22 @@ impl IO {
         };
         match fs::read_to_string(string_value.s.as_str()) {
             Ok(content) => Ok(Value::String(StringValue { s: content })),
-            Err(e) => Err(RuntimeErr {
-                msg: "Cannot read file",
-                signal: None,
-            }),
+            Err(e) => {
+                if let std::io::ErrorKind::InvalidData = e.kind() {
+                    match fs::read(string_value.s.as_str()) {
+                        Ok(c) => Ok(Value::Bytes(BytesValue { s: c })),
+                        Err(_) => Err(RuntimeErr {
+                            msg: "Cannot read file",
+                            signal: None,
+                        }),
+                    }
+                } else {
+                    Err(RuntimeErr {
+                        msg: "Cannot read file",
+                        signal: None,
+                    })
+                }
+            }
         }
     }
 
@@ -75,12 +87,13 @@ impl IO {
             }
         };
         let content = match &values[1] {
-            Value::String(s) => s,
+            Value::String(s) => s.s.as_bytes(),
+            Value::Bytes(s) => &s.s,
             _ => {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        match fs::write(path.s.as_str(), content.s.as_str()) {
+        match fs::write(path.s.as_str(), content) {
             Ok(_) => Ok(Value::Nil),
             Err(_) => Err(RuntimeErr {
                 msg: "Cannot write file",
@@ -383,6 +396,9 @@ impl Type {
             })),
             Value::String(_) => Ok(Value::String(StringValue {
                 s: "string".to_string(),
+            })),
+            Value::Bytes(_) => Ok(Value::String(StringValue {
+                s: "bytes".to_string(),
             })),
             Value::Bool(_) => Ok(Value::String(StringValue {
                 s: "bool".to_string(),

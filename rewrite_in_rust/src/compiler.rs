@@ -50,7 +50,7 @@ impl Compiler {
         current_context.blocks.pop();
     }
 
-    fn enter_function(&mut self, name: String) {
+    pub fn enter_function(&mut self, name: String) {
         self.contexts.push(FnContext {
             name: name,
             loop_count: 0,
@@ -61,7 +61,7 @@ impl Compiler {
         });
     }
 
-    fn leave_function(&mut self, param_count: usize) -> u16 {
+    pub fn leave_function(&mut self, param_count: usize) -> u16 {
         let current_context = self.contexts.pop().unwrap();
         let prototype_ix = self.prototypes.len();
         let mut instructions: Vec<InstSrc> = current_context
@@ -439,8 +439,8 @@ pub struct Block {
 
 #[derive(Clone, Debug)]
 pub struct Local {
-    var_name: String,
-    reg: u8,
+    pub var_name: String,
+    pub reg: u8,
 }
 
 #[derive(Debug, Clone)]

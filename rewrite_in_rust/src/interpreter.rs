@@ -140,14 +140,16 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
     let stmts = parse_source_code(source);
     interpreter.compiler.contexts = vec![];
     interpreter.compiler.globals = HashSet::new();
+    interpreter.compiler.enter_function("".to_string());
+    interpreter.compiler.enter_function("module".to_string());
     interpreter.compiler.compile(stmts);
+    let module_global_context = interpreter.compiler.contexts[1].clone();
+    interpreter.compiler.leave_function(0);
+    interpreter.compiler.leave_function(0);
 
-    let instructions: Vec<compiler::InstSrc> = interpreter
-        .compiler
-        .contexts
+    let instructions: Vec<compiler::InstSrc> = module_global_context
+        .chunks
         .iter()
-        .map(|c| c.chunks.iter())
-        .flatten()
         .map(|c| c.instructions.clone())
         .flatten()
         .collect();
@@ -155,14 +157,26 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
     interpreter.vm.instructions_data = instructions.iter().map(|i| i.src.clone()).collect();
     interpreter.vm.prototypes = interpreter.compiler.prototypes.clone();
     interpreter.vm.constants = interpreter.compiler.constants.clone();
-    interpreter.vm.activation_records =
-        (0..interpreter.compiler.contexts.last().unwrap().register_count)
-            .map(|_| vm::Record::Val(value::Value::Nil))
-            .collect();
+    interpreter.vm.activation_records = (0..module_global_context.register_count)
+        .map(|_| vm::Record::Val(value::Value::Nil))
+        .collect();
     interpreter.vm.globals = HashMap::new();
     interpreter.vm.interpret();
 
-    let module_exports = interpreter.vm.globals.clone();
+    // println!("Global context blocks {:#?}", module_global_context.blocks);
+
+    let module_exports = module_global_context.blocks[0]
+        .locals
+        .iter()
+        .map(|l| {
+            (
+                l.var_name.clone(),
+                interpreter.vm.activation_records[l.reg as usize].as_val(),
+            )
+        })
+        .collect();
+
+    // println!("module exports {:#?}", module_exports);
 
     // Restore saved state
     interpreter.compiler.contexts = saved_fn_contexts;

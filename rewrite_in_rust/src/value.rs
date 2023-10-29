@@ -164,7 +164,13 @@ impl Value {
                     Err(ERR_UNDEFINED_PROP)
                 }
             }
-            Value::Native(n) => Ok(n.props.get(&prop).unwrap().clone()),
+            Value::Native(n) => {
+                if let Some(p) = n.props.get(&prop) {
+                    Ok(p.clone())
+                } else {
+                    Err(ERR_UNDEFINED_PROP)
+                }
+            }
             Value::Object(o) => {
                 let obj = o.0.borrow();
                 if let Some(p) = obj.fields.get(&prop) {
@@ -667,7 +673,10 @@ impl DictValue {
         }
         match accesor {
             Value::Slice(_) => Err(ERR_EXPECTED_KEY),
-            _ => Ok(self.elements.get(&accesor).unwrap().clone()),
+            _ => match self.elements.get(&accesor) {
+                Some(val) => Ok(val.clone()),
+                None => Err(ERR_UNDEFINED_PROP),
+            },
         }
     }
 }

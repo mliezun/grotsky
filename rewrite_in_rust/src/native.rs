@@ -1,12 +1,13 @@
 use socket2::{Domain, Socket};
 use std::io::{Read, Write};
-use std::net::{Shutdown, SocketAddr, ToSocketAddrs};
+use std::net::{Shutdown, ToSocketAddrs};
 use std::ops::DerefMut;
 use std::{
-    cell::RefCell, collections::HashMap, env, fs::canonicalize, net::TcpListener, ops::Deref,
-    rc::Rc, time::SystemTime,
+    cell::RefCell, collections::HashMap, env, fs::canonicalize, ops::Deref, rc::Rc,
+    time::SystemTime,
 };
 
+use crate::value::{BoolValue, DictValue};
 use crate::{
     errors::ERR_INVALID_NUMBER_ARGUMENTS,
     errors::{RuntimeErr, ERR_EXPECTED_OBJECT, ERR_EXPECTED_STRING},
@@ -44,6 +45,102 @@ impl IO {
         }));
     }
 
+    fn read_file(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 1 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let string_value = match values.first().unwrap() {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        match fs::read_to_string(string_value.s.as_str()) {
+            Ok(content) => Ok(Value::String(StringValue { s: content })),
+            Err(e) => Err(RuntimeErr {
+                msg: "Cannot read file",
+                signal: None,
+            }),
+        }
+    }
+
+    fn write_file(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 1 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let path = match values.first().unwrap() {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let content = match &values[1] {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        match fs::write(path.s.as_str(), content.s.as_str()) {
+            Ok(_) => Ok(Value::Nil),
+            Err(_) => Err(RuntimeErr {
+                msg: "Cannot write file",
+                signal: None,
+            }),
+        }
+    }
+
+    fn list_dir(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 1 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let path = match values.first().unwrap() {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        match fs::read_dir(path.s.as_str()) {
+            Ok(content) => {
+                let mut list = ListValue { elements: vec![] };
+                for d in content {
+                    let mut dict = HashMap::new();
+                    let file = d.unwrap();
+                    let file_metadata = file.metadata().unwrap();
+                    let file_name = file.file_name().into_string().unwrap();
+                    dict.insert(
+                        Value::String(StringValue {
+                            s: "name".to_string(),
+                        }),
+                        Value::String(StringValue { s: file_name }),
+                    );
+                    dict.insert(
+                        Value::String(StringValue {
+                            s: "size".to_string(),
+                        }),
+                        Value::Number(NumberValue {
+                            n: file_metadata.len() as f64,
+                        }),
+                    );
+                    dict.insert(
+                        Value::String(StringValue {
+                            s: "is_dir".to_string(),
+                        }),
+                        Value::Bool(BoolValue {
+                            b: file_metadata.is_dir(),
+                        }),
+                    );
+                    list.elements
+                        .push(Value::Dict(MutValue::new(DictValue { elements: dict })));
+                }
+                Ok(Value::List(MutValue::new(list)))
+            }
+            Err(_) => Err(RuntimeErr {
+                msg: "Cannot read dir",
+                signal: None,
+            }),
+        }
+    }
+
     pub fn build() -> NativeValue {
         let mut io = NativeValue {
             props: HashMap::new(),
@@ -63,9 +160,33 @@ impl IO {
             bind: false,
             baggage: None,
         };
+        let read_file = NativeValue {
+            props: HashMap::new(),
+            callable: Some(&IO::read_file),
+            bind: false,
+            baggage: None,
+        };
+        let write_file = NativeValue {
+            props: HashMap::new(),
+            callable: Some(&IO::write_file),
+            bind: false,
+            baggage: None,
+        };
+        let list_dir = NativeValue {
+            props: HashMap::new(),
+            callable: Some(&IO::list_dir),
+            bind: false,
+            baggage: None,
+        };
         io.props
             .insert("println".to_string(), Value::Native(println));
         io.props.insert("clock".to_string(), Value::Native(clock));
+        io.props
+            .insert("readFile".to_string(), Value::Native(read_file));
+        io.props
+            .insert("writeFile".to_string(), Value::Native(write_file));
+        io.props
+            .insert("listDir".to_string(), Value::Native(list_dir));
         return io;
     }
 }

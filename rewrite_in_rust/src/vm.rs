@@ -108,7 +108,7 @@ pub enum Record {
 }
 
 impl Record {
-    fn as_val(&self) -> Value {
+    pub fn as_val(&self) -> Value {
         match self {
             Record::Val(v) => v.clone(),
             Record::Ref(v) => v.0.deref().borrow_mut().clone(),

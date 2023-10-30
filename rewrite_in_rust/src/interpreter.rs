@@ -163,8 +163,6 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
     interpreter.vm.globals = HashMap::new();
     interpreter.vm.interpret();
 
-    // println!("Global context blocks {:#?}", module_global_context.blocks);
-
     let module_exports = module_global_context.blocks[0]
         .locals
         .iter()
@@ -175,8 +173,6 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
             )
         })
         .collect();
-
-    // println!("module exports {:#?}", module_exports);
 
     // Restore saved state
     interpreter.compiler.contexts = saved_fn_contexts;

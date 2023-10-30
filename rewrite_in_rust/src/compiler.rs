@@ -1298,6 +1298,9 @@ impl ExprVisitor<Chunk> for Compiler {
     fn visit_function_expr(&mut self, expr: &FnExpr) -> Chunk {
         let result_register: u8 = self.next_register();
         self.enter_function("".to_string());
+        // FIXME: We need to skip first register because in fn_stmt we use
+        // it for storing the function
+        self.next_register();
         for p in expr.params.iter() {
             let reg = self.next_register();
             self.allocate_register(p.lexeme.to_string(), reg);

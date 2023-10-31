@@ -1,14 +1,25 @@
+use crate::vm::StackEntry;
 use crate::{compiler, lexer, native, parser, state, stmt, value, vm};
 use std::collections::{HashMap, HashSet};
 use std::panic;
 
-pub static mut ABSOLUTE_PATH: &'static str = "";
+static mut ABSOLUTE_PATH: &'static str = "";
 
 static mut GLOBAL_INTERPRETER: Option<Interpreter> = None;
 
 struct Interpreter {
     vm: vm::VM,
     compiler: compiler::Compiler,
+}
+
+pub fn get_absolute_path() -> String {
+    unsafe { ABSOLUTE_PATH.to_string() }
+}
+
+pub fn set_absolute_path(path: String) {
+    unsafe {
+        ABSOLUTE_PATH = Box::leak(path.into_boxed_str());
+    }
 }
 
 fn get_global_interpreter() -> &'static mut Interpreter {
@@ -161,6 +172,13 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
         .map(|_| vm::Record::Val(value::Value::Nil))
         .collect();
     interpreter.vm.globals = HashMap::new();
+    interpreter.vm.stack.push(StackEntry {
+        function: None,
+        pc: 0,
+        sp: 0,
+        result_register: 0,
+        this: None,
+    });
     interpreter.vm.interpret();
 
     let module_exports = module_global_context.blocks[0]

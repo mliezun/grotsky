@@ -498,17 +498,17 @@ impl Import {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
+        let current_abs_path = interpreter::get_absolute_path();
         let path = Path::new(&string_value.s);
         let full_path = if path.is_absolute() {
             string_value.s.clone()
         } else {
-            let abs_path = String::from(unsafe { interpreter::ABSOLUTE_PATH });
-            let mut path_buf_abs = canonicalize(abs_path).unwrap();
+            let mut path_buf_abs = canonicalize(&current_abs_path).unwrap();
             path_buf_abs.pop();
             path_buf_abs.push(string_value.s.as_str());
             String::from(path_buf_abs.canonicalize().unwrap().to_string_lossy())
         };
-        let source = match fs::read_to_string(full_path) {
+        let source = match fs::read_to_string(&full_path) {
             Ok(s) => s,
             Err(_) => {
                 return Err(RuntimeErr {
@@ -517,12 +517,15 @@ impl Import {
                 });
             }
         };
-        return Ok(Value::Native(NativeValue {
+        interpreter::set_absolute_path(full_path);
+        let result = Ok(Value::Native(NativeValue {
             props: interpreter::import_module(source),
             callable: None,
             bind: false,
             baggage: None,
         }));
+        interpreter::set_absolute_path(current_abs_path);
+        return result;
     }
 
     pub fn build() -> NativeValue {

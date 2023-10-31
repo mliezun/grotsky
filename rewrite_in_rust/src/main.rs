@@ -34,11 +34,9 @@ fn main() {
     let abs_path = canonicalize(&args[1]).unwrap();
     let abs_path_str = abs_path.to_string_lossy();
     let abs_path_string = String::from(abs_path_str);
-    unsafe {
-        interpreter::ABSOLUTE_PATH = string_to_static_str(abs_path_string);
-    }
+    interpreter::set_absolute_path(abs_path_string);
     if args.len() > 1 {
-        content = read_to_string(unsafe { interpreter::ABSOLUTE_PATH }).unwrap();
+        content = read_to_string(interpreter::get_absolute_path()).unwrap();
         source = content.as_str();
     } else {
         source = SOURCE;

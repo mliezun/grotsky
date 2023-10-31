@@ -663,7 +663,15 @@ impl VM {
                         );
                         pc += 1;
                     } else {
-                        panic!("Cannot push to non-list");
+                        throw_exception!(
+                            self,
+                            this,
+                            original_instructions,
+                            original_instructions_data,
+                            pc,
+                            sp,
+                            ERR_EXPECTED_LIST
+                        );
                     }
                 }
                 OpCode::Dict => {

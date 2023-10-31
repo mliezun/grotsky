@@ -35,9 +35,22 @@ impl Compiler {
 
     fn next_register(&mut self) -> u8 {
         let current_context = self.contexts.last_mut().unwrap();
+        if current_context.register_count == 255 {
+            panic!("Ran out of registers");
+        }
         let reg = current_context.register_count;
         current_context.register_count += 1;
         return reg;
+    }
+
+    fn reg_count(&self) -> u8 {
+        let current_context = self.contexts.last().unwrap();
+        return current_context.register_count;
+    }
+
+    fn set_reg_count(&mut self, reg_count: u8) {
+        let current_context = self.contexts.last_mut().unwrap();
+        current_context.register_count = reg_count;
     }
 
     fn enter_block(&mut self) {
@@ -1414,8 +1427,14 @@ impl ExprVisitor<Chunk> for Compiler {
                 src: Some(expr.brace.clone()),
             }],
         };
+        let beggining_reg_count = self.reg_count();
+        let mut max_reg_count = self.reg_count();
         for e in &expr.elements {
             let el_chunk = e.accept(self);
+            if self.reg_count() > max_reg_count {
+                max_reg_count = self.reg_count();
+            }
+            self.set_reg_count(beggining_reg_count);
             chunk.append(&mut el_chunk.instructions.clone());
             chunk.push(
                 Instruction {
@@ -1427,6 +1446,7 @@ impl ExprVisitor<Chunk> for Compiler {
                 Some(expr.brace.clone()),
             );
         }
+        self.set_reg_count(max_reg_count);
         return chunk;
     }
 

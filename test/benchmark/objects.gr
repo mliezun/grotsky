@@ -29,7 +29,6 @@ fn main(n) {
 	linkedList.iterate(fn(list) {
 		sum = sum + list.value
 	})
-	io.println(sum)
 }
 
 main(60000)

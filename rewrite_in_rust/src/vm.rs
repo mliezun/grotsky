@@ -70,7 +70,7 @@ macro_rules! throw_exception {
             }
             let stack = &$self.stack[catch_exc.stack_ix];
             $this = stack.this.clone();
-            $sp = stack.sp;
+            $sp = catch_exc.sp;
             $pc = catch_exc.catch_block_pc;
             catch_exc.exception = Some($error);
 
@@ -119,6 +119,7 @@ impl Record {
 #[derive(Debug)]
 pub struct CatchException {
     stack_ix: usize,
+    sp: usize,
     catch_block_pc: usize,
     exception: Option<RuntimeErr>,
 }
@@ -1488,6 +1489,7 @@ impl VM {
                     self.catch_exceptions.push(CatchException {
                         catch_block_pc: pc + inst.bx() as usize,
                         stack_ix: self.stack.len() - 1,
+                        sp: sp,
                         exception: None,
                     });
                     pc += 1;

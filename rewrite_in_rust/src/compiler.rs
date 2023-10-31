@@ -502,6 +502,15 @@ impl StmtVisitor<Chunk> for Compiler {
 
         let try_body_chunk = stmt.try_body.accept(self);
         chunk.append(&mut try_body_chunk.instructions.clone());
+        chunk.push(
+            Instruction {
+                opcode: OpCode::DeregisterTryCatch,
+                a: 0,
+                b: 0,
+                c: 0,
+            },
+            None,
+        );
 
         // Jmp to end, needs to be patched
         chunk.push(
@@ -530,19 +539,6 @@ impl StmtVisitor<Chunk> for Compiler {
             },
             Some(stmt.name.clone()),
         );
-        let catch_body_chunk = stmt.catch_body.accept(self);
-        self.leave_block();
-        chunk.append(&mut catch_body_chunk.instructions.clone());
-
-        let jmp_offset = chunk.instructions.len();
-        for inst in &mut chunk.instructions {
-            if inst.inst.opcode == OpCode::Jmp && inst.inst.b == 0 && inst.inst.c == 0 {
-                inst.inst.b = (jmp_offset >> 8) as u8;
-                inst.inst.c = jmp_offset as u8;
-                break;
-            }
-        }
-
         chunk.push(
             Instruction {
                 opcode: OpCode::DeregisterTryCatch,
@@ -552,6 +548,22 @@ impl StmtVisitor<Chunk> for Compiler {
             },
             None,
         );
+        let catch_body_chunk = stmt.catch_body.accept(self);
+        self.leave_block();
+        chunk.append(&mut catch_body_chunk.instructions.clone());
+
+        let jmp_offset = chunk.instructions.len() - catch_offset + 1;
+        for inst in &mut chunk.instructions {
+            if inst.inst.opcode == OpCode::Jmp
+                && inst.inst.a == 0
+                && inst.inst.b == 0
+                && inst.inst.c == 0
+            {
+                inst.inst.b = (jmp_offset >> 8) as u8;
+                inst.inst.c = jmp_offset as u8;
+                break;
+            }
+        }
 
         return chunk;
     }
@@ -1088,7 +1100,11 @@ impl StmtVisitor<Chunk> for Compiler {
         chunk.append(&mut else_body.clone());
         let chunk_size = chunk.instructions.len();
         for (offset, inst) in chunk.instructions.iter_mut().enumerate() {
-            if inst.inst.opcode == OpCode::Jmp && inst.inst.b == 0 && inst.inst.c == 0 {
+            if inst.inst.opcode == OpCode::Jmp
+                && inst.inst.a == 0
+                && inst.inst.b == 0
+                && inst.inst.c == 0
+            {
                 // Jump to the next instruction after this chunk
                 let jmp_offset = chunk_size - offset;
                 inst.inst.b = (jmp_offset >> 8) as u8;

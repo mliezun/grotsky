@@ -549,7 +549,7 @@ impl Net {
         let native_value = match &values[0] {
             Value::Native(n) => n,
             _ => {
-                return Err(ERR_EXPECTED_STRING);
+                return Err(ERR_EXPECTED_OBJECT);
             }
         };
         let baggage = native_value.baggage.as_ref().unwrap();
@@ -569,18 +569,22 @@ impl Net {
         let native_value = match &values[0] {
             Value::Native(n) => n,
             _ => {
-                return Err(ERR_EXPECTED_STRING);
+                return Err(ERR_EXPECTED_OBJECT);
             }
         };
         let baggage = native_value.baggage.as_ref().unwrap();
-        let mut buf = String::new();
+        let mut buf: Vec<u8> = vec![0; 4096];
+        let size;
         match baggage.borrow_mut().deref_mut() {
             NativeBaggage::TcpSocket(socket) => {
-                socket.read_to_string(&mut buf).expect("Read connection")
+                size = socket.read(&mut buf).expect("Read from connection");
             }
             _ => return Err(ERR_EXPECTED_OBJECT),
         };
-        return Ok(Value::String(StringValue { s: buf }));
+        let read_from_connection = &buf[0..size];
+        return Ok(Value::String(StringValue {
+            s: String::from_utf8(read_from_connection.to_vec()).expect("Read as string"),
+        }));
     }
 
     fn conn_write(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -618,7 +622,7 @@ impl Net {
         let native_value = match &values[0] {
             Value::Native(n) => n,
             _ => {
-                return Err(ERR_EXPECTED_STRING);
+                return Err(ERR_EXPECTED_OBJECT);
             }
         };
         let baggage = native_value.baggage.as_ref().unwrap();
@@ -641,7 +645,7 @@ impl Net {
         let native_value = match &values[0] {
             Value::Native(n) => n,
             _ => {
-                return Err(ERR_EXPECTED_STRING);
+                return Err(ERR_EXPECTED_OBJECT);
             }
         };
         let baggage = native_value.baggage.as_ref().unwrap();
@@ -661,7 +665,7 @@ impl Net {
         let native_value = match &values[0] {
             Value::Native(n) => n,
             _ => {
-                return Err(ERR_EXPECTED_STRING);
+                return Err(ERR_EXPECTED_OBJECT);
             }
         };
         let baggage = native_value.baggage.as_ref().unwrap();
@@ -751,7 +755,14 @@ impl Net {
                 });
             }
         };
-        let mut address = string_value.s.to_socket_addrs();
+        let bind_to_address = if string_value.s.starts_with(":") {
+            let mut ip = "0.0.0.0".to_string();
+            ip.push_str(string_value.s.as_str());
+            ip
+        } else {
+            string_value.s.clone()
+        };
+        let mut address = bind_to_address.to_socket_addrs();
         let address = match &mut address {
             Ok(a) => a.next().unwrap(),
             Err(_) => {

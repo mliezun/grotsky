@@ -597,8 +597,9 @@ impl Net {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        let str = match &values[1] {
-            Value::String(s) => s,
+        let content = match &values[1] {
+            Value::String(s) => s.s.as_bytes(),
+            Value::Bytes(s) => s.s.as_slice(),
             _ => {
                 return Err(ERR_EXPECTED_STRING);
             }
@@ -606,12 +607,12 @@ impl Net {
         let baggage = native_value.baggage.as_ref().unwrap();
         match baggage.borrow_mut().deref_mut() {
             NativeBaggage::TcpSocket(socket) => {
-                socket.write_all(str.s.as_bytes()).expect("Write to conn");
+                socket.write_all(content).expect("Write to conn");
             }
             _ => return Err(ERR_EXPECTED_OBJECT),
         };
         return Ok(Value::Number(NumberValue {
-            n: str.s.len() as f64,
+            n: content.len() as f64,
         }));
     }
 
@@ -651,7 +652,7 @@ impl Net {
         let baggage = native_value.baggage.as_ref().unwrap();
         match baggage.borrow_mut().deref() {
             NativeBaggage::TcpSocket(socket) => {
-                socket.shutdown(Shutdown::Both).expect("Socket shudown");
+                socket.shutdown(Shutdown::Both).unwrap_or(());
             }
             _ => return Err(ERR_EXPECTED_OBJECT),
         }

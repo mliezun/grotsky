@@ -59,7 +59,7 @@ macro_rules! throw_exception {
     ( $self:expr, $this:expr, $original_instructions:expr, $original_instructions_data:expr, $pc:expr, $sp:expr, $error:expr ) => {{
         if let Some(catch_exc) = $self.catch_exceptions.last_mut() {
             // Pop all frames
-            for i in ($self.stack.len()..catch_exc.stack_ix) {
+            for i in (($self.stack.len() - 1)..catch_exc.stack_ix) {
                 if let Some(fn_value) = &$self.stack[i].function {
                     let prototype = &$self.prototypes[fn_value.0.borrow().prototype as usize];
                     let new_length =

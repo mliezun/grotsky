@@ -1,0 +1,37 @@
+let start = io.clock()
+
+class List {
+	init(value) {
+		this.next = nil
+		this.value = value
+	}
+
+	setNext(next) {
+		this.next = next
+		return this
+	}
+
+	iterate(iterFn) {
+		let current = this
+		while (current != nil) {
+			iterFn(current)
+			current = current.next
+		}
+	}
+}
+
+fn main(n) {
+	let linkedList = List(0)
+	for let i = 1; i <= n; i = i + 1 {
+		linkedList = List(i).setNext(linkedList)
+	}
+	let sum = 0
+	linkedList.iterate(fn(list) {
+		sum = sum + list.value
+	})
+	io.println(sum)
+}
+
+main(60000)
+
+io.println(io.clock() - start)

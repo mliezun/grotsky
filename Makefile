@@ -5,8 +5,14 @@ clean:
 	@ rm -rf $(BUILD_DIR)
 
 
-benchmark: grotsky grotsky-rs
+benchmark_loop: grotsky grotsky-rs
 	python tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs loop 
+
+benchmark_fib: grotsky grotsky-rs
+	python tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs fib
+
+benchmark_objects: grotsky grotsky-rs
+	python tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs fib
 
 test_grotsky: grotsky
 	@ go test -v ./... -interpreter Go

@@ -77,7 +77,7 @@ impl IO {
     }
 
     fn write_file(values: Vec<Value>) -> Result<Value, RuntimeErr> {
-        if values.len() != 1 {
+        if values.len() != 2 {
             return Err(ERR_INVALID_NUMBER_ARGUMENTS);
         }
         let path = match values.first().unwrap() {
@@ -154,6 +154,47 @@ impl IO {
         }
     }
 
+    fn file_exists(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 1 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let path = match values.first().unwrap() {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        match fs::metadata(&path.s) {
+            Ok(_) => Ok(Value::Bool(BoolValue { b: true })),
+            Err(_) => Ok(Value::Bool(BoolValue { b: false })),
+        }
+    }
+
+    fn mkdir_all(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 2 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let path = match values.first().unwrap() {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let _perm = match values.first().unwrap() {
+            Value::Number(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        match fs::create_dir_all(&path.s) {
+            Ok(_) => Ok(Value::Nil),
+            Err(_) => Err(RuntimeErr {
+                msg: "Cannot create file",
+                signal: None,
+            }),
+        }
+    }
+
     pub fn build() -> NativeValue {
         let mut io = NativeValue {
             props: HashMap::new(),
@@ -191,6 +232,18 @@ impl IO {
             bind: false,
             baggage: None,
         };
+        let file_exists = NativeValue {
+            props: HashMap::new(),
+            callable: Some(&IO::file_exists),
+            bind: false,
+            baggage: None,
+        };
+        let mkdir_all = NativeValue {
+            props: HashMap::new(),
+            callable: Some(&IO::mkdir_all),
+            bind: false,
+            baggage: None,
+        };
         io.props
             .insert("println".to_string(), Value::Native(println));
         io.props.insert("clock".to_string(), Value::Native(clock));
@@ -200,6 +253,10 @@ impl IO {
             .insert("writeFile".to_string(), Value::Native(write_file));
         io.props
             .insert("listDir".to_string(), Value::Native(list_dir));
+        io.props
+            .insert("fileExists".to_string(), Value::Native(file_exists));
+        io.props
+            .insert("mkdirAll".to_string(), Value::Native(mkdir_all));
         return io;
     }
 }

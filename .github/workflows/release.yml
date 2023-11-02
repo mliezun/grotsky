@@ -25,7 +25,6 @@ jobs:
 
       - name: Build for linux
         run: |
-          cd rewrite_in_rust
           cargo build --release
           mv target/release/grotsky-rs ../grotsky-linux
 

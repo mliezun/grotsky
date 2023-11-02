@@ -26,7 +26,7 @@ jobs:
       - name: Build for linux
         run: |
           cargo build --release
-          mv target/release/grotsky-rs ../grotsky-linux
+          mv target/release/grotsky-rs grotsky-linux
 
       - name: Extract branch name
         shell: bash

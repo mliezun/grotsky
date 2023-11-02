@@ -1,4 +1,6 @@
-#[derive(Debug, Clone, PartialEq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[repr(u8)]
 pub enum OpCode {
     Move,
@@ -59,7 +61,7 @@ pub enum OpCode {
 pub const JMP_CONTINUE: u8 = 1;
 pub const JMP_BREAK: u8 = 2;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Instruction {
     pub opcode: OpCode,
     pub a: u8,

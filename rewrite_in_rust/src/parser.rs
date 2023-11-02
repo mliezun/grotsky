@@ -31,9 +31,9 @@ impl Parser<'_> {
         return &mut self.cls[len - 1];
     }
 
-    fn enter_function(&mut self, name: &'static str) {
+    fn enter_function(&mut self, name: String) {
         self.cls.push(CallStack {
-            function: name.to_string(),
+            function: name,
             loop_count: 0,
         });
     }
@@ -46,7 +46,7 @@ impl Parser<'_> {
         return self.peek().token == Token::EOF;
     }
 
-    fn leave_function(&mut self, name: &'static str) {
+    fn leave_function(&mut self, name: String) {
         let pc = self.get_parsing_context();
         if pc.function != name.to_string() {
             self.state.fatal_error(InterpreterError {
@@ -74,7 +74,7 @@ impl Parser<'_> {
 
     pub fn parse(&mut self) {
         self.cls = vec![];
-        self.enter_function(string_to_static_str("".to_string()));
+        self.enter_function("".to_string());
         while !self.is_at_end() {
             // When multiple empty lines are encountered after a statement
             // the parser founds nil statements, we should avoid them to not
@@ -84,7 +84,7 @@ impl Parser<'_> {
                 Some(st) => self.state.stmts.push(st),
             }
         }
-        self.leave_function(string_to_static_str("".to_string()));
+        self.leave_function("".to_string());
     }
 
     fn parse_stmt(&mut self) -> Option<Stmt> {
@@ -224,7 +224,7 @@ impl Parser<'_> {
             .consume(Token::Identifier, "Expected function name".to_string())
             .unwrap();
 
-        self.enter_function(name.lexeme);
+        self.enter_function(name.lexeme.clone());
 
         self.consume(
             Token::LeftParen,
@@ -259,7 +259,7 @@ impl Parser<'_> {
             body.push(self.expression_stmt());
         }
 
-        self.leave_function(name.lexeme);
+        self.leave_function(name.lexeme.clone());
 
         return Stmt::Fn(FnStmt {
             name: name,
@@ -274,8 +274,8 @@ impl Parser<'_> {
             "Expected '(' after function name".to_string(),
         );
 
-        let lambda_name: &'static str = string_to_static_str(format!("lambda{}", self.cls.len()));
-        self.enter_function(lambda_name);
+        let lambda_name: String = format!("lambda{}", self.cls.len());
+        self.enter_function(lambda_name.clone());
 
         let mut params: Vec<TokenData> = vec![];
         if !self.check(Token::RightParen) {
@@ -675,7 +675,7 @@ impl Parser<'_> {
             first: Box::new(Expr::Empty),
             first_colon: TokenData {
                 token: Token::Nil,
-                lexeme: string_to_static_str("".to_string()),
+                lexeme: "".to_string(),
                 literal: None,
                 line: 0,
             },
@@ -684,7 +684,7 @@ impl Parser<'_> {
             second: Box::new(Expr::Empty),
             second_colon: TokenData {
                 token: Token::Nil,
-                lexeme: string_to_static_str("".to_string()),
+                lexeme: "".to_string(),
                 literal: None,
                 line: 0,
             },
@@ -996,7 +996,7 @@ impl Parser<'_> {
         } else {
             method = TokenData {
                 token: Token::Identifier,
-                lexeme: string_to_static_str("init".to_string()),
+                lexeme: "init".to_string(),
                 line: keyword.line,
                 literal: None,
             };

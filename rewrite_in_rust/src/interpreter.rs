@@ -111,6 +111,46 @@ pub fn parse_source_code(source: String) -> Vec<stmt::Stmt> {
     return state.stmts.clone();
 }
 
+pub fn compile_to_bytecode(source: String) -> Vec<u8> {
+    let interpreter = get_global_interpreter();
+    let stmts = parse_source_code(source);
+    interpreter.compiler.compile(stmts);
+    bincode::serialize(&interpreter.compiler).unwrap()
+}
+
+pub fn run_interpreter_from_bytecode(bytecode: &[u8]) -> bool {
+    if let Ok(compiler) = bincode::deserialize::<compiler::Compiler>(bytecode) {
+        let interpreter = get_global_interpreter();
+        interpreter.compiler = compiler;
+        let instructions: Vec<compiler::InstSrc> = interpreter
+            .compiler
+            .contexts
+            .iter()
+            .map(|c| c.chunks.iter())
+            .flatten()
+            .map(|c| c.instructions.clone())
+            .flatten()
+            .collect();
+        interpreter.vm.instructions = instructions.iter().map(|i| i.inst.clone()).collect();
+        interpreter.vm.instructions_data = instructions.iter().map(|i| i.src.clone()).collect();
+        interpreter.vm.prototypes = interpreter.compiler.prototypes.clone();
+        interpreter.vm.constants = interpreter
+            .compiler
+            .constants
+            .iter()
+            .map(|c| c.into())
+            .collect();
+        interpreter.vm.activation_records =
+            (0..interpreter.compiler.contexts.last().unwrap().register_count)
+                .map(|_| vm::Record::Val(value::Value::Nil))
+                .collect();
+
+        interpreter.vm.interpret();
+        return true;
+    }
+    return false;
+}
+
 pub fn run_bytecode_interpreter(source: String) {
     let interpreter = get_global_interpreter();
     let stmts = parse_source_code(source);
@@ -127,7 +167,12 @@ pub fn run_bytecode_interpreter(source: String) {
     interpreter.vm.instructions = instructions.iter().map(|i| i.inst.clone()).collect();
     interpreter.vm.instructions_data = instructions.iter().map(|i| i.src.clone()).collect();
     interpreter.vm.prototypes = interpreter.compiler.prototypes.clone();
-    interpreter.vm.constants = interpreter.compiler.constants.clone();
+    interpreter.vm.constants = interpreter
+        .compiler
+        .constants
+        .iter()
+        .map(|c| c.into())
+        .collect();
     interpreter.vm.activation_records =
         (0..interpreter.compiler.contexts.last().unwrap().register_count)
             .map(|_| vm::Record::Val(value::Value::Nil))
@@ -167,7 +212,12 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
     interpreter.vm.instructions = instructions.iter().map(|i| i.inst.clone()).collect();
     interpreter.vm.instructions_data = instructions.iter().map(|i| i.src.clone()).collect();
     interpreter.vm.prototypes = interpreter.compiler.prototypes.clone();
-    interpreter.vm.constants = interpreter.compiler.constants.clone();
+    interpreter.vm.constants = interpreter
+        .compiler
+        .constants
+        .iter()
+        .map(|c| c.into())
+        .collect();
     interpreter.vm.activation_records = (0..module_global_context.register_count)
         .map(|_| vm::Record::Val(value::Value::Nil))
         .collect();

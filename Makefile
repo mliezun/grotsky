@@ -15,17 +15,15 @@ benchmark_objects: grotsky grotsky-rs
 	python tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs fib
 
 test_grotsky: grotsky
-	@ go test -v ./... -interpreter Go
+	@ cd archive && go test -v ./... -interpreter Go
 
 test_grotsky-rs: grotsky-rs
-	@ RUST_BACKTRACE=1 go test -v ./... -interpreter Rust -failfast
-
-test:
-	@ go test -v ./...
+	@ cd archive && RUST_BACKTRACE=1 go test -v ./... -interpreter Rust -failfast
 
 grotsky:
-	@ go build cmd/grotsky/main.go
-	@ mv main $(BUILD_DIR)/grotsky
+	@ mkdir -p $(BUILD_DIR)
+	@ cd archive && go build cmd/grotsky/main.go && mv main ../$(BUILD_DIR)/grotsky
 
 grotsky-rs:
-	@ cd rewrite_in_rust && cargo build --release
+	@ mkdir -p $(BUILD_DIR)
+	@ cargo build --release

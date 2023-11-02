@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug)]
 pub enum Operator {
     Add,
@@ -15,7 +17,7 @@ pub enum Operator {
     Lte,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum Token {
     EOF,
     Newline,
@@ -78,7 +80,7 @@ pub enum Token {
     Catch,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Literal {
     String(String),
     Number(f64),
@@ -86,14 +88,10 @@ pub enum Literal {
     Nil,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TokenData {
     pub token: Token,
-    pub lexeme: &'static str,
+    pub lexeme: String,
     pub literal: Option<Literal>,
     pub line: i32,
-}
-
-pub fn string_to_static_str(s: String) -> &'static str {
-    Box::leak(s.into_boxed_str())
 }

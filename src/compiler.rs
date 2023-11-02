@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 use crate::errors::RuntimeErr;
@@ -6,12 +7,11 @@ use crate::expr::*;
 use crate::instruction::*;
 use crate::stmt::*;
 use crate::token::*;
-use crate::value::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Compiler {
     // call_stack: Vec<CallStack>,
-    pub constants: Vec<Value>,
+    pub constants: Vec<Literal>,
     pub contexts: Vec<FnContext>,
     pub prototypes: Vec<FnPrototype>,
     pub globals: HashSet<String>,
@@ -287,7 +287,7 @@ impl Compiler {
             );
             let one_register = self.next_register();
             let constant_ix = self.constants.len() as u16;
-            self.constants.push(Value::Number(NumberValue { n: 1.0 }));
+            self.constants.push(Literal::Number(1.0));
             chunk.push(
                 Instruction {
                     opcode: OpCode::LoadK,
@@ -399,13 +399,13 @@ impl Compiler {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpvalueRef {
     pub is_local: bool,
     pub index: u8,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FnPrototype {
     pub instructions: Vec<Instruction>,
     pub register_count: u8,
@@ -415,7 +415,7 @@ pub struct FnPrototype {
     pub name: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FnContext {
     pub name: String,
     pub loop_count: u8,
@@ -445,24 +445,24 @@ impl FnContext {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Block {
     pub locals: Vec<Local>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Local {
     pub var_name: String,
     pub reg: u8,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InstSrc {
     pub inst: Instruction,
     pub src: Option<TokenData>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Chunk {
     pub instructions: Vec<InstSrc>,
     pub result_register: u8,
@@ -645,7 +645,7 @@ impl StmtVisitor<Chunk> for Compiler {
         let cond_reg = self.next_register();
         let element_reg = self.next_register();
         let constant_ix = self.constants.len() as u16;
-        self.constants.push(Value::Number(NumberValue { n: 0.0 }));
+        self.constants.push(Literal::Number(0.0));
         let mut chunk = Chunk {
             result_register: 0,
             instructions: vec![InstSrc {
@@ -802,9 +802,8 @@ impl StmtVisitor<Chunk> for Compiler {
             };
             self.globals.insert(stmt.name.lexeme.to_string());
             let constant_ix = self.constants.len() as u16;
-            self.constants.push(Value::String(StringValue {
-                s: stmt.name.lexeme.to_string(),
-            }));
+            self.constants
+                .push(Literal::String(stmt.name.lexeme.to_string()));
             if let Some(init) = &stmt.initializer {
                 let init_chunk = init.accept(self);
                 chunk.result_register = init_chunk.result_register;
@@ -1173,9 +1172,8 @@ impl StmtVisitor<Chunk> for Compiler {
         };
         if self.is_global_context() {
             let constant_ix = self.constants.len();
-            self.constants.push(Value::String(StringValue {
-                s: stmt.name.lexeme.to_string(),
-            }));
+            self.constants
+                .push(Literal::String(stmt.name.lexeme.to_string()));
             chunk.push(
                 Instruction {
                     opcode: OpCode::SetGlobal,
@@ -1203,9 +1201,9 @@ impl StmtVisitor<Chunk> for Compiler {
         };
         let tmp_reg = self.next_register();
         let constant_ix = self.constants.len() as u16;
-        self.constants.push(Value::String(StringValue {
-            s: stmt.name.clone().unwrap().lexeme.to_string(),
-        }));
+        self.constants.push(Literal::String(
+            stmt.name.clone().unwrap().lexeme.to_string(),
+        ));
         chunk.push(
             Instruction {
                 opcode: OpCode::LoadK,
@@ -1250,9 +1248,8 @@ impl StmtVisitor<Chunk> for Compiler {
                 .instructions
                 .append(&mut met_chunk.instructions.clone());
             let constant_ix = self.constants.len() as u16;
-            self.constants.push(Value::String(StringValue {
-                s: met.name.lexeme.to_string(),
-            }));
+            self.constants
+                .push(Literal::String(met.name.lexeme.to_string()));
             chunk.push(
                 Instruction {
                     opcode: OpCode::LoadK,
@@ -1276,9 +1273,8 @@ impl StmtVisitor<Chunk> for Compiler {
             let met_chunk = self.visit_fn_stmt(met);
             chunk.append(&mut met_chunk.instructions.clone());
             let constant_ix = self.constants.len() as u16;
-            self.constants.push(Value::String(StringValue {
-                s: met.name.lexeme.to_string(),
-            }));
+            self.constants
+                .push(Literal::String(met.name.lexeme.to_string()));
             chunk.push(
                 Instruction {
                     opcode: OpCode::LoadK,
@@ -1301,9 +1297,9 @@ impl StmtVisitor<Chunk> for Compiler {
         self.leave_block();
         if self.is_global_context() {
             let constant_ix = self.constants.len();
-            self.constants.push(Value::String(StringValue {
-                s: stmt.name.clone().unwrap().lexeme.to_string(),
-            }));
+            self.constants.push(Literal::String(
+                stmt.name.clone().unwrap().lexeme.to_string(),
+            ));
             chunk.push(
                 Instruction {
                     opcode: OpCode::SetGlobal,
@@ -1391,9 +1387,7 @@ impl ExprVisitor<Chunk> for Compiler {
         } else if self.is_builtin_var(var_name.clone()) {
             let reg = self.next_register();
             let constant_ix = self.constants.len();
-            self.constants.push(Value::String(StringValue {
-                s: var_name.clone(),
-            }));
+            self.constants.push(Literal::String(var_name.clone()));
             return Chunk {
                 instructions: vec![InstSrc {
                     inst: Instruction {
@@ -1409,9 +1403,7 @@ impl ExprVisitor<Chunk> for Compiler {
         } else if self.is_global_var(var_name.clone()) {
             let reg = self.next_register();
             let constant_ix = self.constants.len();
-            self.constants.push(Value::String(StringValue {
-                s: var_name.clone(),
-            }));
+            self.constants.push(Literal::String(var_name.clone()));
             return Chunk {
                 instructions: vec![InstSrc {
                     inst: Instruction {
@@ -1576,9 +1568,8 @@ impl ExprVisitor<Chunk> for Compiler {
             let reg = self.next_register();
             let mut chunk = expr.value.accept(self);
             let constant_ix = self.constants.len();
-            self.constants.push(Value::String(StringValue {
-                s: expr.name.lexeme.to_string(),
-            }));
+            self.constants
+                .push(Literal::String(expr.name.lexeme.to_string()));
 
             if let Some(access) = &expr.access {
                 let obj_chunk = access.object.accept(self);
@@ -1718,9 +1709,7 @@ impl ExprVisitor<Chunk> for Compiler {
         let mut chunk = expr.object.accept(self);
         let result_register = self.next_register();
         let constant_ix = self.constants.len() as u16;
-        let val = Value::String(StringValue {
-            s: expr.name.lexeme.to_string(),
-        });
+        let val = Literal::String(expr.name.lexeme.to_string());
         self.constants.push(val);
         chunk.push(
             Instruction {
@@ -1764,9 +1753,7 @@ impl ExprVisitor<Chunk> for Compiler {
             chunk.result_register = obj_chunk.result_register;
             let tmp_register = self.next_register();
             let constant_ix = self.constants.len() as u16;
-            let val = Value::String(StringValue {
-                s: expr.name.lexeme.to_string(),
-            });
+            let val = Literal::String(expr.name.lexeme.to_string());
             self.constants.push(val);
             chunk.push(
                 Instruction {
@@ -1796,9 +1783,8 @@ impl ExprVisitor<Chunk> for Compiler {
             result_register: self.next_register(),
         };
         let constant_ix = self.constants.len() as u16;
-        self.constants.push(Value::String(StringValue {
-            s: expr.method.lexeme.to_string(),
-        }));
+        self.constants
+            .push(Literal::String(expr.method.lexeme.to_string()));
         chunk.push(
             Instruction {
                 opcode: OpCode::LoadK,
@@ -1825,15 +1811,9 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_literal_expr(&mut self, expr: &LiteralExpr) -> Chunk {
-        let val = match expr.value.clone() {
-            Literal::Number(n) => Value::Number(NumberValue { n: n }),
-            Literal::String(s) => Value::String(StringValue { s: s }),
-            Literal::Boolean(b) => Value::Bool(BoolValue { b: b }),
-            Literal::Nil => Value::Nil,
-        };
         let result_register = self.next_register();
         let constant_ix = self.constants.len() as u16;
-        self.constants.push(val);
+        self.constants.push(expr.value.clone());
         let chunk = Chunk {
             instructions: vec![InstSrc {
                 inst: Instruction {

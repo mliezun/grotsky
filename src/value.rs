@@ -9,6 +9,7 @@ use crate::errors::{
     ERR_EXPECTED_OBJECT, ERR_EXPECTED_STEP, ERR_EXPECTED_STRING, ERR_ONLY_NUMBERS,
     ERR_UNDEFINED_OP, ERR_UNDEFINED_OPERATOR, ERR_UNDEFINED_PROP,
 };
+use crate::token::Literal;
 
 #[derive(Debug, Clone)]
 pub struct MutValue<T>(pub Rc<RefCell<T>>);
@@ -33,6 +34,17 @@ pub enum Value {
     Bool(BoolValue),
     Slice(SliceValue),
     Nil,
+}
+
+impl From<&Literal> for Value {
+    fn from(value: &Literal) -> Self {
+        match value {
+            Literal::String(s) => Value::String(StringValue { s: s.clone() }),
+            Literal::Number(n) => Value::Number(NumberValue { n: *n }),
+            Literal::Boolean(b) => Value::Bool(BoolValue { b: *b }),
+            Literal::Nil => Value::Nil,
+        }
+    }
 }
 
 impl Hash for Value {

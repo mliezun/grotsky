@@ -91,7 +91,7 @@ impl Lexer<'_> {
                 .to_string();
         self.state.tokens.push(TokenData {
             token: token,
-            lexeme: string_to_static_str(lexeme),
+            lexeme: lexeme,
             literal: l,
             line: self.line,
         })
@@ -108,14 +108,14 @@ impl Lexer<'_> {
         {
             self.state.tokens.push(TokenData {
                 token: Token::Newline,
-                lexeme: string_to_static_str("".to_string()),
+                lexeme: "".to_string(),
                 literal: None,
                 line: self.line,
             })
         }
         self.state.tokens.push(TokenData {
             token: Token::EOF,
-            lexeme: string_to_static_str("".to_string()),
+            lexeme: "".to_string(),
             literal: None,
             line: self.line,
         })
@@ -302,6 +302,6 @@ impl Lexer<'_> {
             None => &Token::Identifier,
         };
 
-        self.emit(*token, None);
+        self.emit(token.clone(), None);
     }
 }

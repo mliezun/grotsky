@@ -94,12 +94,12 @@ func run_code(absPath, source string, p IPrinter) bool {
 	switch *interpreter_implementation {
 	case "Go":
 		{
-			b := BinaryInterpreter{path: "build/grotsky", buffer: make([]byte, 0)}
+			b := BinaryInterpreter{path: "../build/grotsky", buffer: make([]byte, 0)}
 			return b.RunSourceWithPrinter(absPath, source, p)
 		}
 	case "Rust":
 		{
-			b := BinaryInterpreter{path: "rewrite_in_rust/target/release/grotsky-rs", buffer: make([]byte, 0)}
+			b := BinaryInterpreter{path: "../target/release/grotsky-rs", buffer: make([]byte, 0)}
 			return b.RunSourceWithPrinter(absPath, source, p)
 		}
 	default:

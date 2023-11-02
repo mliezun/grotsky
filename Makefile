@@ -21,7 +21,9 @@ test_grotsky-rs: grotsky-rs
 	@ cd archive && RUST_BACKTRACE=1 go test -v ./... -interpreter Rust -failfast
 
 grotsky:
+	@ mkdir -p $(BUILD_DIR)
 	@ cd archive && go build cmd/grotsky/main.go && mv main ../$(BUILD_DIR)/grotsky
 
 grotsky-rs:
+	@ mkdir -p $(BUILD_DIR)
 	@ cargo build --release

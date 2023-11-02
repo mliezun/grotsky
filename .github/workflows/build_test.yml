@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - feature/compile-bytecode
 
 jobs:
   test_go:

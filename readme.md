@@ -3,9 +3,9 @@
 [![build](https://github.com/mliezun/grotsky/workflows/build/badge.svg)](https://github.com/mliezun/grotsky/actions?query=workflow%3Abuild)
 
 
-Grotsky is a toy programming language. Implemented in go as a Tree-based interpreter. Made after reading the book Crafting Interpreters. You can also find clox and jlox implementations under my github projects.
+Grotsky is a toy programming language. Implemented in Rust as a Bytecode register-based vm interpreter. Made after reading the book Crafting Interpreters. You can also find clox and jlox implementations under my github projects.
 
-Grotsky is inspired a little bit by go and python. Uses a C-like style syntax with curly braces but no semicolons, includes some basic collections like lists and dicts. Also has the hability to listen to tcp ports, read environment variables and import modules.
+Grotsky is inspired a little bit by go, python and javascript. Uses a C-like style syntax with curly braces but no semicolons, includes some basic collections like lists and dicts. Also has the hability to listen to tcp ports, read environment variables and import modules.
 
 ## Overview
 

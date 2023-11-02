@@ -41,14 +41,6 @@ fn main() {
         // Disable rust backtrace
         panic::set_hook(Box::new(|_info| {}));
     }
-    if abs_path.extension().is_none()
-        || !abs_path.extension().unwrap().eq_ignore_ascii_case("gr")
-        || !abs_path.extension().unwrap().eq_ignore_ascii_case("grc")
-    {
-        println!("Usage:\n\tgrotsky [filename]\n\tgrotsky compile [filename]");
-        println!("File extension must be .gr or .grc\n");
-        return;
-    }
     if args[1] == "compile" {
         abs_path.set_extension("grc");
         write(

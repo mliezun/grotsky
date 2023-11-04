@@ -7,6 +7,7 @@ use std::{
     time::SystemTime,
 };
 
+use crate::errors::ERR_EXPECTED_NUMBER;
 use crate::value::{BoolValue, BytesValue, DictValue};
 use crate::{
     errors::ERR_INVALID_NUMBER_ARGUMENTS,
@@ -180,10 +181,10 @@ impl IO {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        let _perm = match values.first().unwrap() {
-            Value::Number(s) => s,
+        let _perm = match &values[1] {
+            Value::Number(n) => n,
             _ => {
-                return Err(ERR_EXPECTED_STRING);
+                return Err(ERR_EXPECTED_NUMBER);
             }
         };
         match fs::create_dir_all(&path.s) {

@@ -68,3 +68,4 @@ pub const ERR_EXPECTED_INIT: RuntimeErr =
 pub const ERR_EXPECTED_CATCH: RuntimeErr =
     RuntimeErr::new("A catch block was expected at this position");
 pub const ERR_UNDEFINED_TYPE: RuntimeErr = RuntimeErr::new("Undefined type");
+pub const ERR_MAX_RECURSION: RuntimeErr = RuntimeErr::new("Max recursion depth exceeded");

@@ -3,6 +3,7 @@
 use crate::compiler::FnPrototype;
 use crate::errors::*;
 use crate::instruction::*;
+use crate::interpreter;
 use crate::token::TokenData;
 use crate::value::*;
 use std::collections::HashMap;
@@ -10,19 +11,40 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 macro_rules! make_call {
-    ( $self:expr, $fn_value:expr, $current_this:expr, $bind_to:expr, $instructions:expr, $pc:expr, $sp:expr, $result_register:expr, $input_range:expr ) => {{
+    ( $self:expr, $fn_value:expr, $current_this:expr, $bind_to:expr, $instructions:expr, $original_instructions:expr, $original_instructions_data:expr, $pc:expr, $sp:expr, $result_register:expr, $input_range:expr ) => {{
+        let prototype = &$self.prototypes[$fn_value.0.borrow().prototype as usize];
+
+        let error_on_call = if $input_range.len() != prototype.param_count {
+            Some(ERR_INVALID_NUMBER_ARGUMENTS)
+        } else if $self.stack.len() >= 1000 {
+            Some(ERR_MAX_RECURSION)
+        } else {
+            None
+        };
+
+        if let Some(e) = error_on_call {
+            throw_exception!(
+                $self,
+                $current_this,
+                $original_instructions,
+                $original_instructions_data,
+                $pc,
+                $sp,
+                e
+            );
+        }
+
         let stack = StackEntry {
             function: Some($fn_value.clone()),
             pc: $pc + 1,
             sp: $sp,
             result_register: $result_register,
             this: $current_this.clone(),
+            file: interpreter::get_absolute_path(),
         };
         let previous_sp = $sp;
         $sp = $self.activation_records.len();
         $self.stack.push(stack);
-
-        let prototype = &$self.prototypes[$fn_value.0.borrow().prototype as usize];
 
         // Expand activation records
         $self.activation_records.append(
@@ -32,12 +54,6 @@ macro_rules! make_call {
         );
 
         // Copy input arguments
-        if $input_range.len() != prototype.param_count {
-            $self.exception(
-                ERR_INVALID_NUMBER_ARGUMENTS,
-                $self.instructions_data[$pc].clone(),
-            );
-        }
         for (i, reg) in $input_range.enumerate() {
             $self.activation_records[$sp + i + 1] =
                 $self.activation_records[previous_sp + reg as usize].clone();
@@ -86,6 +102,13 @@ macro_rules! throw_exception {
             }
             continue;
         } else {
+            for stack in $self.stack.iter() {
+                if let Some(fn_value) = &stack.function {
+                    println!("{}::{}", stack.file, fn_value.0.borrow().name);
+                } else {
+                    println!("{}", stack.file);
+                }
+            }
             $self.exception($error, $self.instructions_data[$pc].clone());
         }
         unreachable!();
@@ -99,6 +122,7 @@ pub struct StackEntry {
     pub sp: usize,                           // Stack pointer inside activation record
     pub result_register: u8,
     pub this: Option<MutValue<ObjectValue>>,
+    pub file: String,
 }
 
 #[derive(Debug, Clone)]
@@ -206,6 +230,8 @@ impl VM {
                                 this,
                                 fn_value.0.borrow().this.clone(),
                                 self.instructions,
+                                original_instructions,
+                                original_instructions_data,
                                 pc,
                                 sp,
                                 inst.c,
@@ -273,6 +299,8 @@ impl VM {
                                     this,
                                     Some(object_value),
                                     self.instructions,
+                                    original_instructions,
+                                    original_instructions_data,
                                     pc,
                                     sp,
                                     0,
@@ -369,6 +397,8 @@ impl VM {
                                         this,
                                         fn_value.0.borrow().this.clone(),
                                         self.instructions,
+                                        original_instructions,
+                                        original_instructions_data,
                                         pc,
                                         sp,
                                         inst.a + 1,

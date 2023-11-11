@@ -7,6 +7,7 @@ use crate::interpreter;
 use crate::token::TokenData;
 use crate::value::*;
 use std::collections::HashMap;
+use std::env;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -102,11 +103,14 @@ macro_rules! throw_exception {
             }
             continue;
         } else {
-            for stack in $self.stack.iter() {
-                if let Some(fn_value) = &stack.function {
-                    println!("{}::{}", stack.file, fn_value.0.borrow().name);
-                } else {
-                    println!("{}", stack.file);
+            let skip_backtrace = env::var("GROTSKY_SKIP_BACKTRACE").unwrap_or("0".to_string());
+            if skip_backtrace != "1" && !skip_backtrace.eq_ignore_ascii_case("true") {
+                for stack in $self.stack.iter() {
+                    if let Some(fn_value) = &stack.function {
+                        println!("{}::{}", stack.file, fn_value.0.borrow().name);
+                    } else {
+                        println!("{}", stack.file);
+                    }
                 }
             }
             $self.exception($error, $self.instructions_data[$pc].clone());

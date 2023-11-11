@@ -79,6 +79,7 @@ func (b *BinaryInterpreter) RunSourceWithPrinter(absPath, source string, p IPrin
 	defer cancel()
 
 	cmd := osexec.CommandContext(ctx, b.path, f.Name())
+	cmd.Env = []string{"GROTSKY_SKIP_BACKTRACE=1"}
 	cmd.Stdout = b
 	cmd.Stderr = b
 	cmd.Dir = "../"

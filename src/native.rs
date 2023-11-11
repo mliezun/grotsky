@@ -1,4 +1,5 @@
 use socket2::{Domain, Socket};
+use std::cmp::Ordering;
 use std::io::{Read, Write};
 use std::net::{Shutdown, ToSocketAddrs};
 use std::ops::DerefMut;
@@ -362,6 +363,30 @@ impl Strings {
         return Ok(Value::List(MutValue::new(ListValue { elements: result })));
     }
 
+    pub fn compare(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 2 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let str1 = match values.first().unwrap() {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let str2 = match values.get(1).unwrap() {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let result = match str1.s.cmp(&str2.s) {
+            Ordering::Less => Ok(Value::Number(NumberValue { n: -1.0 })),
+            Ordering::Equal => Ok(Value::Number(NumberValue { n: 0.0 })),
+            Ordering::Greater => Ok(Value::Number(NumberValue { n: 1.0 })),
+        };
+        return result;
+    }
+
     pub fn build() -> NativeValue {
         let mut strings = NativeValue {
             props: HashMap::new(),
@@ -405,6 +430,12 @@ impl Strings {
             bind: false,
             baggage: None,
         };
+        let compare = NativeValue {
+            props: HashMap::new(),
+            callable: Some(&Strings::compare),
+            bind: false,
+            baggage: None,
+        };
         strings
             .props
             .insert("toLower".to_string(), Value::Native(to_lower));
@@ -419,6 +450,9 @@ impl Strings {
         strings
             .props
             .insert("split".to_string(), Value::Native(split));
+        strings
+            .props
+            .insert("compare".to_string(), Value::Native(compare));
         return strings;
     }
 }

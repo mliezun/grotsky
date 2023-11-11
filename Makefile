@@ -27,3 +27,4 @@ grotsky:
 grotsky-rs:
 	@ mkdir -p $(BUILD_DIR)
 	@ cargo build --release
+	@ cp target/release/grotsky-rs build/

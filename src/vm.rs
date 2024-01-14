@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::compiler::FnPrototype;
+use crate::compiler::UpvalueRef;
 use crate::errors::*;
 use crate::instruction::*;
 use crate::interpreter;
@@ -67,7 +67,6 @@ macro_rules! make_call {
         $instructions = prototype.instructions.clone();
         $pc = 0;
         // Point to new instructions metadata
-        // TODO: use reference instead of cloning
         $self.instructions_data = prototype.instruction_data.clone();
     }};
 }
@@ -93,11 +92,9 @@ macro_rules! throw_exception {
 
             if let Some(func) = &stack.function {
                 let proto = &$self.prototypes[func.0.borrow().prototype as usize];
-                // TODO: use reference instead of cloning
                 $self.instructions = proto.instructions.clone();
                 $self.instructions_data = proto.instruction_data.clone();
             } else {
-                // TODO: use reference instead of cloning
                 $self.instructions = $original_instructions.clone();
                 $self.instructions_data = $original_instructions_data.clone();
             }
@@ -153,15 +150,25 @@ pub struct CatchException {
 }
 
 #[derive(Debug)]
+pub struct VMFnPrototype {
+    pub instructions: Rc<Vec<Instruction>>,
+    pub register_count: u8,
+    pub upvalues: Vec<UpvalueRef>,
+    pub instruction_data: Rc<Vec<Option<TokenData>>>,
+    pub param_count: usize,
+    pub name: String,
+}
+
+#[derive(Debug)]
 pub struct VM {
-    pub instructions: Vec<Instruction>,
-    pub prototypes: Vec<FnPrototype>,
+    pub instructions: Rc<Vec<Instruction>>,
+    pub prototypes: Rc<Vec<VMFnPrototype>>,
     pub constants: Vec<Value>,
     pub globals: HashMap<String, Value>,
     pub builtins: HashMap<String, Value>,
     pub stack: Vec<StackEntry>,
     pub activation_records: Vec<Record>,
-    pub instructions_data: Vec<Option<TokenData>>,
+    pub instructions_data: Rc<Vec<Option<TokenData>>>,
     pub catch_exceptions: Vec<CatchException>,
 }
 
@@ -351,16 +358,13 @@ impl VM {
                     sp = stack.sp;
                     if let Some(func) = &self.stack.last().unwrap().function {
                         let proto = &self.prototypes[func.0.borrow().prototype as usize];
-                        // TODO: use reference instead of cloning
                         self.instructions = proto.instructions.clone();
                         self.instructions_data = proto.instruction_data.clone();
                     } else {
-                        // TODO: use reference instead of cloning
                         self.instructions = original_instructions.clone();
                         self.instructions_data = original_instructions_data.clone();
                     }
                 }
-
                 OpCode::Jmp => {
                     pc = pc.wrapping_add(inst.sbx() as usize);
                 }
@@ -1013,7 +1017,6 @@ impl VM {
                             sp,
                             ERR_EXPECTED_STRING
                         );
-                        unreachable!();
                     };
                     match val_b.get(prop) {
                         Ok(v) => {
@@ -1203,7 +1206,6 @@ impl VM {
                             sp,
                             ERR_EXPECTED_NUMBER
                         );
-                        0
                     };
                     match val_b.as_val() {
                         Value::Dict(d) => {
@@ -1269,7 +1271,6 @@ impl VM {
                             sp,
                             ERR_EXPECTED_NUMBER
                         );
-                        0
                     };
                     match val_b.as_val() {
                         Value::Dict(d) => {

@@ -1,7 +1,8 @@
-use crate::vm::StackEntry;
+use crate::vm::{StackEntry, VMFnPrototype};
 use crate::{compiler, lexer, native, parser, state, stmt, value, vm};
 use std::collections::{HashMap, HashSet};
 use std::panic;
+use std::rc::Rc;
 
 static mut ABSOLUTE_PATH: &'static str = "";
 
@@ -40,9 +41,9 @@ fn setup_global_interpreter() {
             globals: HashSet::new(),
         };
         let mut my_vm = vm::VM {
-            instructions: vec![],
-            instructions_data: vec![],
-            prototypes: vec![],
+            instructions: Rc::new(vec![]),
+            instructions_data: Rc::new(vec![]),
+            prototypes: Rc::new(vec![]),
             constants: vec![],
             globals: HashMap::new(),
             builtins: HashMap::new(),
@@ -132,9 +133,16 @@ pub fn run_interpreter_from_bytecode(bytecode: &[u8]) -> bool {
             .map(|c| c.instructions.clone())
             .flatten()
             .collect();
-        interpreter.vm.instructions = instructions.iter().map(|i| i.inst.clone()).collect();
-        interpreter.vm.instructions_data = instructions.iter().map(|i| i.src.clone()).collect();
-        interpreter.vm.prototypes = interpreter.compiler.prototypes.clone();
+        interpreter.vm.instructions = Rc::new(instructions.iter().map(|i| i.inst.clone()).collect());
+        interpreter.vm.instructions_data = Rc::new(instructions.iter().map(|i| i.src.clone()).collect());
+        interpreter.vm.prototypes = Rc::new(interpreter.compiler.prototypes.iter().map(|p| VMFnPrototype{
+            instructions: Rc::new(p.instructions.clone()),
+            register_count: p.register_count,
+            upvalues: p.upvalues.clone(),
+            instruction_data: Rc::new(p.instruction_data.clone()),
+            param_count: p.param_count,
+            name: p.name.clone(),
+        }).collect());
         interpreter.vm.constants = interpreter
             .compiler
             .constants
@@ -165,9 +173,16 @@ pub fn run_bytecode_interpreter(source: String) {
         .map(|c| c.instructions.clone())
         .flatten()
         .collect();
-    interpreter.vm.instructions = instructions.iter().map(|i| i.inst.clone()).collect();
-    interpreter.vm.instructions_data = instructions.iter().map(|i| i.src.clone()).collect();
-    interpreter.vm.prototypes = interpreter.compiler.prototypes.clone();
+    interpreter.vm.instructions = Rc::new(instructions.iter().map(|i| i.inst.clone()).collect());
+    interpreter.vm.instructions_data = Rc::new(instructions.iter().map(|i| i.src.clone()).collect());
+    interpreter.vm.prototypes = Rc::new(interpreter.compiler.prototypes.iter().map(|p| VMFnPrototype{
+        instructions: Rc::new(p.instructions.clone()),
+        register_count: p.register_count,
+        upvalues: p.upvalues.clone(),
+        instruction_data: Rc::new(p.instruction_data.clone()),
+        param_count: p.param_count,
+        name: p.name.clone(),
+    }).collect());
     interpreter.vm.constants = interpreter
         .compiler
         .constants
@@ -210,9 +225,16 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
         .map(|c| c.instructions.clone())
         .flatten()
         .collect();
-    interpreter.vm.instructions = instructions.iter().map(|i| i.inst.clone()).collect();
-    interpreter.vm.instructions_data = instructions.iter().map(|i| i.src.clone()).collect();
-    interpreter.vm.prototypes = interpreter.compiler.prototypes.clone();
+    interpreter.vm.instructions = Rc::new(instructions.iter().map(|i| i.inst.clone()).collect());
+    interpreter.vm.instructions_data = Rc::new(instructions.iter().map(|i| i.src.clone()).collect());
+    interpreter.vm.prototypes = Rc::new(interpreter.compiler.prototypes.iter().map(|p| VMFnPrototype{
+        instructions: Rc::new(p.instructions.clone()),
+        register_count: p.register_count,
+        upvalues: p.upvalues.clone(),
+        instruction_data: Rc::new(p.instruction_data.clone()),
+        param_count: p.param_count,
+        name: p.name.clone(),
+    }).collect());
     interpreter.vm.constants = interpreter
         .compiler
         .constants

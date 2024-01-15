@@ -335,9 +335,6 @@ impl VM {
                     }
                 }
                 OpCode::Return => {
-                    if self.stack.len() <= 1 {
-                        return;
-                    }
                     let stack = self.stack.pop().unwrap();
 
                     // Store return values

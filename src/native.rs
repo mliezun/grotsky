@@ -7,6 +7,7 @@ use std::{
     cell::RefCell, collections::HashMap, env, fs::canonicalize, ops::Deref, rc::Rc,
     time::SystemTime,
 };
+use regex::Regex;
 
 use crate::errors::ERR_EXPECTED_NUMBER;
 use crate::value::{BoolValue, BytesValue, DictValue};
@@ -931,5 +932,46 @@ impl Net {
             }),
         );
         return net;
+    }
+}
+
+pub struct Re {}
+
+impl Re {
+    pub fn regex_find(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 2 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let regex_value = match values.first().unwrap() {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let string_value = match values.last().unwrap() {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let re = Regex::new(regex_value.s.as_str()).unwrap();
+        let result: Vec<Value> = re.find_iter(string_value.s.as_str()).map(|e| Value::String(StringValue{s:String::from(e.as_str())})).collect();
+        return Ok(Value::List(MutValue::new(ListValue{elements: result})));
+    }
+
+    pub fn build() -> NativeValue {
+        let mut re = NativeValue {
+            props: HashMap::new(),
+            callable: None,
+            bind: false,
+            baggage: None,
+        };
+        re.props.insert("find".to_string(), Value::Native(NativeValue{
+            props: HashMap::new(),
+            callable: Some(&Self::regex_find),
+            bind: false,
+            baggage: None,
+        }));
+        return re;
     }
 }

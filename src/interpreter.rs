@@ -81,6 +81,10 @@ fn setup_global_interpreter() {
             "net".to_string(),
             value::Value::Native(native::Net::build()),
         );
+        my_vm.builtins.insert(
+            "re".to_string(),
+            value::Value::Native(native::Re::build()),
+        );
         unsafe {
             GLOBAL_INTERPRETER = Some(Interpreter {
                 vm: my_vm,

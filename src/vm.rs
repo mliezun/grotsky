@@ -1159,23 +1159,29 @@ impl VM {
                         .get_mut(sp + inst.b as usize)
                         .unwrap()
                         .clone();
-                    match val_b
-                        .as_val()
-                        .add(&mut Value::Number(NumberValue { n: inst.c as f64 }))
-                    {
-                        Ok(v) => {
-                            self.activation_records[sp + inst.a as usize] = Record::Val(v);
-                        }
-                        Err(e) => {
-                            throw_exception!(
-                                self,
-                                this,
-                                original_instructions,
-                                original_instructions_data,
-                                pc,
-                                sp,
-                                e
-                            );
+                    if let Record::Val(Value::Number(n)) = val_b {
+                        self.activation_records[sp + inst.a as usize] = Record::Val(Value::Number(NumberValue {
+                            n: n.n + inst.c as f64
+                        }));
+                    } else {
+                        match val_b
+                            .as_val()
+                            .add(&mut Value::Number(NumberValue { n: inst.c as f64 }))
+                        {
+                            Ok(v) => {
+                                self.activation_records[sp + inst.a as usize] = Record::Val(v);
+                            }
+                            Err(e) => {
+                                throw_exception!(
+                                    self,
+                                    this,
+                                    original_instructions,
+                                    original_instructions_data,
+                                    pc,
+                                    sp,
+                                    e
+                                );
+                            }
                         }
                     }
                     pc += 1;

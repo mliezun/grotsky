@@ -1618,6 +1618,30 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_binary_expr(&mut self, expr: &BinaryExpr) -> Chunk {
+        if let Expr::Literal(l) = &*expr.right {
+            if let Literal::Number(n) = l.value {
+                if expr.operator.token == Token::Plus && n.fract() == 0.0 && n < 256.0 {
+                    let left_chunk = expr.left.accept(self);
+                    let mut chunk = Chunk {
+                        instructions: vec![],
+                        result_register: left_chunk.result_register,
+                    };
+                    chunk
+                        .instructions
+                        .append(&mut left_chunk.instructions.clone());
+                    chunk.push(
+                        Instruction {
+                            opcode: OpCode::Addi,
+                            a: chunk.result_register,
+                            b: left_chunk.result_register,
+                            c: (n as i32) as u8,
+                        },
+                        Some(expr.operator.clone()),
+                    );
+                    return chunk;
+                }
+            }
+        }
         let left_chunk = expr.left.accept(self);
         let right_chunk = expr.right.accept(self);
         let opcode = match expr.operator.token {

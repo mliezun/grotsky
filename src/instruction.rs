@@ -40,6 +40,7 @@ pub enum OpCode {
     GetObj,
     SetObj,
     Addi,
+    Subi,
     GetIter,
     GetIterk,
     GetIteri,

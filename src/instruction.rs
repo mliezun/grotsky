@@ -81,8 +81,11 @@ impl Instruction {
         let b = self.b as u16;
         let c = self.c as u16;
         let result = (b << 8 | c) as i16;
-        // println!("sbx = {:#?}", result);
         return result;
+    }
+
+    pub fn imm(&self) -> f64 {
+        return self.c as f64
     }
 
     pub fn is_continue(&mut self) -> bool {

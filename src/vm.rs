@@ -1161,7 +1161,7 @@ impl VM {
                         .clone();
                     if let Record::Val(Value::Number(n)) = val_b {
                         self.activation_records[sp + inst.a as usize] = Record::Val(Value::Number(NumberValue {
-                            n: n.n + inst.c as f64
+                            n: n.n + inst.imm()
                         }));
                     } else {
                         match val_b
@@ -1194,7 +1194,7 @@ impl VM {
                         .clone();
                     if let Record::Val(Value::Number(n)) = val_b {
                         self.activation_records[sp + inst.a as usize] = Record::Val(Value::Number(NumberValue {
-                            n: n.n - inst.c as f64
+                            n: n.n - inst.imm()
                         }));
                     } else {
                         match val_b

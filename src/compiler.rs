@@ -400,8 +400,13 @@ impl Compiler {
     }
 
     fn binary_literal(&mut self, expr: &Expr, operator: &TokenData, literal: &LiteralExpr) -> Option<Chunk> {
+        let opcode = match operator.token {
+            Token::Plus => OpCode::Addi,
+            Token::Minus => OpCode::Subi,
+            _ => return None,
+        };
         if let Literal::Number(n) = literal.value {
-            if operator.token == Token::Plus && n.fract() == 0.0 && n < 256.0 {
+            if operator.token == Token::Plus && n.fract() == 0.0 && n < 256.0 && n >= 0.0 {
                 let left_chunk = expr.accept(self);
                 let mut chunk = Chunk {
                     instructions: vec![],
@@ -412,7 +417,7 @@ impl Compiler {
                     .append(&mut left_chunk.instructions.clone());
                 chunk.push(
                     Instruction {
-                        opcode: OpCode::Addi,
+                        opcode: opcode,
                         a: chunk.result_register,
                         b: left_chunk.result_register,
                         c: (n as i32) as u8,
@@ -1650,8 +1655,10 @@ impl ExprVisitor<Chunk> for Compiler {
             }
         }
         if let Expr::Literal(l) = &*expr.left {
-            if let Some(chunk) = self.binary_literal(&*expr.right, &expr.operator, l) {
-                return chunk;
+            if expr.operator.token != Token::Minus {
+                if let Some(chunk) = self.binary_literal(&*expr.right, &expr.operator, l) {
+                    return chunk;
+                }
             }
         }
         let left_chunk = expr.left.accept(self);

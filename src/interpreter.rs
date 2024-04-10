@@ -85,6 +85,10 @@ fn setup_global_interpreter() {
             "re".to_string(),
             value::Value::Native(native::Re::build()),
         );
+        my_vm.builtins.insert(
+            "process".to_string(),
+            value::Value::Native(native::Process::build()),
+        );
         unsafe {
             GLOBAL_INTERPRETER = Some(Interpreter {
                 vm: my_vm,

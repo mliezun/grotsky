@@ -11,36 +11,42 @@ It has the ability to compile to bytecode and also to embed scripts into a distr
 
 # Table of Contents
 1. [Usage](#usage)
+    - [Installation](#installation)
     - [Run Scripts](#run-scripts)
     - [Compile Scripts](#compile-scripts)
     - [Embed Scripts](#embed-scripts)
-2. [Literals](#literals)
-3. [Print: Hello World](#print-hello-world)
-4. [Comments](#comments)
-5. [Arithmetic Expressions](#arithmetic-expressions)
-6. [Comparison and Logical Expressions](#comparison-and-logical-expressions)
-7. [Lists](#lists)
-8. [Dicts](#dicts)
-9. [Conditionals](#conditionals)
-10. [Loops](#loops)
-    - [While Loop](#while-loop)
-    - [Classic For Loop](#classic-for-loop)
-    - [Enhanced For Loop](#enhanced-for-loop)
-        - [Iterate List](#iterate-list)
-        - [Iterate Dict](#iterate-dict)
-        - [Unpacked List of Lists](#unpacked-list-of-lists)
-11. [Functions and Closures](#functions-and-closures)
-12. [Classes](#classes)
-    - [Simple Class](#simple-class)
-    - [Superclasses](#superclasses)
-    - [Magic Methods](#magic-methods)
-13. [Modules](#modules)
-14. [Net Utils](#net-utils)
-    - [TCP Socket](#tcp-socket)
-15. [ENV Variables](#env-variables)
-16. [Try-Catch](#try-catch)
+2. [Examples](#examples)
+    - [Listen on TCP Socket](#listen-on-tcp-socket)
+    - [Make your own Grep](#make-your-own-grep)
+3. [Language Spec](#language-spec)
+    - [Literals](#literals)
+    - [Print: Hello World](#print-hello-world)
+    - [Comments](#comments)
+    - [Arithmetic Expressions](#arithmetic-expressions)
+    - [Comparison and Logical Expressions](#comparison-and-logical-expressions)
+    - [Lists](#lists)
+    - [Dicts](#dicts)
+    - [Conditionals](#conditionals)
+    - [Loops](#loops)
+        - [While Loop](#while-loop)
+        - [Classic For Loop](#classic-for-loop)
+        - [Enhanced For Loop](#enhanced-for-loop)
+            - [Iterate List](#iterate-list)
+            - [Iterate Dict](#iterate-dict)
+            - [Unpacked List of Lists](#unpacked-list-of-lists)
+    - [Functions and Closures](#functions-and-closures)
+    - [Classes](#classes)
+        - [Simple Class](#simple-class)
+        - [Superclasses](#superclasses)
+        - [Magic Methods](#magic-methods)
+    - [Modules](#modules)
+    - [ENV Variables](#env-variables)
+    - [Try-Catch](#try-catch)
+    - [Std Library](#std-library)
 
-## Usage
+# Usage
+
+## Installation
 
 Get executable from [releases](https://github.com/mliezun/grotsky/releases/).
 
@@ -54,7 +60,7 @@ Usage:
     grotsky embed bytecode.grc
 ```
 
-### Run Scripts
+## Run Scripts
 
 Create a Grotsky script, which consists of a text file with the `.gr` extension.
 
@@ -64,7 +70,7 @@ Then it can be executed by running the following command:
 $ ./grotsky script.gr
 ```
 
-### Compile Scripts
+## Compile Scripts
 
 The Grotsky interpreter provides the ability to compile scripts to bytecode.
 
@@ -80,7 +86,7 @@ The compiled file can then be executed by running:
 $ ./grotsky script.grc
 ```
 
-### Embed Scripts
+## Embed Scripts
 
 First, the input script needs to be [compiled](#compile-scripts).
 
@@ -94,13 +100,115 @@ The resulting binary with the embedded code will be located alongside the input 
 
 > NOTE: Currently Grotsky only supports embedding a single file, which means importing modules might not work as expected.
 
+# Examples
+
+## Listen on TCP Socket
+
+```js
+let socket = net.listenTcp("127.0.0.1:6500")
+while true {
+    let conn = socket.accept()
+    io.println("Received connection from:", conn.address())
+    conn.write("ok\n")
+    conn.close()
+}
+```
+
+Try from console:
+```
+$ telnet localhost 6500
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+ok
+Connection closed by foreign host.
+```
+
+Outputs:
+```
+Received connection from: 127.0.0.1:52238
+```
+
+## Make your own Grep
+
+Store the following script in a file called `grep.gr`:
+
+```js
+# Join a list of strings separated by space " "
+fn join(list) {
+	let out = ""
+	for let i = 0; i < list.length; i = i + 1 {
+		out = out + list[i]
+		if i < list.length - 1 {
+			out = out + " "
+		}
+	}
+	return out
+}
+
+# Check that a pattern was provided
+if process.argv.length == 1 {
+	io.println("Usage:\n\tgrep [pattern ...]")
+	return 1
+}
+
+# Join argv[1:] into a pattern
+let pattern = join(process.argv[1:])
+
+# Read first line
+let line = io.readln()
+
+# While we are not in EOF
+#   Check that line matches pattern and print it
+#   Consume next line
+while line != nil {
+	if re.match(pattern, line) {
+		io.println(line)
+	}
+	line = io.readln()
+}
+```
+
+Then it can be used like this:
+
+```
+$ cat file.txt | ./grotsky grep.gr pattern
+```
+
+And it will print all lines that match the "pattern".
+
+We can also package it as a single binary by doing the following commands.
+
+```
+$ ./grotsky compile grep.gr
+$ ./grotksy embed grep.grc
+```
+
+Now we should have a `grep.exe` in our directory. And we can use it:
+
+```
+$ cat file.txt | ./grep.exe pattern
+```
+
+Should work the same as the previous example.
+
+# Language Spec
+
 ## Literals
 
 - `strings`: "String A"
+- `bytes`: [0, 1, 10, 20]
 - `numbers`: 10, 10.04, 3.14, -1
 - `booleans`: true, false
 - `lists`: ["a", 1, 2]
 - `dicts`: {"a": 1}
+- `classes`: class MyClass {}
+- `objects`: MyClass()
+- `functions`: fn () {}
+- `native`: [native modules](#std-library) or [imported modules](#modules)
+- `nil`
+
+> NOTE: `nil` represents the "null" or "None" value used in other languages and represents the absence of a value.
 
 ## Print: Hello World
 
@@ -432,35 +540,6 @@ Outputs:
 [1, 2, 4, 8, 16]
 ```
 
-## Net utils
-
-### TCP Socket
-
-```js
-let socket = net.listenTcp("127.0.0.1", "6500")
-while true {
-    let conn = socket.accept()
-    io.println("Received connection from:", conn.address())
-    conn.write("ok\n")
-    conn.close()
-}
-```
-
-Try from console:
-```
-$ telnet localhost 6500
-Trying 127.0.0.1...
-Connected to localhost.
-Escape character is '^]'.
-ok
-Connection closed by foreign host.
-```
-
-Outputs:
-```
-Received connection from: 127.0.0.1:52238
-```
-
 ## Env Variables
 
 ```js
@@ -486,4 +565,56 @@ try {
 Outputs:
 ```
 open utils.gr: no such file or directory
+```
+
+## Std Library
+
+Included with the Grotksy interpreter.
+
+```C
+io
+    io.println(arg0, ...) -> nil
+    io.readln() -> str | nil
+    io.clock() -> number
+    io.readFile(path) -> str
+    io.writeFile(path, content) -> nil
+    io.listDir(path) -> list
+    io.fileExists(path) -> bool
+    io.mkdirAll(path, permissions) -> nil
+
+strings
+    strings.toLower(str) -> str
+    strings.toUpper(str) -> str
+    strings.ord(str) -> number
+    strings.chr(number) -> str
+    strings.asNumber(str) -> number
+    strings.split(str) -> list
+    strings.compare(str0, str1) -> number
+
+type
+    type(object) -> str
+
+env
+    env.get(variable) -> str
+    env.set(variable) -> nil
+
+import
+    import() -> native
+
+net
+    net.listenTcp(hostport) -> listener
+        listener.address() -> str
+        listener.close() -> nil
+        listener.accept() -> connection
+            connection.address() -> str
+            connection.close() -> nil
+            connection.read() -> str
+            connection.write(str) -> number
+
+re
+    re.find(pattern, target) -> list
+    re.match(pattern, target) -> bool
+
+process
+    process.argv -> list
 ```

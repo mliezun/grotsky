@@ -336,11 +336,28 @@ impl VM {
                 }
                 OpCode::Return => {
                     let stack = self.stack.pop().unwrap();
+                    let mut return_value = None;
 
-                    // Store return values
-                    if inst.b == inst.a + 2 && stack.result_register > 0 {
-                        self.activation_records[stack.sp + (stack.result_register - 1) as usize] =
-                            self.activation_records[sp + inst.a as usize].clone();
+                    // Read return value
+                    if inst.b == inst.a + 2 {
+                        return_value = Some(self.activation_records[sp + inst.a as usize].clone());
+                    }
+
+                    if self.stack.len() == 0 {
+                        // Exit program
+                        let mut exit_code = 0;
+                        if let Some(v) = &return_value {
+                            if let Value::Number(n) = v.as_val() {
+                                if n.n >= 0.0 && n.n < 256.0 && n.n.fract() == 0.0 {
+                                    exit_code = n.n as i32;
+                                }
+                            }
+                        }
+                        std::process::exit(exit_code);
+                    }
+
+                    if return_value.is_some() && stack.result_register > 0 {
+                        self.activation_records[stack.sp + (stack.result_register - 1) as usize] = return_value.unwrap();
                     }
 
                     // Drop current stack frame

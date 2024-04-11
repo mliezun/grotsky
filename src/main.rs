@@ -1,4 +1,5 @@
 mod compiler;
+mod embed;
 mod errors;
 mod expr;
 mod instruction;
@@ -12,21 +13,31 @@ mod token;
 mod value;
 mod vm;
 
-use std::fs::{canonicalize, read, write};
+use std::{fs::{canonicalize, read, write}, process::exit};
 
 use std::{env, panic};
 
+const GENERAL_USAGE: &'static str = r##"Usage:
+    grotsky [script.gr | bytecode.grc]
+    grotsky compile script.gr
+    grotsky embed bytecode.grc
+"##;
+
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        println!("Usage:\n\tgrotsky [filename]\n\tgrotsky compile [filename]\n");
+    if embed::is_embedded() {
+        embed::execute_embedded();
         return;
     }
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        println!("{}", GENERAL_USAGE);
+        exit(1);
+    }
     let content: Vec<u8>;
-    let mut abs_path = if args[1] == "compile" {
+    let mut abs_path = if args[1] == "compile" || args[1] == "embed" {
         if args.len() != 3 {
-            println!("Usage:\n\tgrotsky [filename]\n\tgrotsky compile [filename]\n");
-            return;
+            println!("{}", GENERAL_USAGE);
+            exit(1);
         }
         canonicalize(&args[2]).unwrap()
     } else {
@@ -34,6 +45,17 @@ fn main() {
     };
     let abs_path_str = abs_path.to_string_lossy();
     let abs_path_string = String::from(abs_path_str);
+    if args[1] == "embed" {
+        if abs_path.extension().unwrap_or_default() != "grc" {
+            println!("Can only embed a .grc file");
+            exit(1);
+        }
+        let mut new_abs_path = abs_path.clone();
+        new_abs_path.set_extension("exe");
+        embed::embed_file(abs_path_string, String::from(new_abs_path.to_string_lossy()));
+        return;
+    }
+
     interpreter::set_absolute_path(abs_path_string);
     content = read(interpreter::get_absolute_path()).unwrap();
     let grotsky_debug = env::var("GROTSKY_DEBUG").unwrap_or("0".to_string());

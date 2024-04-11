@@ -12,7 +12,7 @@ benchmark_fib: grotsky grotsky-rs
 	python tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs fib
 
 benchmark_objects: grotsky grotsky-rs
-	python tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs fib
+	python tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs objects
 
 test_grotsky: grotsky
 	@ cd archive && go test -v ./... -interpreter Go

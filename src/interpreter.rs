@@ -1,5 +1,5 @@
 use crate::vm::{StackEntry, VMFnPrototype};
-use crate::{compiler, lexer, native, parser, state, stmt, value, vm};
+use crate::{compiler, embed, lexer, native, parser, state, stmt, value, vm};
 use std::collections::{HashMap, HashSet};
 use std::panic;
 use std::rc::Rc;
@@ -84,6 +84,10 @@ fn setup_global_interpreter() {
         my_vm.builtins.insert(
             "re".to_string(),
             value::Value::Native(native::Re::build()),
+        );
+        my_vm.builtins.insert(
+            "process".to_string(),
+            value::Value::Native(native::Process::build(embed::is_embedded())),
         );
         unsafe {
             GLOBAL_INTERPRETER = Some(Interpreter {

@@ -1,6 +1,6 @@
 use socket2::{Domain, Socket};
 use std::cmp::Ordering;
-use std::io::{Read, Write};
+use std::io::{stdin, BufRead, Read, Write};
 use std::net::{Shutdown, ToSocketAddrs};
 use std::ops::DerefMut;
 use std::{
@@ -34,6 +34,27 @@ impl IO {
             .unwrap();
         println!("{}", text);
         return Ok(Value::Nil);
+    }
+
+    fn readln(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if !values.is_empty() {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let stdin = stdin();
+        let line = stdin.lock()
+            .lines()
+            .next();
+        if line.is_none() {
+            return Ok(Value::Nil);
+        }
+        let line_unwrapped = line.unwrap();
+        if line_unwrapped.is_err() {
+            return Err(RuntimeErr{
+                msg: "Could not read from stdin",
+                signal: None,
+            });
+        }
+        return Ok(Value::String(StringValue { s: line_unwrapped.unwrap() }));
     }
 
     fn clock(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -211,6 +232,12 @@ impl IO {
             bind: false,
             baggage: None,
         };
+        let readln = NativeValue {
+            props: HashMap::new(),
+            callable: Some(&IO::readln),
+            bind: false,
+            baggage: None,
+        };
         let clock = NativeValue {
             props: HashMap::new(),
             callable: Some(&IO::clock),
@@ -249,6 +276,8 @@ impl IO {
         };
         io.props
             .insert("println".to_string(), Value::Native(println));
+        io.props
+            .insert("readln".to_string(), Value::Native(readln));
         io.props.insert("clock".to_string(), Value::Native(clock));
         io.props
             .insert("readFile".to_string(), Value::Native(read_file));
@@ -959,6 +988,26 @@ impl Re {
         return Ok(Value::List(MutValue::new(ListValue{elements: result})));
     }
 
+    pub fn regex_match(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 2 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let regex_value = match values.first().unwrap() {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let string_value = match values.last().unwrap() {
+            Value::String(s) => s,
+            _ => {
+                return Err(ERR_EXPECTED_STRING);
+            }
+        };
+        let re = Regex::new(regex_value.s.as_str()).unwrap();
+        Ok(Value::Bool(BoolValue { b: re.is_match(string_value.s.as_str()) }))
+    }
+
     pub fn build() -> NativeValue {
         let mut re = NativeValue {
             props: HashMap::new(),
@@ -972,6 +1021,34 @@ impl Re {
             bind: false,
             baggage: None,
         }));
+        re.props.insert("match".to_string(), Value::Native(NativeValue{
+            props: HashMap::new(),
+            callable: Some(&Self::regex_match),
+            bind: false,
+            baggage: None,
+        }));
         return re;
+    }
+}
+
+pub struct Process {}
+
+impl Process {
+    pub fn build(is_embedded: bool) -> NativeValue {
+        let mut process = NativeValue{
+            props: HashMap::new(),
+            callable: None,
+            bind: false,
+            baggage: None,
+        };
+        let mut argv: Vec<String> = env::args().collect();
+        if !is_embedded && argv.len() >= 2 {
+            argv.drain(0..1);
+        }
+        let argv_values = Value::List(MutValue::new(ListValue{
+            elements: argv.iter().map(|a| Value::String(StringValue{s:a.clone()})).collect(),
+        }));
+        process.props.insert("argv".to_string(), argv_values);
+        return process;
     }
 }

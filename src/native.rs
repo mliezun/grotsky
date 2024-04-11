@@ -1034,7 +1034,7 @@ impl Re {
 pub struct Process {}
 
 impl Process {
-    pub fn build() -> NativeValue {
+    pub fn build(is_embedded: bool) -> NativeValue {
         let mut process = NativeValue{
             props: HashMap::new(),
             callable: None,
@@ -1042,7 +1042,7 @@ impl Process {
             baggage: None,
         };
         let mut argv: Vec<String> = env::args().collect();
-        if argv.len() >= 2 {
+        if !is_embedded && argv.len() >= 2 {
             argv.drain(0..1);
         }
         let argv_values = Value::List(MutValue::new(ListValue{

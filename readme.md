@@ -187,6 +187,7 @@ $ ./grotksy embed grep.grc
 Now we should have a `grep.exe` in our directory. And we can use it:
 
 ```
+$ chmod +x grep.exe
 $ cat file.txt | ./grep.exe pattern
 ```
 

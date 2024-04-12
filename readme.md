@@ -9,6 +9,9 @@ Grotsky is inspired a little bit by go, python and javascript. Uses a C-like sty
 
 It has the ability to compile to bytecode and also to embed scripts into a distributable binary.
 
+If you're interested in how embedding works, I wrote a blogpost about it:
+- [From Script to Binary, Creating single executables with Grotsky ](https://mliezun.github.io/2024/04/11/embedding-scripts.html)
+
 # Table of Contents
 1. [Usage](#usage)
     - [Installation](#installation)

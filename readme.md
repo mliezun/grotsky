@@ -12,6 +12,8 @@ It has the ability to compile to bytecode and also to embed scripts into a distr
 If you're interested in how embedding works, I wrote a blogpost about it:
 - [From Script to Binary, Creating single executables with Grotsky ](https://mliezun.github.io/2024/04/11/embedding-scripts.html)
 
+The blog's engine is actually written in Grotsky, you can find the source code here: [https://github.com/mliezun/mliezun.github.io/](https://github.com/mliezun/mliezun.github.io/)
+
 # Table of Contents
 1. [Usage](#usage)
     - [Installation](#installation)

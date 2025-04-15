@@ -40,7 +40,8 @@ macro_rules! make_call {
             pc: $pc + 1,
             sp: $sp,
             result_register: $result_register,
-            this: $current_this.clone(),
+            caller_this: $current_this.clone(),
+            current_this: $bind_to.clone(),
             file: None,
         };
         let previous_sp = $sp;
@@ -85,7 +86,7 @@ macro_rules! throw_exception {
                 $self.stack.pop();
             }
             let stack = &$self.stack[catch_exc.stack_ix];
-            $this = stack.this.clone();
+            $this = stack.current_this.clone();
             $sp = catch_exc.sp;
             $pc = catch_exc.catch_block_pc;
             catch_exc.exception = Some($error);
@@ -123,7 +124,8 @@ pub struct StackEntry {
     pub pc: usize,                           // Return location
     pub sp: usize,                           // Stack pointer inside activation record
     pub result_register: u8,
-    pub this: Option<MutValue<ObjectValue>>,
+    pub caller_this: Option<MutValue<ObjectValue>>, // The 'this' of the calling context
+    pub current_this: Option<MutValue<ObjectValue>>, // The 'this' bound for the current function call
     pub file: Option<String>,
 }
 
@@ -310,7 +312,7 @@ impl VM {
                                     self,
                                     cloned_fn_value,
                                     this,
-                                    Some(object_value),
+                                    Some(object_value.clone()),
                                     self.instructions,
                                     original_instructions,
                                     original_instructions_data,
@@ -367,7 +369,7 @@ impl VM {
                         .drain(sp..self.activation_records.len());
 
                     // Restore previous object
-                    this = stack.this;
+                    this = stack.caller_this;
 
                     // Restore pointers to previous section of code
                     pc = stack.pc;

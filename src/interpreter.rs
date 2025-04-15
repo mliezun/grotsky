@@ -52,7 +52,8 @@ fn setup_global_interpreter() {
                 pc: 0,
                 sp: 0,
                 result_register: 0,
-                this: None,
+                caller_this: None,
+                current_this: None,
                 file: Some(get_absolute_path()),
             }],
             activation_records: vec![],
@@ -261,7 +262,8 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
         pc: 0,
         sp: 0,
         result_register: 0,
-        this: None,
+        caller_this: None,
+        current_this: None,
         file: Some(get_absolute_path()),
     });
     interpreter.vm.interpret();

@@ -99,6 +99,7 @@ impl Compiler {
             instruction_data: instructions.iter().map(|i| i.src.clone()).collect(),
             param_count: param_count,
             name: current_context.name,
+            file_path: crate::interpreter::get_absolute_path(),
         });
         return prototype_ix as u16;
     }
@@ -407,25 +408,29 @@ impl Compiler {
             _ => return None,
         };
         if let Literal::Number(n) = literal.value {
-            if operator.token == Token::Plus && n.fract() == 0.0 && n < 256.0 && n >= 0.0 {
+            if (opcode == OpCode::Addi || opcode == OpCode::Subi) && n.fract() == 0.0 && n >= 0.0 && n < 256.0 {
                 let left_chunk = expr.accept(self);
+                let result_register = self.next_register();
                 let mut chunk = Chunk {
                     instructions: vec![],
-                    result_register: left_chunk.result_register,
+                    result_register: result_register,
                 };
                 chunk
                     .instructions
                     .append(&mut left_chunk.instructions.clone());
-                chunk.push(
-                    Instruction {
-                        opcode: opcode,
-                        a: chunk.result_register,
-                        b: left_chunk.result_register,
-                        c: (n as i32) as u8,
-                    },
-                    Some(operator.clone()),
-                );
-                return Some(chunk);
+
+                if opcode == OpCode::Addi {
+                    chunk.push(
+                        Instruction {
+                            opcode: OpCode::Addi,
+                            a: result_register,
+                            b: left_chunk.result_register,
+                            c: n as u8,
+                        },
+                        Some(operator.clone()),
+                    );
+                    return Some(chunk);
+                }
             }
         }
         return None;
@@ -446,6 +451,7 @@ pub struct FnPrototype {
     pub instruction_data: Vec<Option<TokenData>>,
     pub param_count: usize,
     pub name: String,
+    pub file_path: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1650,14 +1656,16 @@ impl ExprVisitor<Chunk> for Compiler {
     }
 
     fn visit_binary_expr(&mut self, expr: &BinaryExpr) -> Chunk {
-        if let Expr::Literal(l) = &*expr.right {
-            if let Some(chunk) = self.binary_literal(&*expr.left, &expr.operator, l) {
-                return chunk;
+        if let Expr::Literal(lit_expr @ LiteralExpr { value: Literal::Number(_), .. }) = &*expr.right {
+            if expr.operator.token == Token::Plus {
+                if let Some(chunk) = self.binary_literal(&*expr.left, &expr.operator, lit_expr) {
+                    return chunk;
+                }
             }
         }
-        if let Expr::Literal(l) = &*expr.left {
-            if expr.operator.token != Token::Minus {
-                if let Some(chunk) = self.binary_literal(&*expr.right, &expr.operator, l) {
+        if let Expr::Literal(lit_expr @ LiteralExpr { value: Literal::Number(_), .. }) = &*expr.left {
+            if expr.operator.token == Token::Minus {
+                if let Some(chunk) = self.binary_literal(&*expr.right, &expr.operator, lit_expr) {
                     return chunk;
                 }
             }
@@ -1704,9 +1712,7 @@ impl ExprVisitor<Chunk> for Compiler {
 
     fn visit_call_expr(&mut self, expr: &CallExpr) -> Chunk {
         let mut chunk = expr.callee.accept(self);
-        // println!("Callee: {:#?}", chunk);
         let fn_register = self.next_register();
-        // println!("fn_register: {:#?}", fn_register);
         let token_data = Some(expr.paren.clone());
         chunk.push(
             Instruction {
@@ -1746,7 +1752,6 @@ impl ExprVisitor<Chunk> for Compiler {
             },
             token_data.clone(),
         );
-        // println!("Call chunk: {:#?}", chunk);
         return chunk;
     }
 

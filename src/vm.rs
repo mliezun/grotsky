@@ -40,8 +40,9 @@ macro_rules! make_call {
             pc: $pc + 1,
             sp: $sp,
             result_register: $result_register,
-            this: $current_this.clone(),
-            file: interpreter::get_absolute_path(),
+            caller_this: $current_this.clone(),
+            current_this: $bind_to.clone(),
+            file: None,
         };
         let previous_sp = $sp;
         $sp = $self.activation_records.len();
@@ -85,7 +86,7 @@ macro_rules! throw_exception {
                 $self.stack.pop();
             }
             let stack = &$self.stack[catch_exc.stack_ix];
-            $this = stack.this.clone();
+            $this = stack.current_this.clone();
             $sp = catch_exc.sp;
             $pc = catch_exc.catch_block_pc;
             catch_exc.exception = Some($error);
@@ -104,9 +105,10 @@ macro_rules! throw_exception {
             if skip_backtrace != "1" && !skip_backtrace.eq_ignore_ascii_case("true") {
                 for stack in $self.stack.iter() {
                     if let Some(fn_value) = &stack.function {
-                        println!("{}::{}", stack.file, fn_value.0.borrow().name);
+                        let prototype = &$self.prototypes[fn_value.0.borrow().prototype as usize];
+                        println!("{}::{}", prototype.file_path, fn_value.0.borrow().name);
                     } else {
-                        println!("{}", stack.file);
+                        println!("{}", $self.stack[0].file.as_deref().unwrap_or("<unknown_main_script>"));
                     }
                 }
             }
@@ -122,8 +124,9 @@ pub struct StackEntry {
     pub pc: usize,                           // Return location
     pub sp: usize,                           // Stack pointer inside activation record
     pub result_register: u8,
-    pub this: Option<MutValue<ObjectValue>>,
-    pub file: String,
+    pub caller_this: Option<MutValue<ObjectValue>>, // The 'this' of the calling context
+    pub current_this: Option<MutValue<ObjectValue>>, // The 'this' bound for the current function call
+    pub file: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -157,6 +160,7 @@ pub struct VMFnPrototype {
     pub instruction_data: Rc<Vec<Option<TokenData>>>,
     pub param_count: usize,
     pub name: String,
+    pub file_path: String,
 }
 
 #[derive(Debug)]
@@ -308,7 +312,7 @@ impl VM {
                                     self,
                                     cloned_fn_value,
                                     this,
-                                    Some(object_value),
+                                    Some(object_value.clone()),
                                     self.instructions,
                                     original_instructions,
                                     original_instructions_data,
@@ -365,7 +369,7 @@ impl VM {
                         .drain(sp..self.activation_records.len());
 
                     // Restore previous object
-                    this = stack.this;
+                    this = stack.caller_this;
 
                     // Restore pointers to previous section of code
                     pc = stack.pc;

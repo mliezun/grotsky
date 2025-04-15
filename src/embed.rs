@@ -1,9 +1,53 @@
 use std::env;
 use std::{fs::{read, write}, process::exit, ptr};
 
-use const_random::const_random;
-
 use crate::interpreter;
+
+// Add compile-time random byte generation functions
+const fn simple_compile_time_lcg(seed: u64) -> u64 {
+    // Parameters from Numerical Recipes (via Wikipedia)
+    const A: u64 = 1664525;
+    const C: u64 = 1013904223;
+    // M is 2^64 implicitly due to wrapping arithmetic
+    A.wrapping_mul(seed).wrapping_add(C)
+}
+
+const fn compile_time_random_bytes<const N: usize>() -> [u8; N] {
+    // Simple FNV-1a hash for compile-time seeding based on file path
+    const fn str_fnv1a_hash(s: &str) -> u64 {
+        let mut hash: u64 = 0xcbf29ce484222325; // FNV offset basis
+        let prime: u64 = 0x100000001b3; // FNV prime
+        let bytes = s.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            hash ^= bytes[i] as u64;
+            hash = hash.wrapping_mul(prime);
+            i += 1;
+        }
+        hash
+    }
+
+    // Seed the LCG with the hash of the current file's path
+    const SEED: u64 = str_fnv1a_hash(file!());
+
+    let mut bytes = [0u8; N];
+    let mut state = SEED;
+    let mut i = 0;
+    // Generate N bytes using the LCG
+    while i < N {
+        state = simple_compile_time_lcg(state);
+        // Fill bytes using parts of the 64-bit state
+        // This extracts 8 bytes per LCG iteration
+        let state_bytes = state.to_le_bytes();
+        let mut byte_idx = 0;
+        while byte_idx < 8 && i < N {
+             bytes[i] = state_bytes[byte_idx];
+             i += 1;
+             byte_idx += 1;
+        }
+    }
+    bytes
+}
 
 #[repr(C)]
 struct Marker {
@@ -13,7 +57,8 @@ struct Marker {
 
 const fn new_marker() -> Marker {
     Marker{
-        magic_pattern: const_random!([u8; 512]),
+        // Use the new function instead of const_random! macro
+        magic_pattern: compile_time_random_bytes::<512>(),
         is_embedded: 0,
     }
 }

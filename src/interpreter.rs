@@ -53,7 +53,7 @@ fn setup_global_interpreter() {
                 sp: 0,
                 result_register: 0,
                 this: None,
-                file: get_absolute_path(),
+                file: Some(get_absolute_path()),
             }],
             activation_records: vec![],
             catch_exceptions: vec![],
@@ -150,6 +150,7 @@ pub fn run_interpreter_from_bytecode(bytecode: &[u8]) -> bool {
             instruction_data: Rc::new(p.instruction_data.clone()),
             param_count: p.param_count,
             name: p.name.clone(),
+            file_path: p.file_path.clone(),
         }).collect());
         interpreter.vm.constants = interpreter
             .compiler
@@ -190,6 +191,7 @@ pub fn run_bytecode_interpreter(source: String) {
         instruction_data: Rc::new(p.instruction_data.clone()),
         param_count: p.param_count,
         name: p.name.clone(),
+        file_path: p.file_path.clone(),
     }).collect());
     interpreter.vm.constants = interpreter
         .compiler
@@ -242,6 +244,7 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
         instruction_data: Rc::new(p.instruction_data.clone()),
         param_count: p.param_count,
         name: p.name.clone(),
+        file_path: p.file_path.clone(),
     }).collect());
     interpreter.vm.constants = interpreter
         .compiler
@@ -259,7 +262,7 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
         sp: 0,
         result_register: 0,
         this: None,
-        file: get_absolute_path(),
+        file: Some(get_absolute_path()),
     });
     interpreter.vm.interpret();
 

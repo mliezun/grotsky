@@ -99,6 +99,7 @@ impl Compiler {
             instruction_data: instructions.iter().map(|i| i.src.clone()).collect(),
             param_count: param_count,
             name: current_context.name,
+            file_path: crate::interpreter::get_absolute_path(),
         });
         return prototype_ix as u16;
     }
@@ -446,6 +447,7 @@ pub struct FnPrototype {
     pub instruction_data: Vec<Option<TokenData>>,
     pub param_count: usize,
     pub name: String,
+    pub file_path: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -41,7 +41,7 @@ macro_rules! make_call {
             sp: $sp,
             result_register: $result_register,
             this: $current_this.clone(),
-            file: interpreter::get_absolute_path(),
+            file: None,
         };
         let previous_sp = $sp;
         $sp = $self.activation_records.len();
@@ -104,9 +104,10 @@ macro_rules! throw_exception {
             if skip_backtrace != "1" && !skip_backtrace.eq_ignore_ascii_case("true") {
                 for stack in $self.stack.iter() {
                     if let Some(fn_value) = &stack.function {
-                        println!("{}::{}", stack.file, fn_value.0.borrow().name);
+                        let prototype = &$self.prototypes[fn_value.0.borrow().prototype as usize];
+                        println!("{}::{}", prototype.file_path, fn_value.0.borrow().name);
                     } else {
-                        println!("{}", stack.file);
+                        println!("{}", $self.stack[0].file.as_deref().unwrap_or("<unknown_main_script>"));
                     }
                 }
             }
@@ -123,7 +124,7 @@ pub struct StackEntry {
     pub sp: usize,                           // Stack pointer inside activation record
     pub result_register: u8,
     pub this: Option<MutValue<ObjectValue>>,
-    pub file: String,
+    pub file: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -157,6 +158,7 @@ pub struct VMFnPrototype {
     pub instruction_data: Rc<Vec<Option<TokenData>>>,
     pub param_count: usize,
     pub name: String,
+    pub file_path: String,
 }
 
 #[derive(Debug)]

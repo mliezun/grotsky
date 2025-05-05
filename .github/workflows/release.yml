@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - v0.*
-      - master
 
 jobs:
   build-linux:
@@ -89,37 +88,37 @@ jobs:
           mv grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz ../
           cd ..
 
-      # - name: Create Release
-      #   id: create_release
-      #   uses: actions/create-release@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     tag_name: ${{ steps.extract_branch.outputs.branch }}
-      #     release_name: Release ${{ steps.extract_branch.outputs.branch }}
-      #     body: |
-      #       Automated Release
-      #     draft: false
-      #     prerelease: false
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.extract_branch.outputs.branch }}
+          release_name: Release ${{ steps.extract_branch.outputs.branch }}
+          body: |
+            Automated Release
+          draft: false
+          prerelease: false
 
-      # - name: Upload Release Linux
-      #   id: upload-release-linux
-      #   uses: actions/upload-release-asset@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-      #     asset_path: ./grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz
-      #     asset_name: grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz
-      #     asset_content_type: application/gzip
+      - name: Upload Release Linux
+        id: upload-release-linux
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: ./grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz
+          asset_name: grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz
+          asset_content_type: application/gzip
 
-      # - name: Upload Release macos arm64
-      #   id: upload-release-macos-arm64
-      #   uses: actions/upload-release-asset@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-      #     asset_path: ./grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz
-      #     asset_name: grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz
-      #     asset_content_type: application/gzip
+      - name: Upload Release macos arm64
+        id: upload-release-macos-arm64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: ./grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz
+          asset_name: grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz
+          asset_content_type: application/gzip

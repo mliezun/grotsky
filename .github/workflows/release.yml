@@ -19,40 +19,25 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - name: Install deps
-        run: |
-          sudo apt-get install make
-          rustup target add aarch64-apple-darwin
-
       - name: Build for linux
         run: |
           cargo build --release
-          mv target/release/grotsky-rs grotsky-linux
 
-      - name: Build for mac arm64
-        run: |
-          cargo build --release --target aarch64-apple-darwin
-          mv target/aarch64-apple-darwin/release/grotsky-rs grotsky-mac
+      - name: Upload binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: grotsky-rs-linux-x86_64
+          path: target/release/grotsky-rs
 
       # - name: Build for mac x86_64
       #   run: |
       #     cargo build --release --target x86_64-apple-darwin
       #     mv target/x86_64-apple-darwin/release/grotsky-rs grotsky-mac
 
-      - name: Extract branch name
-        shell: bash
-        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-        id: extract_branch
-
-      - name: Prepare Release Linux
-        run: |
-          mv grotsky-linux grotsky
-          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz grotsky
-
-      - name: Prepare Release macos arm64
-        run: |
-          mv grotsky-mac grotsky
-          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz grotsky
+      # - name: Extract branch name
+      #   shell: bash
+      #   run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      #   id: extract_branch
 
       # - name: Create Release
       #   id: create_release
@@ -106,8 +91,28 @@ jobs:
     - name: Build release binary
       run: cargo build --release --target=aarch64-apple-darwin
 
-    # - name: Upload binary
-    #   uses: actions/upload-artifact@v3
-    #   with:
-    #     name: grotsky-rs-macos-aarch64
-    #     path: target/aarch64-apple-darwin/release/grotsky-rs
+    - name: Upload binary
+      uses: actions/upload-artifact@v3
+      with:
+        name: grotsky-rs-macos-aarch64
+        path: target/aarch64-apple-darwin/release/grotsky-rs
+
+  release:
+    name: Release binaries
+    runs-on: ubuntu-latest
+    needs: [build-linux, build-macos]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Download binary artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: grotsky-rs-macos-aarch64
+          path: ./release-assets
+
+      - name: Download binary artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: grotsky-rs-linux-x86_64
+          path: ./release-assets

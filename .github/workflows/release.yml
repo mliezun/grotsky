@@ -94,12 +94,14 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v2
 
-    - name: Install Rust toolchain and Apple Silicon target
-      run: |
-        rustup update
-        rustup target add aarch64-apple-darwin
+    - name: Install latest stable
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: 1.85.0
+        override: true
+        components: rustfmt, clippy
 
     - name: Build release binary
       run: cargo build --release --target=aarch64-apple-darwin

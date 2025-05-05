@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - v0.*
+      - master
 
 jobs:
   build-linux:

@@ -79,13 +79,13 @@ jobs:
       - name: Create tar.gz for Linux
         run: |
           cd ./release-assets
-          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz grotsky-rs-linux-x86_64
+          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz grotsky-rs
           mv grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz ../
           cd ..
       - name: Create tar.gz for macOS
         run: |
           cd ./release-assets
-          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz grotsky-rs-macos-aarch64
+          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz grotsky-rs
           mv grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz ../
           cd ..
 

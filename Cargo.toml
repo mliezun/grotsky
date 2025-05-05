@@ -12,3 +12,6 @@ regex = "1.10.2"
 
 [profile.release]
 debug = true
+
+[target.aarch64-apple-darwin]
+linker = "/path/to/osxcross/target/bin/aarch64-apple-darwin14-clang"

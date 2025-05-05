@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-linux:
-    name: Build Rust version
+    name: Build on Linux
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -19,12 +19,11 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - name: Build for linux
-        run: |
-          cargo build --release
+      - name: Build release binary
+        run: cargo build --release
 
       - name: Upload binary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: grotsky-rs-linux-x86_64
           path: target/release/grotsky-rs
@@ -92,7 +91,7 @@ jobs:
       run: cargo build --release --target=aarch64-apple-darwin
 
     - name: Upload binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: grotsky-rs-macos-aarch64
         path: target/aarch64-apple-darwin/release/grotsky-rs
@@ -106,13 +105,13 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Download binary artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: grotsky-rs-macos-aarch64
           path: ./release-assets
 
       - name: Download binary artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: grotsky-rs-linux-x86_64
           path: ./release-assets

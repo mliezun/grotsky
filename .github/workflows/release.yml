@@ -7,7 +7,7 @@ on:
       - master
 
 jobs:
-  build:
+  build-linux:
     name: Build Rust version
     runs-on: ubuntu-latest
     steps:
@@ -88,3 +88,24 @@ jobs:
       #     asset_path: ./grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz
       #     asset_name: grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz
       #     asset_content_type: application/gzip
+
+  build-macos:
+    name: Build on macOS (Apple Silicon target)
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install Rust toolchain and Apple Silicon target
+      run: |
+        rustup update
+        rustup target add aarch64-apple-darwin
+
+    - name: Build release binary
+      run: cargo build --release --target=aarch64-apple-darwin
+
+    - name: Upload binary
+      uses: actions/upload-artifact@v3
+      with:
+        name: grotsky-rs-macos-aarch64
+        path: target/aarch64-apple-darwin/release/grotsky-rs

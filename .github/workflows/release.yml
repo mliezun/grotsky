@@ -106,8 +106,8 @@ jobs:
     - name: Build release binary
       run: cargo build --release --target=aarch64-apple-darwin
 
-    - name: Upload binary
-      uses: actions/upload-artifact@v3
-      with:
-        name: grotsky-rs-macos-aarch64
-        path: target/aarch64-apple-darwin/release/grotsky-rs
+    # - name: Upload binary
+    #   uses: actions/upload-artifact@v3
+    #   with:
+    #     name: grotsky-rs-macos-aarch64
+    #     path: target/aarch64-apple-darwin/release/grotsky-rs

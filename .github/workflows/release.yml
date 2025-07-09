@@ -64,29 +64,32 @@ jobs:
           name: grotsky-rs-linux-x86_64
           path: ./release-assets
 
+      - name: Create tar.gz for Linux
+        run: |
+          cd ./release-assets
+          mv grotsky-rs-linux-x86_64 grotsky
+          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz grotsky
+          mv grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz ../
+          cd ..
+
       - name: Download binary macos
         uses: actions/download-artifact@v4
         with:
           name: grotsky-rs-macos-aarch64
           path: ./release-assets
-      
+
+      - name: Create tar.gz for macOS
+        run: |
+          cd ./release-assets
+          mv grotsky-rs-macos-aarch64 grotsky
+          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz grotsky
+          mv grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz ../
+          cd ..
+
       - name: Extract branch name
         shell: bash
         run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
         id: extract_branch
-
-      - name: Create tar.gz for Linux
-        run: |
-          cd ./release-assets
-          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz grotsky-rs
-          mv grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz ../
-          cd ..
-      - name: Create tar.gz for macOS
-        run: |
-          cd ./release-assets
-          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz grotsky-rs
-          mv grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz ../
-          cd ..
 
       - name: Create Release
         id: create_release

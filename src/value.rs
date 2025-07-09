@@ -163,7 +163,7 @@ impl Value {
             Value::String(s) => {
                 if prop == "length" {
                     Ok(Value::Number(NumberValue {
-                        n: s.s.len() as f64,
+                        n: s.s.chars().count() as f64,
                     }))
                 } else {
                     Err(ERR_UNDEFINED_PROP)
@@ -604,14 +604,14 @@ impl StringValue {
                 let mut result_str = "".to_string();
                 match val.as_range() {
                     Ok((range, step)) => {
-                        if step > self.s.len() {
+                        if step > self.s.chars().count() {
                             return Ok(Value::String(StringValue { s: result_str }));
                         }
                         for i in range.step_by(step) {
-                            if i >= self.s.len() {
+                            if i >= self.s.chars().count() {
                                 break;
                             }
-                            result_str.push_str(self.s.get(i..i + 1).unwrap());
+                            result_str.push_str(self.s.chars().nth(i).unwrap().to_string().as_str());
                         }
                         Ok(Value::String(StringValue { s: result_str }))
                     }

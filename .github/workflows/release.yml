@@ -19,13 +19,15 @@ jobs:
           components: rustfmt, clippy
 
       - name: Build release binary
-        run: cargo build --release
+        run: |
+          cargo build --release
+          mv target/release/grotsky-rs grotsky-rs-linux-x86_64
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
           name: grotsky-rs-linux-x86_64
-          path: target/release/grotsky-rs
+          path: grotsky-rs-linux-x86_64
 
   build-macos:
     name: Build on macOS (Apple Silicon target)
@@ -42,13 +44,15 @@ jobs:
         components: rustfmt, clippy
 
     - name: Build release binary
-      run: cargo build --release --target=aarch64-apple-darwin
+      run: |
+        cargo build --release --target=aarch64-apple-darwin
+        mv target/aarch64-apple-darwin/release/grotsky-rs grotsky-rs-macos-aarch64
 
     - name: Upload binary
       uses: actions/upload-artifact@v4
       with:
         name: grotsky-rs-macos-aarch64
-        path: target/aarch64-apple-darwin/release/grotsky-rs
+        path: grotsky-rs-macos-aarch64
 
   release:
     name: Release binaries
@@ -58,33 +62,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Extract branch name
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+        id: extract_branch
+
       - name: Download binary linux
         uses: actions/download-artifact@v4
         with:
           name: grotsky-rs-linux-x86_64
           path: ./release-assets
 
+      - name: Create tar.gz for Linux
+        run: |
+          cd ./release-assets
+          mv grotsky-rs-linux-x86_64 grotsky
+          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz grotsky
+          mv grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz ../
+          cd ..
+
       - name: Download binary macos
         uses: actions/download-artifact@v4
         with:
           name: grotsky-rs-macos-aarch64
           path: ./release-assets
-      
-      - name: Extract branch name
-        shell: bash
-        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-        id: extract_branch
 
-      - name: Create tar.gz for Linux
-        run: |
-          cd ./release-assets
-          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz grotsky-rs
-          mv grotsky-${{ steps.extract_branch.outputs.branch }}-linux-x86_64.tar.gz ../
-          cd ..
       - name: Create tar.gz for macOS
         run: |
           cd ./release-assets
-          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz grotsky-rs
+          mv grotsky-rs-macos-aarch64 grotsky
+          tar -czvf grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz grotsky
           mv grotsky-${{ steps.extract_branch.outputs.branch }}-macos-aarch64.tar.gz ../
           cd ..
 

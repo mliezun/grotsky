@@ -20,6 +20,9 @@ test_grotsky: grotsky
 test_grotsky-rs: grotsky-rs
 	@ cd archive && RUST_BACKTRACE=1 go test -v ./... -interpreter Rust -failfast
 
+test_integration: grotsky grotsky-rs
+	@ cd test/integration && python blog.py
+
 grotsky:
 	@ mkdir -p $(BUILD_DIR)
 	@ cd archive && go build cmd/grotsky/main.go && mv main ../$(BUILD_DIR)/grotsky

@@ -1,6 +1,6 @@
 [package]
 name = "grotsky-rs"
-version = "0.0.14"
+version = "0.0.17"
 edition = "2021"
 
 [dependencies]

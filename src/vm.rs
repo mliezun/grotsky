@@ -779,7 +779,7 @@ impl VM {
                     }
                 }
                 OpCode::Access => {
-                    let val = match &self.activation_records[sp + inst.b as usize] {
+                    let mut val = match &self.activation_records[sp + inst.b as usize] {
                         Record::Ref(v) => v.0.borrow().clone(),
                         Record::Val(v) => v.clone(),
                     };
@@ -787,7 +787,7 @@ impl VM {
                         Record::Ref(v) => v.0.borrow().clone(),
                         Record::Val(v) => v.clone(),
                     };
-                    match val {
+                    match &mut val {
                         Value::List(list) => {
                             match list.0.borrow().access(accessor) {
                                 Ok(v) => {
@@ -1017,7 +1017,7 @@ impl VM {
                     }
                 }
                 OpCode::GetObj => {
-                    let val_b = match &self.activation_records[sp + inst.b as usize] {
+                    let mut val_b = match &self.activation_records[sp + inst.b as usize] {
                         Record::Ref(v) => v.0.borrow().clone(),
                         Record::Val(v) => v.clone(),
                     };
@@ -1275,15 +1275,11 @@ impl VM {
                                 elements: HashMap::new(),
                             };
                             dict_value.elements.insert(
-                                Value::String(StringValue {
-                                    s: "key".to_string(),
-                                }),
+                                Value::String(StringValue::new("key".to_string())),
                                 elms.0.clone(),
                             );
                             dict_value.elements.insert(
-                                Value::String(StringValue {
-                                    s: "value".to_string(),
-                                }),
+                                Value::String(StringValue::new("value".to_string())),
                                 elms.1.clone(),
                             );
                             self.activation_records[sp + inst.a as usize] =
@@ -1366,12 +1362,8 @@ impl VM {
                     let n = inst.c as usize;
                     match val_b.as_val() {
                         Value::Dict(d) => {
-                            let k = Value::String(StringValue {
-                                s: "key".to_string(),
-                            });
-                            let v = Value::String(StringValue {
-                                s: "value".to_string(),
-                            });
+                            let k = Value::String(StringValue::new("key".to_string()));
+                            let v = Value::String(StringValue::new("value".to_string()));
                             if n == 0 {
                                 self.activation_records[sp + inst.a as usize] =
                                     Record::Val(d.0.borrow().elements.get(&k).unwrap().clone());
@@ -1598,9 +1590,7 @@ impl VM {
                     self.activation_records[sp + inst.a as usize] =
                         if let Some(catched_exception) = self.catch_exceptions.last() {
                             if let Some(exc) = &catched_exception.exception {
-                                Record::Val(Value::String(StringValue {
-                                    s: exc.msg.to_string(),
-                                }))
+                                Record::Val(Value::String(StringValue::new(exc.msg.to_string())))
                             } else {
                                 Record::Val(Value::Nil)
                             }

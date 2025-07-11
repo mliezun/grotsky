@@ -39,7 +39,7 @@ pub enum Value {
 impl From<&Literal> for Value {
     fn from(value: &Literal) -> Self {
         match value {
-            Literal::String(s) => Value::String(StringValue { s: s.clone() }),
+            Literal::String(s) => Value::String(StringValue::new(s.clone())),
             Literal::Number(n) => Value::Number(NumberValue { n: *n }),
             Literal::Boolean(b) => Value::Bool(BoolValue { b: *b }),
             Literal::Nil => Value::Nil,
@@ -147,7 +147,7 @@ impl Value {
         }
     }
 
-    pub fn get(&self, prop: String) -> Result<Value, RuntimeErr> {
+    pub fn get(&mut self, prop: String) -> Result<Value, RuntimeErr> {
         match self {
             Value::Number(n) => Err(ERR_UNDEFINED_PROP),
             Value::Bool(b) => Err(ERR_UNDEFINED_PROP),
@@ -163,7 +163,7 @@ impl Value {
             Value::String(s) => {
                 if prop == "length" {
                     Ok(Value::Number(NumberValue {
-                        n: s.s.chars().count() as f64,
+                        n: s.get_length() as f64,
                     }))
                 } else {
                     Err(ERR_UNDEFINED_PROP)
@@ -220,9 +220,9 @@ impl Value {
         }
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
-                return Ok(Value::String(StringValue {
-                    s: str_val.s.clone() + &other_val.s,
-                }));
+                return Ok(Value::String(StringValue::new(
+                    str_val.s.clone() + &other_val.s,
+                )));
             } else if let Value::Bytes(other_val) = other {
                 let mut left_bytes = str_val.s.clone().into_bytes();
                 let mut right_bytes = other_val.s.clone();
@@ -592,28 +592,43 @@ impl FnValue {
 #[derive(Debug, Clone)]
 pub struct StringValue {
     pub s: String,
+    pub length: Option<usize>,
 }
 
 impl StringValue {
-    pub fn access(&self, accesor: Value) -> Result<Value, RuntimeErr> {
+    pub fn new(s: String) -> Self {
+        StringValue {
+            s: s,
+            length: None,
+        }
+    }
+
+    pub fn get_length(&mut self) -> usize {
+        if self.length.is_none() {
+            self.length = Some(self.s.chars().count());
+        }
+        self.length.unwrap()
+    }
+
+    pub fn access(&mut self, accesor: Value) -> Result<Value, RuntimeErr> {
         match accesor {
-            Value::Number(val) => Ok(Value::String(StringValue {
-                s: String::from(self.s.get((val.n as usize)..(1 + val.n as usize)).unwrap()),
-            })),
+            Value::Number(val) => Ok(Value::String(StringValue::new(
+                String::from(self.s.chars().nth(val.n as usize).unwrap()),
+            ))),
             Value::Slice(val) => {
                 let mut result_str = "".to_string();
                 match val.as_range() {
                     Ok((range, step)) => {
-                        if step > self.s.chars().count() {
-                            return Ok(Value::String(StringValue { s: result_str }));
+                        if step > self.get_length() {
+                            return Ok(Value::String(StringValue::new(result_str)));
                         }
                         for i in range.step_by(step) {
-                            if i >= self.s.chars().count() {
+                            if i >= self.get_length() {
                                 break;
                             }
                             result_str.push_str(self.s.chars().nth(i).unwrap().to_string().as_str());
                         }
-                        Ok(Value::String(StringValue { s: result_str }))
+                        Ok(Value::String(StringValue::new(result_str)))
                     }
                     Err(e) => Err(e),
                 }

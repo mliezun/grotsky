@@ -54,7 +54,7 @@ impl IO {
                 signal: None,
             });
         }
-        return Ok(Value::String(StringValue { s: line_unwrapped.unwrap() }));
+        return Ok(Value::String(StringValue::new(line_unwrapped.unwrap())));
     }
 
     fn clock(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -80,7 +80,7 @@ impl IO {
             }
         };
         match fs::read_to_string(string_value.s.as_str()) {
-            Ok(content) => Ok(Value::String(StringValue { s: content })),
+            Ok(content) => Ok(Value::String(StringValue::new(content))),
             Err(e) => {
                 if let std::io::ErrorKind::InvalidData = e.kind() {
                     match fs::read(string_value.s.as_str()) {
@@ -145,23 +145,17 @@ impl IO {
                     let file_metadata = file.metadata().unwrap();
                     let file_name = file.file_name().into_string().unwrap();
                     dict.insert(
-                        Value::String(StringValue {
-                            s: "name".to_string(),
-                        }),
-                        Value::String(StringValue { s: file_name }),
+                        Value::String(StringValue::new("name".to_string())),
+                        Value::String(StringValue::new(file_name)),
                     );
                     dict.insert(
-                        Value::String(StringValue {
-                            s: "size".to_string(),
-                        }),
+                        Value::String(StringValue::new("size".to_string())),
                         Value::Number(NumberValue {
                             n: file_metadata.len() as f64,
                         }),
                     );
                     dict.insert(
-                        Value::String(StringValue {
-                            s: "is_dir".to_string(),
-                        }),
+                        Value::String(StringValue::new("is_dir".to_string())),
                         Value::Bool(BoolValue {
                             b: file_metadata.is_dir(),
                         }),
@@ -307,7 +301,7 @@ impl Strings {
             }
         };
         let result = string_value.s.to_lowercase();
-        return Ok(Value::String(StringValue { s: result }));
+        return Ok(Value::String(StringValue::new(result)));
     }
 
     pub fn to_upper(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -321,7 +315,7 @@ impl Strings {
             }
         };
         let result = string_value.s.to_uppercase();
-        return Ok(Value::String(StringValue { s: result }));
+        return Ok(Value::String(StringValue::new(result)));
     }
 
     pub fn ord(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -348,9 +342,9 @@ impl Strings {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        return Ok(Value::String(StringValue {
-            s: unsafe { String::from_utf8_unchecked(vec![number_value.n as u8]) },
-        }));
+        return Ok(Value::String(StringValue::new(
+            unsafe { String::from_utf8_unchecked(vec![number_value.n as u8]) },
+        )));
     }
 
     pub fn as_number(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -388,7 +382,7 @@ impl Strings {
         let result = str
             .s
             .split(sep.s.as_str())
-            .map(|s| Value::String(StringValue { s: s.to_string() }))
+            .map(|s| Value::String(StringValue::new(s.to_string())))
             .collect::<Vec<Value>>();
         return Ok(Value::List(MutValue::new(ListValue { elements: result })));
     }
@@ -495,42 +489,18 @@ impl Type {
             return Err(ERR_INVALID_NUMBER_ARGUMENTS);
         }
         match values[0] {
-            Value::Class(_) => Ok(Value::String(StringValue {
-                s: "class".to_string(),
-            })),
-            Value::Object(_) => Ok(Value::String(StringValue {
-                s: "object".to_string(),
-            })),
-            Value::Dict(_) => Ok(Value::String(StringValue {
-                s: "dict".to_string(),
-            })),
-            Value::List(_) => Ok(Value::String(StringValue {
-                s: "list".to_string(),
-            })),
-            Value::Fn(_) => Ok(Value::String(StringValue {
-                s: "function".to_string(),
-            })),
-            Value::Native(_) => Ok(Value::String(StringValue {
-                s: "native".to_string(),
-            })),
-            Value::Number(_) => Ok(Value::String(StringValue {
-                s: "number".to_string(),
-            })),
-            Value::String(_) => Ok(Value::String(StringValue {
-                s: "string".to_string(),
-            })),
-            Value::Bytes(_) => Ok(Value::String(StringValue {
-                s: "bytes".to_string(),
-            })),
-            Value::Bool(_) => Ok(Value::String(StringValue {
-                s: "bool".to_string(),
-            })),
-            Value::Slice(_) => Ok(Value::String(StringValue {
-                s: "slice".to_string(),
-            })),
-            Value::Nil => Ok(Value::String(StringValue {
-                s: "nil".to_string(),
-            })),
+            Value::Class(_) => Ok(Value::String(StringValue::new("class".to_string()))),
+            Value::Object(_) => Ok(Value::String(StringValue::new("object".to_string()))),
+            Value::Dict(_) => Ok(Value::String(StringValue::new("dict".to_string()))),
+            Value::List(_) => Ok(Value::String(StringValue::new("list".to_string()))),
+            Value::Fn(_) => Ok(Value::String(StringValue::new("function".to_string()))),
+            Value::Native(_) => Ok(Value::String(StringValue::new("native".to_string()))),
+            Value::Number(_) => Ok(Value::String(StringValue::new("number".to_string()))),
+            Value::String(_) => Ok(Value::String(StringValue::new("string".to_string()))),
+            Value::Bytes(_) => Ok(Value::String(StringValue::new("bytes".to_string()))),
+            Value::Bool(_) => Ok(Value::String(StringValue::new("bool".to_string()))),
+            Value::Slice(_) => Ok(Value::String(StringValue::new("slice".to_string()))),
+            Value::Nil => Ok(Value::String(StringValue::new("nil".to_string()))),
         }
     }
 
@@ -559,7 +529,7 @@ impl Env {
             }
         };
         let result = env::var(string_value.s.as_str()).unwrap_or("".to_string());
-        return Ok(Value::String(StringValue { s: result }));
+        return Ok(Value::String(StringValue::new(result)));
     }
 
     pub fn set(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -681,7 +651,7 @@ impl Net {
             }
             _ => return Err(ERR_EXPECTED_OBJECT),
         };
-        return Ok(Value::String(StringValue { s: address_str }));
+        return Ok(Value::String(StringValue::new(address_str)));
     }
 
     fn conn_read(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -704,9 +674,9 @@ impl Net {
             _ => return Err(ERR_EXPECTED_OBJECT),
         };
         let read_from_connection = &buf[0..size];
-        return Ok(Value::String(StringValue {
-            s: String::from_utf8(read_from_connection.to_vec()).expect("Read as string"),
-        }));
+        return Ok(Value::String(StringValue::new(
+            String::from_utf8(read_from_connection.to_vec()).expect("Read as string"),
+        )));
     }
 
     fn conn_write(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -758,7 +728,7 @@ impl Net {
                 .to_string(),
             _ => return Err(ERR_EXPECTED_OBJECT),
         };
-        return Ok(Value::String(StringValue { s: address_str }));
+        return Ok(Value::String(StringValue::new(address_str)));
     }
 
     fn close(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -984,7 +954,7 @@ impl Re {
             }
         };
         let re = Regex::new(regex_value.s.as_str()).unwrap();
-        let result: Vec<Value> = re.find_iter(string_value.s.as_str()).map(|e| Value::String(StringValue{s:String::from(e.as_str())})).collect();
+        let result: Vec<Value> = re.find_iter(string_value.s.as_str()).map(|e| Value::String(StringValue::new(String::from(e.as_str())))).collect();
         return Ok(Value::List(MutValue::new(ListValue{elements: result})));
     }
 
@@ -1046,7 +1016,7 @@ impl Process {
             argv.drain(0..1);
         }
         let argv_values = Value::List(MutValue::new(ListValue{
-            elements: argv.iter().map(|a| Value::String(StringValue{s:a.clone()})).collect(),
+            elements: argv.iter().map(|a| Value::String(StringValue::new(a.clone()))).collect(),
         }));
         process.props.insert("argv".to_string(), argv_values);
         return process;

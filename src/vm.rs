@@ -11,13 +11,15 @@ use std::env;
 use std::ops::Deref;
 use std::rc::Rc;
 
+const MAX_FRAMES: usize = 1024;
+
 macro_rules! make_call {
     ( $self:expr, $fn_value:expr, $current_this:expr, $bind_to:expr, $instructions:expr, $original_instructions:expr, $original_instructions_data:expr, $pc:expr, $sp:expr, $result_register:expr, $input_range:expr ) => {{
         let prototype = &$self.prototypes[$fn_value.0.borrow().prototype as usize];
 
         let error_on_call = if $input_range.len() != prototype.param_count {
             Some(ERR_INVALID_NUMBER_ARGUMENTS)
-        } else if $self.stack.len() >= 1000 {
+        } else if $self.frames.len() >= MAX_FRAMES {
             Some(ERR_MAX_RECURSION)
         } else {
             None
@@ -46,7 +48,7 @@ macro_rules! make_call {
         };
         let previous_sp = $sp;
         $sp = $self.activation_records.len();
-        $self.stack.push(stack);
+        $self.frames.push(stack);
 
         // Expand activation records
         $self.activation_records.append(
@@ -76,16 +78,16 @@ macro_rules! throw_exception {
     ( $self:expr, $this:expr, $original_instructions:expr, $original_instructions_data:expr, $pc:expr, $sp:expr, $error:expr ) => {{
         if let Some(catch_exc) = $self.catch_exceptions.last_mut() {
             // Pop all frames
-            for i in (($self.stack.len() - 1)..catch_exc.stack_ix) {
-                if let Some(fn_value) = &$self.stack[i].function {
+            for i in (($self.frames.len() - 1)..catch_exc.stack_ix) {
+                if let Some(fn_value) = &$self.frames[i].function {
                     let prototype = &$self.prototypes[fn_value.0.borrow().prototype as usize];
                     let new_length =
                         $self.activation_records.len() - prototype.register_count as usize;
                     $self.activation_records.truncate(new_length);
                 }
-                $self.stack.pop();
+                $self.frames.pop();
             }
-            let stack = &$self.stack[catch_exc.stack_ix];
+            let stack = &$self.frames[catch_exc.stack_ix];
             $this = stack.current_this.clone();
             $sp = catch_exc.sp;
             $pc = catch_exc.catch_block_pc;
@@ -103,12 +105,12 @@ macro_rules! throw_exception {
         } else {
             let skip_backtrace = env::var("GROTSKY_SKIP_BACKTRACE").unwrap_or("0".to_string());
             if skip_backtrace != "1" && !skip_backtrace.eq_ignore_ascii_case("true") {
-                for stack in $self.stack.iter() {
+                for stack in $self.frames.iter() {
                     if let Some(fn_value) = &stack.function {
                         let prototype = &$self.prototypes[fn_value.0.borrow().prototype as usize];
                         println!("{}::{}", prototype.file_path, fn_value.0.borrow().name);
                     } else {
-                        println!("{}", $self.stack[0].file.as_deref().unwrap_or("<unknown_main_script>"));
+                        println!("{}", $self.frames[0].file.as_deref().unwrap_or("<unknown_main_script>"));
                     }
                 }
             }
@@ -170,7 +172,7 @@ pub struct VM {
     pub constants: Vec<Value>,
     pub globals: HashMap<String, Value>,
     pub builtins: HashMap<String, Value>,
-    pub stack: Vec<StackEntry>,
+    pub frames: Vec<StackEntry>,
     pub activation_records: Vec<Record>,
     pub instructions_data: Rc<Vec<Option<TokenData>>>,
     pub catch_exceptions: Vec<CatchException>,
@@ -178,8 +180,8 @@ pub struct VM {
 
 impl VM {
     pub fn interpret(&mut self) {
-        let mut pc = self.stack[self.stack.len() - 1].pc;
-        let mut sp = self.stack[self.stack.len() - 1].sp;
+        let mut pc = self.frames[self.frames.len() - 1].pc;
+        let mut sp = self.frames[self.frames.len() - 1].sp;
         let mut this: Option<MutValue<ObjectValue>> = None;
         let original_instructions_data = self.instructions_data.clone();
         let original_instructions = self.instructions.clone();
@@ -216,7 +218,7 @@ impl VM {
                                 return record;
                             } else {
                                 let current_func =
-                                    self.stack.last_mut().unwrap().function.clone().unwrap();
+                                    self.frames.last_mut().unwrap().function.clone().unwrap();
                                 let upval = &current_func.0.borrow().upvalues[u.index as usize];
                                 return upval.clone();
                             }
@@ -339,7 +341,7 @@ impl VM {
                     }
                 }
                 OpCode::Return => {
-                    let stack = self.stack.pop().unwrap();
+                    let stack = self.frames.pop().unwrap();
                     let mut return_value = None;
 
                     // Read return value
@@ -347,7 +349,7 @@ impl VM {
                         return_value = Some(self.activation_records[sp + inst.a as usize].clone());
                     }
 
-                    if self.stack.len() == 0 {
+                    if self.frames.len() == 0 {
                         // Exit program
                         let mut exit_code = 0;
                         if let Some(v) = &return_value {
@@ -374,7 +376,7 @@ impl VM {
                     // Restore pointers to previous section of code
                     pc = stack.pc;
                     sp = stack.sp;
-                    if let Some(func) = &self.stack.last().unwrap().function {
+                    if let Some(func) = &self.frames.last().unwrap().function {
                         let proto = &self.prototypes[func.0.borrow().prototype as usize];
                         self.instructions = proto.instructions.clone();
                         self.instructions_data = proto.instruction_data.clone();
@@ -687,13 +689,13 @@ impl VM {
                     pc += 1;
                 }
                 OpCode::GetUpval => {
-                    let current_func = self.stack.last_mut().unwrap().function.clone().unwrap();
+                    let current_func = self.frames.last_mut().unwrap().function.clone().unwrap();
                     let upval = &current_func.0.borrow().upvalues[inst.b as usize];
                     self.activation_records[sp + inst.a as usize] = Record::Ref(upval.clone());
                     pc += 1;
                 }
                 OpCode::SetUpval => {
-                    let current_func = self.stack.last_mut().unwrap().function.clone().unwrap();
+                    let current_func = self.frames.last_mut().unwrap().function.clone().unwrap();
                     let upval = &current_func.0.borrow().upvalues[inst.b as usize];
                     upval.0.replace(
                         self.activation_records[sp + inst.a as usize]
@@ -1556,7 +1558,7 @@ impl VM {
                 }
                 OpCode::GetCurrentFunc => {
                     self.activation_records[sp + inst.a as usize] = Record::Val(Value::Fn(
-                        self.stack.last().unwrap().function.clone().unwrap(),
+                        self.frames.last().unwrap().function.clone().unwrap(),
                     ));
                     pc += 1;
                 }
@@ -1580,7 +1582,7 @@ impl VM {
                 OpCode::RegisterTryCatch => {
                     self.catch_exceptions.push(CatchException {
                         catch_block_pc: pc + inst.bx() as usize,
-                        stack_ix: self.stack.len() - 1,
+                        stack_ix: self.frames.len() - 1,
                         sp: sp,
                         exception: None,
                     });

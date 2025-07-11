@@ -47,7 +47,7 @@ fn setup_global_interpreter() {
             constants: vec![],
             globals: HashMap::new(),
             builtins: HashMap::new(),
-            stack: vec![vm::StackEntry {
+            frames: vec![vm::StackEntry {
                 function: None,
                 pc: 0,
                 sp: 0,
@@ -218,7 +218,7 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
     let saved_instructions_data = interpreter.vm.instructions_data.clone();
     let saved_activation_records = interpreter.vm.activation_records.clone();
     let saved_globals = interpreter.vm.globals.clone();
-    let saved_stack = interpreter.vm.stack.clone();
+    let saved_frames = interpreter.vm.frames.clone();
 
     let stmts = parse_source_code(source);
     interpreter.compiler.contexts = vec![];
@@ -257,7 +257,7 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
         .map(|_| vm::Record::Val(value::Value::Nil))
         .collect();
     interpreter.vm.globals = HashMap::new();
-    interpreter.vm.stack.push(StackEntry {
+    interpreter.vm.frames.push(StackEntry {
         function: None,
         pc: 0,
         sp: 0,
@@ -286,7 +286,7 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
     interpreter.vm.instructions_data = saved_instructions_data;
     interpreter.vm.activation_records = saved_activation_records;
     interpreter.vm.globals = saved_globals;
-    interpreter.vm.stack = saved_stack;
+    interpreter.vm.frames = saved_frames;
 
     return module_exports;
 }

@@ -90,6 +90,10 @@ fn setup_global_interpreter() {
             "process".to_string(),
             value::Value::Native(native::Process::build(embed::is_embedded())),
         );
+        my_vm.builtins.insert(
+            "lists".to_string(),
+            value::Value::Native(native::Lists::build()),
+        );
         unsafe {
             GLOBAL_INTERPRETER = Some(Interpreter {
                 vm: my_vm,

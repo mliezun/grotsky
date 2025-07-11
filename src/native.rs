@@ -9,7 +9,7 @@ use std::{
 };
 use regex::Regex;
 
-use crate::errors::ERR_EXPECTED_NUMBER;
+use crate::errors::{ERR_EXPECTED_LIST, ERR_EXPECTED_NUMBER, ERR_LIST_EMPTY};
 use crate::value::{BoolValue, BytesValue, DictValue};
 use crate::{
     errors::ERR_INVALID_NUMBER_ARGUMENTS,
@@ -1020,5 +1020,62 @@ impl Process {
         }));
         process.props.insert("argv".to_string(), argv_values);
         return process;
+    }
+}
+
+pub struct Lists {}
+
+impl Lists {
+    pub fn push(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 2 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let list_value = match values.first().unwrap() {
+            Value::List(l) => l,
+            _ => {
+                return Err(ERR_EXPECTED_LIST);
+            }
+        };
+        list_value.0.borrow_mut().elements.push(values.last().unwrap().clone());
+        Ok(Value::List(list_value.clone()))
+    }
+
+    pub fn pop(values: Vec<Value>) -> Result<Value, RuntimeErr> {
+        if values.len() != 2 {
+            return Err(ERR_INVALID_NUMBER_ARGUMENTS);
+        }
+        let list_value = match values.first().unwrap() {
+            Value::List(l) => l,
+            _ => {
+                return Err(ERR_EXPECTED_LIST);
+            }
+        };
+        let last_element = list_value.0.borrow_mut().elements.pop();
+        if last_element.is_none() {
+            return Err(ERR_LIST_EMPTY);
+        }
+        Ok(last_element.unwrap())
+    }
+
+    pub fn build() -> NativeValue {
+        let mut list = NativeValue {
+            props: HashMap::new(),
+            callable: None,
+            bind: false,
+            baggage: None,
+        };
+        list.props.insert("push".to_string(), Value::Native(NativeValue {
+            props: HashMap::new(),
+            callable: Some(&Self::push),
+            bind: false,
+            baggage: None,
+        }));
+        list.props.insert("pop".to_string(), Value::Native(NativeValue {
+            props: HashMap::new(),
+            callable: Some(&Self::pop),
+            bind: false,
+            baggage: None,
+        }));
+        return list;
     }
 }

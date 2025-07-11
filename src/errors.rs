@@ -54,6 +54,8 @@ pub const ERR_EXPECTED_NUMBER: RuntimeErr =
 pub const ERR_EXPECTED_CLASS: RuntimeErr = RuntimeErr::new("A class was expected at this position");
 pub const ERR_EXPECTED_STRING: RuntimeErr =
     RuntimeErr::new("A string was expected at this position");
+pub const ERR_EXPECTED_INDEX: RuntimeErr =
+    RuntimeErr::new("An index was expected at this position");
 pub const ERR_EXPECTED_FUNCTION: RuntimeErr =
     RuntimeErr::new("A function was expected at this position");
 pub const ERR_EXPECTED_SUPERCLASS: RuntimeErr =
@@ -69,3 +71,4 @@ pub const ERR_EXPECTED_CATCH: RuntimeErr =
     RuntimeErr::new("A catch block was expected at this position");
 pub const ERR_UNDEFINED_TYPE: RuntimeErr = RuntimeErr::new("Undefined type");
 pub const ERR_MAX_RECURSION: RuntimeErr = RuntimeErr::new("Max recursion depth exceeded");
+pub const ERR_LIST_EMPTY: RuntimeErr = RuntimeErr::new("List is empty");

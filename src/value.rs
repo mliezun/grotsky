@@ -7,7 +7,7 @@ use std::rc::Rc;
 use crate::errors::{
     RuntimeErr, ERR_EXPECTED_DICT, ERR_EXPECTED_KEY, ERR_EXPECTED_LIST, ERR_EXPECTED_NUMBER,
     ERR_EXPECTED_OBJECT, ERR_EXPECTED_STEP, ERR_EXPECTED_STRING, ERR_ONLY_NUMBERS,
-    ERR_UNDEFINED_OP, ERR_UNDEFINED_OPERATOR, ERR_UNDEFINED_PROP,
+    ERR_UNDEFINED_OP, ERR_UNDEFINED_OPERATOR, ERR_UNDEFINED_PROP, ERR_EXPECTED_INDEX,
 };
 use crate::token::Literal;
 
@@ -214,6 +214,10 @@ impl Value {
                 return Ok(Value::Number(NumberValue {
                     n: num_val.n + other_val.n,
                 }));
+            } else if let Value::String(other_val) = other {
+                return Ok(Value::String(StringValue::new(
+                    num_val.n.to_string() + &other_val.s,
+                )));
             } else {
                 return Err(ERR_EXPECTED_NUMBER);
             }
@@ -228,6 +232,10 @@ impl Value {
                 let mut right_bytes = other_val.s.clone();
                 left_bytes.append(&mut right_bytes);
                 return Ok(Value::Bytes(BytesValue { s: left_bytes }));
+            } else if let Value::Number(other_val) = other {
+                return Ok(Value::String(StringValue::new(
+                    str_val.s.clone() + &other_val.n.to_string(),
+                )));
             } else {
                 return Err(ERR_EXPECTED_STRING);
             }
@@ -593,6 +601,7 @@ impl FnValue {
 pub struct StringValue {
     pub s: String,
     pub length: Option<usize>,
+    pub is_ascii: Option<bool>,
 }
 
 impl StringValue {
@@ -600,6 +609,7 @@ impl StringValue {
         StringValue {
             s: s,
             length: None,
+            is_ascii: None,
         }
     }
 
@@ -610,11 +620,32 @@ impl StringValue {
         self.length.unwrap()
     }
 
+    pub fn get_char(&mut self, index: usize) -> Result<Value, RuntimeErr> {
+        if index >= self.get_length() {
+            return Err(ERR_EXPECTED_INDEX);
+        }
+        if self.is_ascii.is_none() {
+            self.is_ascii = Some(self.s.is_ascii());
+        }
+        if self.is_ascii.unwrap() {
+            Ok(Value::String(StringValue::new(
+                self.s[index..index + 1].to_string(),
+            )))
+        } else {
+            Ok(Value::String(StringValue::new(
+                self.s.chars().nth(index).unwrap().to_string(),
+            )))
+        }
+    }
+
     pub fn access(&mut self, accesor: Value) -> Result<Value, RuntimeErr> {
         match accesor {
-            Value::Number(val) => Ok(Value::String(StringValue::new(
-                String::from(self.s.chars().nth(val.n as usize).unwrap()),
-            ))),
+            Value::Number(val) => {
+                if val.n < 0.0 {
+                    return Err(ERR_EXPECTED_INDEX);
+                }
+                self.get_char(val.n as usize)
+            },
             Value::Slice(val) => {
                 let mut result_str = "".to_string();
                 match val.as_range() {
@@ -626,7 +657,7 @@ impl StringValue {
                             if i >= self.get_length() {
                                 break;
                             }
-                            result_str.push_str(self.s.chars().nth(i).unwrap().to_string().as_str());
+                            result_str.push_str(self.get_char(i)?.string().as_str());
                         }
                         Ok(Value::String(StringValue::new(result_str)))
                     }

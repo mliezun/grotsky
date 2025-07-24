@@ -22,7 +22,7 @@ dependencies = [
 
 [[package]]
 name = "grotsky-rs"
-version = "0.0.17"
+version = "0.0.18"
 dependencies = [
  "bincode",
  "regex",

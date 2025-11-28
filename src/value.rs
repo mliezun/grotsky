@@ -149,8 +149,8 @@ impl Value {
 
     pub fn get(&mut self, prop: String) -> Result<Value, RuntimeErr> {
         match self {
-            Value::Number(n) => Err(ERR_UNDEFINED_PROP),
-            Value::Bool(b) => Err(ERR_UNDEFINED_PROP),
+            Value::Number(_n) => Err(ERR_UNDEFINED_PROP),
+            Value::Bool(_b) => Err(ERR_UNDEFINED_PROP),
             Value::List(l) => {
                 if prop == "length" {
                     Ok(Value::Number(NumberValue {
@@ -214,10 +214,6 @@ impl Value {
                 return Ok(Value::Number(NumberValue {
                     n: num_val.n + other_val.n,
                 }));
-            } else if let Value::String(other_val) = other {
-                return Ok(Value::String(StringValue::new(
-                    num_val.n.to_string() + &other_val.s,
-                )));
             } else {
                 return Err(ERR_EXPECTED_NUMBER);
             }
@@ -232,10 +228,6 @@ impl Value {
                 let mut right_bytes = other_val.s.clone();
                 left_bytes.append(&mut right_bytes);
                 return Ok(Value::Bytes(BytesValue { s: left_bytes }));
-            } else if let Value::Number(other_val) = other {
-                return Ok(Value::String(StringValue::new(
-                    str_val.s.clone() + &other_val.n.to_string(),
-                )));
             } else {
                 return Err(ERR_EXPECTED_STRING);
             }

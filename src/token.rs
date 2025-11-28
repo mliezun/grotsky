@@ -1,21 +1,21 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
-pub enum Operator {
-    Add,
-    Sub,
-    Div,
-    Mod,
-    Mul,
-    Pow,
-    Neg,
-    Eq,
-    Neq,
-    Gt,
-    Gte,
-    Lt,
-    Lte,
-}
+// #[derive(Debug)]
+// pub enum Operator {
+//     Add,
+//     Sub,
+//     Div,
+//     Mod,
+//     Mul,
+//     Pow,
+//     Neg,
+//     Eq,
+//     Neq,
+//     Gt,
+//     Gte,
+//     Lt,
+//     Lte,
+// }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum Token {

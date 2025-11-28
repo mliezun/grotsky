@@ -3,7 +3,6 @@
 use crate::compiler::UpvalueRef;
 use crate::errors::*;
 use crate::instruction::*;
-use crate::interpreter;
 use crate::token::TokenData;
 use crate::value::*;
 use std::collections::HashMap;
@@ -903,7 +902,7 @@ impl VM {
                             dict.0.borrow_mut().elements.insert(accessor, val);
                             pc += 1;
                         }
-                        Value::String(str) => unimplemented!(),
+                        Value::String(_str) => unimplemented!(),
                         _ => panic!("Cannot access non iterable"),
                     }
                 }
@@ -1070,7 +1069,7 @@ impl VM {
                         Record::Val(v) => v.clone(),
                     };
                     match val_a {
-                        Value::Number(n) => {
+                        Value::Number(_n) => {
                             throw_exception!(
                                 self,
                                 this,
@@ -1081,7 +1080,7 @@ impl VM {
                                 ERR_READ_ONLY
                             );
                         }
-                        Value::Bool(b) => {
+                        Value::Bool(_b) => {
                             throw_exception!(
                                 self,
                                 this,
@@ -1092,7 +1091,7 @@ impl VM {
                                 ERR_READ_ONLY
                             );
                         }
-                        Value::String(s) => {
+                        Value::String(_s) => {
                             throw_exception!(
                                 self,
                                 this,
@@ -1103,7 +1102,7 @@ impl VM {
                                 ERR_READ_ONLY
                             );
                         }
-                        Value::List(l) => {
+                        Value::List(_l) => {
                             throw_exception!(
                                 self,
                                 this,
@@ -1114,7 +1113,7 @@ impl VM {
                                 ERR_READ_ONLY
                             );
                         }
-                        Value::Dict(d) => {
+                        Value::Dict(_d) => {
                             throw_exception!(
                                 self,
                                 this,
@@ -1125,7 +1124,7 @@ impl VM {
                                 ERR_READ_ONLY
                             );
                         }
-                        Value::Native(n) => {
+                        Value::Native(_n) => {
                             throw_exception!(
                                 self,
                                 this,
@@ -1136,7 +1135,7 @@ impl VM {
                                 ERR_READ_ONLY
                             );
                         }
-                        Value::Class(c) => {
+                        Value::Class(_c) => {
                             throw_exception!(
                                 self,
                                 this,

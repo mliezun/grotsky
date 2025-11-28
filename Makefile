@@ -6,13 +6,13 @@ clean:
 
 
 benchmark_loop: grotsky grotsky-rs
-	python tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs loop 
+	python3 tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs loop 
 
 benchmark_fib: grotsky grotsky-rs
-	python tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs fib
+	python3 tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs fib
 
 benchmark_objects: grotsky grotsky-rs
-	python tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs objects
+	python3 tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs objects
 
 test_grotsky: grotsky
 	@ cd archive && go test -v ./... -interpreter Go
@@ -21,7 +21,7 @@ test_grotsky-rs: grotsky-rs
 	@ cd archive && RUST_BACKTRACE=1 go test -v ./... -interpreter Rust -failfast
 
 test_integration: grotsky-rs
-	@ python test/integration/blog.py || exit 1
+	@ python3 test/integration/blog.py || exit 1
 
 grotsky:
 	@ mkdir -p $(BUILD_DIR)

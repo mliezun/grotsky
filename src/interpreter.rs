@@ -14,7 +14,7 @@ struct Interpreter {
 }
 
 pub fn get_absolute_path() -> String {
-    unsafe { ABSOLUTE_PATH.to_string() }
+    unsafe { (*std::ptr::addr_of!(ABSOLUTE_PATH)).to_string() }
 }
 
 pub fn set_absolute_path(path: String) {
@@ -25,7 +25,7 @@ pub fn set_absolute_path(path: String) {
 
 fn get_global_interpreter() -> &'static mut Interpreter {
     setup_global_interpreter();
-    let gi = unsafe { &mut GLOBAL_INTERPRETER };
+    let gi = unsafe { &mut *std::ptr::addr_of_mut!(GLOBAL_INTERPRETER) };
     match gi {
         Some(g) => g,
         None => panic!("No global interpreter"),
@@ -33,7 +33,7 @@ fn get_global_interpreter() -> &'static mut Interpreter {
 }
 
 fn setup_global_interpreter() {
-    if unsafe { GLOBAL_INTERPRETER.is_none() } {
+    if unsafe { (*std::ptr::addr_of!(GLOBAL_INTERPRETER)).is_none() } {
         let compiler = compiler::Compiler {
             constants: vec![],
             contexts: vec![],

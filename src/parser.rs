@@ -1008,20 +1008,20 @@ impl Parser<'_> {
         return Expr::Super(super_expr);
     }
 
-    fn synchronize(&mut self) {
-        self.advance();
-        while !self.is_at_end() {
-            match self.peek().token {
-                Token::Class => return,
-                Token::Fn => return,
-                Token::Let => return,
-                Token::For => return,
-                Token::If => return,
-                Token::While => return,
-                Token::Return => return,
-                _ => (),
-            }
-            self.advance();
-        }
-    }
+    // fn synchronize(&mut self) {
+    //     self.advance();
+    //     while !self.is_at_end() {
+    //         match self.peek().token {
+    //             Token::Class => return,
+    //             Token::Fn => return,
+    //             Token::Let => return,
+    //             Token::For => return,
+    //             Token::If => return,
+    //             Token::While => return,
+    //             Token::Return => return,
+    //             _ => (),
+    //         }
+    //         self.advance();
+    //     }
+    // }
 }

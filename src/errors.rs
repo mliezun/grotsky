@@ -60,16 +60,9 @@ pub const ERR_EXPECTED_FUNCTION: RuntimeErr =
     RuntimeErr::new("A function was expected at this position");
 pub const ERR_EXPECTED_SUPERCLASS: RuntimeErr =
     RuntimeErr::new("Keyword 'super' is only valid inside an object");
-// pub const ERR_EXPECTED_DOT: RuntimeErr =
-//    RuntimeErr::new("Keyword 'super' is only valid for property accessing");
 pub const ERR_EXPECTED_DICT: RuntimeErr =
     RuntimeErr::new("A dictionary was expected at this position");
 pub const ERR_EXPECTED_LIST: RuntimeErr = RuntimeErr::new("A list was expected at this position");
-// pub const ERR_EXPECTED_INIT: RuntimeErr =
-//    RuntimeErr::new("Empty expression or let was expected at this position");
-// pub const ERR_EXPECTED_CATCH: RuntimeErr =
-//    RuntimeErr::new("A catch block was expected at this position");
-// pub const ERR_UNDEFINED_TYPE: RuntimeErr = RuntimeErr::new("Undefined type");
 pub const ERR_MAX_RECURSION: RuntimeErr = RuntimeErr::new("Max recursion depth exceeded");
 pub const ERR_LIST_EMPTY: RuntimeErr = RuntimeErr::new("List is empty");
 

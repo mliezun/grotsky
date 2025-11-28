@@ -1,0 +1,84 @@
+# Coverage Tests to hit missing lines
+
+io.println("Starting coverage tests...")
+
+# 1. Try-Catch (compiler.rs visit_try_catch_stmt)
+try {
+    io.println("In try block")
+    let a = 1 + "error" # Runtime error
+} catch e {
+    io.println("Caught error: " + e)
+}
+
+# 2. Closure capturing local variable (vm.rs OpCode::Closure is_local)
+fn outer() {
+    let x = "captured"
+    fn inner() {
+        return x
+    }
+    return inner
+}
+let closure = outer()
+io.println("Closure result: " + closure())
+
+# 3. Type errors in arithmetic (vm.rs OpCode::Add/Sub/Mul/Div/etc error paths)
+try { 1 * "a" } catch e { io.println("Caught Mul error") }
+try { 1 / "a" } catch e { io.println("Caught Div error") }
+try { 1 % "a" } catch e { io.println("Caught Mod error") }
+try { 1 - "a" } catch e { io.println("Caught Sub error") }
+try { 1 < "a" } catch e { io.println("Caught Lt error") }
+try { 1 <= "a" } catch e { io.println("Caught Lte error") }
+try { 1 > "a" } catch e { io.println("Caught Gt error") }
+try { 1 >= "a" } catch e { io.println("Caught Gte error") }
+
+# 4. Native functions (native.rs)
+
+# IO
+io.println("Current time: " + io.clock())
+io.writeFile("temp_test.txt", "content")
+io.println("File exists: " + io.fileExists("temp_test.txt"))
+io.println("Read file: " + io.readFile("temp_test.txt"))
+# io.listDir(".") # Output varies, just call it
+try { io.listDir("nonexistent") } catch e { io.println("Caught listDir error") }
+# io.mkdirAll("temp_dir/sub", 0) # 0 is permissions? ignored?
+# io.readln() # Interactive, skip
+
+# Strings
+io.println(strings.toLower("ABC"))
+io.println(strings.toUpper("abc"))
+io.println(strings.ord("A"))
+io.println(strings.chr(65))
+io.println(strings.asNumber("123"))
+io.println(strings.split("a,b,c", ","))
+io.println(strings.compare("a", "b"))
+
+# Lists
+let l = [1, 2]
+lists.push(l, 3)
+io.println("List after push: " + l)
+let popped = lists.pop(l)
+io.println("Popped: " + popped)
+try { lists.pop([]) } catch e { io.println("Caught pop empty error") }
+
+# Re (Regex)
+io.println("Regex match: " + re.match("^[0-9]+$", "123"))
+io.println("Regex find: " + re.find("[a-z]", "a1b2"))
+
+# Net (Network)
+# Basic server/client test
+# Note: This might hang if not careful, skip full integration, just test creation errors?
+try { net.listenTcp(123) } catch e { io.println("Caught listen error (arg type)") }
+# Invalid port/address
+try { net.listenTcp("invalid_address") } catch e { io.println("Caught listen error (invalid addr)") }
+
+# Process
+io.println("Argv: " + process.argv)
+
+# 5. Invalid arguments to native functions
+try { io.readFile() } catch e { io.println("Caught readFile arg count error") }
+try { io.readFile(1) } catch e { io.println("Caught readFile arg type error") }
+try { strings.toLower() } catch e { io.println("Caught toLower arg count error") }
+try { strings.toLower(1) } catch e { io.println("Caught toLower arg type error") }
+
+io.println("Coverage tests completed.")
+

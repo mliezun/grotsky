@@ -24,14 +24,21 @@ test_integration: grotsky-rs
 	@ python3 test/integration/blog.py || exit 1
 
 # Coverage target added
+run_coverage_tests: grotsky-rs
+	@ export LLVM_PROFILE_FILE="grotsky-cov-%p-%m.profraw" && \
+	  ./build/grotsky-rs test/coverage_tests.gr
+
 coverage: clean
+	@ cargo clean
 	@ mkdir -p $(BUILD_DIR)
 	@ export RUSTFLAGS="-C instrument-coverage" && \
 	  cargo build --release
+	@ dsymutil target/release/grotsky-rs
 	@ cp target/release/grotsky-rs build/
 	@ export LLVM_PROFILE_FILE="grotsky-%p-%m.profraw" && \
 	  $(MAKE) test_grotsky-rs && \
-	  $(MAKE) test_integration
+	  $(MAKE) test_integration && \
+	  $(MAKE) run_coverage_tests
 	@ grcov . --binary-path ./target/release/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
 	@ echo "Coverage report generated at lcov.info"
 

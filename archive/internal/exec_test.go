@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	osexec "os/exec"
 	"runtime/debug"
 	"strings"
@@ -79,7 +80,12 @@ func (b *BinaryInterpreter) RunSourceWithPrinter(absPath, source string, p IPrin
 	defer cancel()
 
 	cmd := osexec.CommandContext(ctx, b.path, f.Name())
-	cmd.Env = []string{"GROTSKY_SKIP_BACKTRACE=1"}
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "GROTSKY_SKIP_BACKTRACE=1")
+	cwd, _ := os.Getwd()
+	profilePath := fmt.Sprintf("LLVM_PROFILE_FILE=%s/../grotsky-%%p-%%m.profraw", cwd)
+	cmd.Env = append(cmd.Env, profilePath)
+	fmt.Println("DEBUG: Setting " + profilePath)
 	cmd.Stdout = b
 	cmd.Stderr = b
 	cmd.Dir = "../"

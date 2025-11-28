@@ -107,6 +107,7 @@ class TestBlogIntegration(unittest.TestCase):
         env = os.environ.copy()
         env["RUST_BACKTRACE"] = "full"
         env["GROTKSY_DEBUG"] = "1"
+        env["LLVM_PROFILE_FILE"] = "grotsky-%p-%m.profraw"
         
         try:
             result = subprocess.run(

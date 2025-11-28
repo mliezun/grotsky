@@ -1,0 +1,97 @@
+
+# Expanded Coverage Tests
+
+# --- 1. VM Error Handling & Edge Cases ---
+
+# OpCode::SetObj on invalid types
+try { 1.prop = 2 } catch e { io.println("Caught SetObj Number error") }
+try { true.prop = 2 } catch e { io.println("Caught SetObj Bool error") }
+try { "s".prop = 2 } catch e { io.println("Caught SetObj String error") }
+try { [].prop = 2 } catch e { io.println("Caught SetObj List error") }
+try { {}.prop = 2 } catch e { io.println("Caught SetObj Dict error") }
+try { io.prop = 2 } catch e { io.println("Caught SetObj Native error") }
+class A {}
+try { A.prop = 2 } catch e { io.println("Caught SetObj Class error") }
+
+# OpCode::SetObj invalid key on Object
+let obj = A()
+try { obj[1] = 2 } catch e { io.println("Caught SetObj invalid key type") }
+
+# OpCode::GetObj invalid key type
+try { obj[1] } catch e { io.println("Caught GetObj invalid key type") }
+
+# OpCode::Slice on non-list
+try { "s"[1:2] } catch e { io.println("Caught Slice on non-list (handled by string access actually)") }
+# Force Slice opcode on non-list? slice syntax is specific to list/string.
+# The parser might restrict this or compiles to Slice opcode only for lists?
+# Let's try slicing a number if parser allows
+# try { 1[1:2] } catch e { io.println("Caught Slice on number") } # Parser error?
+
+# OpCode::GetIter types
+try { for i in 1 {} } catch e { io.println("Caught GetIter Number error") }
+
+# OpCode::GetIterk (keys) types
+# Difficult to trigger directly as 'for k in x' uses GetIter for lists?
+# 'for k in dict' uses GetIterk
+
+# OpCode::GetIteri (unpacking)
+try { for k,v,z in {1:2} {} } catch e { io.println("Caught GetIteri unpacking error (dict expected 2)") }
+try { for k,v in [1] {} } catch e { io.println("Caught GetIteri unpacking error (list size)") }
+try { for k,v in "s" {} } catch e { io.println("Caught GetIteri on non-iterable") }
+
+# --- 2. Native Modules ---
+
+# Env
+env.set("TEST_VAR", "test_value")
+io.println("Env get: " + env.get("TEST_VAR"))
+try { env.get() } catch e { io.println("Caught Env::get arg error") }
+try { env.get(1) } catch e { io.println("Caught Env::get type error") }
+try { env.set() } catch e { io.println("Caught Env::set arg error") }
+try { env.set("A") } catch e { io.println("Caught Env::set arg error 2") }
+try { env.set(1, "A") } catch e { io.println("Caught Env::set type error 1") }
+try { env.set("A", 1) } catch e { io.println("Caught Env::set type error 2") }
+
+# Import
+# Create a dummy module file
+io.writeFile("mod.gr", "let export_var = 10")
+let m = import("mod.gr")
+io.println("Imported var: " + m.export_var)
+try { import() } catch e { io.println("Caught Import arg error") }
+try { import(1) } catch e { io.println("Caught Import type error") }
+try { import("non_existent.gr") } catch e { io.println("Caught Import file error") }
+
+# Net (Server/Client)
+# Try to start a server and connect to it
+try {
+    let server = net.listenTcp(":0") # Random port
+    let port = server.address().split("]:")[1] # Address is likely [::]:port or 0.0.0.0:port
+    io.println("Server listening on port: " + port)
+    
+    # Currently no 'connect' in net module? checking native.rs... 
+    # Only listenTcp, address, close, accept.
+    # There is no client connect function exposed in Net::build!
+    # So we can't test client connection fully unless we use an external tool or rely on accept timeout?
+    # But accept blocks.
+    
+    server.close()
+} catch e {
+    io.println("Net test error: " + e)
+}
+
+# Lists
+try { lists.push() } catch e { io.println("Caught lists.push arg error") }
+try { lists.push(1, 2) } catch e { io.println("Caught lists.push type error") }
+try { lists.pop() } catch e { io.println("Caught lists.pop arg error") }
+try { lists.pop(1) } catch e { io.println("Caught lists.pop type error") }
+
+# Re
+try { re.find() } catch e { io.println("Caught re.find arg error") }
+try { re.find(1, "s") } catch e { io.println("Caught re.find type error 1") }
+try { re.find("s", 1) } catch e { io.println("Caught re.find type error 2") }
+try { re.match() } catch e { io.println("Caught re.match arg error") }
+
+# --- 3. Compiler Limits (if reachable) ---
+# Too many constants? Too many locals? (Hard to script efficiently)
+
+io.println("Expanded coverage tests completed.")
+

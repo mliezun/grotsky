@@ -25,13 +25,13 @@ def run_trial(interpreter, benchmark):
     return float(out_lines[-1])
 
 
-def run_comparison(interpreters, benchmark):
+def run_comparison(interpreters, benchmark, max_trials=10):
     trial = 1
     best = {}
     for interpreter in interpreters:
         best[interpreter] = 9999
 
-    while True:
+    while trial <= max_trials:
         for interpreter in interpreters:
             elapsed = run_trial(interpreter, benchmark)
             if elapsed < best[interpreter]:
@@ -96,6 +96,6 @@ else:
     sys.exit(1)
 
 if len(interpreters) > 1:
-    run_comparison(interpreters, benchmark)
+    run_comparison(interpreters, benchmark, max_trials)
 else:
     run_benchmark(interpreters[0], benchmark, max_trials)

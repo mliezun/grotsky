@@ -208,7 +208,7 @@ impl Value {
         }
     }
 
-    pub fn add(&mut self, other: &mut Value) -> Result<Value, RuntimeErr> {
+    pub fn add(&self, other: &Value) -> Result<Value, RuntimeErr> {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Ok(Value::Number(NumberValue {
@@ -293,7 +293,7 @@ impl Value {
         }
         return Err(ERR_UNDEFINED_OP);
     }
-    pub fn sub(&mut self, other: &mut Value) -> Result<Value, RuntimeErr> {
+    pub fn sub(&self, other: &Value) -> Result<Value, RuntimeErr> {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Ok(Value::Number(NumberValue {
@@ -319,7 +319,7 @@ impl Value {
         }
         return Err(ERR_UNDEFINED_OP);
     }
-    pub fn mul(&mut self, other: &mut Value) -> Result<Value, RuntimeErr> {
+    pub fn mul(&self, other: &Value) -> Result<Value, RuntimeErr> {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Ok(Value::Number(NumberValue {
@@ -329,7 +329,7 @@ impl Value {
         }
         return Err(ERR_UNDEFINED_OP);
     }
-    pub fn div(&mut self, other: &mut Value) -> Value {
+    pub fn div(&self, other: &Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Number(NumberValue {
@@ -339,7 +339,7 @@ impl Value {
         }
         panic!("Not implemented");
     }
-    pub fn pow(&mut self, other: &mut Value) -> Value {
+    pub fn pow(&self, other: &Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Number(NumberValue {
@@ -349,7 +349,7 @@ impl Value {
         }
         panic!("Not implemented");
     }
-    pub fn modulo(&mut self, other: &mut Value) -> Value {
+    pub fn modulo(&self, other: &Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Number(NumberValue {
@@ -359,7 +359,7 @@ impl Value {
         }
         panic!("Not implemented");
     }
-    pub fn lt(&mut self, other: &mut Value) -> Value {
+    pub fn lt(&self, other: &Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Bool(BoolValue {
@@ -376,7 +376,7 @@ impl Value {
         }
         panic!("Not implemented");
     }
-    pub fn lte(&mut self, other: &mut Value) -> Result<Value, RuntimeErr> {
+    pub fn lte(&self, other: &Value) -> Result<Value, RuntimeErr> {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Ok(Value::Bool(BoolValue {
@@ -393,7 +393,7 @@ impl Value {
         }
         return Err(ERR_UNDEFINED_OP);
     }
-    pub fn gt(&mut self, other: &mut Value) -> Value {
+    pub fn gt(&self, other: &Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Bool(BoolValue {
@@ -410,7 +410,7 @@ impl Value {
         }
         panic!("Not implemented");
     }
-    pub fn gte(&mut self, other: &mut Value) -> Value {
+    pub fn gte(&self, other: &Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Bool(BoolValue {
@@ -427,7 +427,7 @@ impl Value {
         }
         panic!("Not implemented");
     }
-    pub fn equal(&mut self, other: &mut Value) -> Value {
+    pub fn equal(&self, other: &Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Bool(BoolValue {
@@ -476,7 +476,7 @@ impl Value {
             _ => Value::Bool(BoolValue { b: false }),
         };
     }
-    pub fn nequal(&mut self, other: &mut Value) -> Value {
+    pub fn nequal(&self, other: &Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Bool(BoolValue {
@@ -525,7 +525,7 @@ impl Value {
             _ => Value::Bool(BoolValue { b: true }),
         };
     }
-    pub fn neg(&mut self) -> Result<Value, RuntimeErr> {
+    pub fn neg(&self) -> Result<Value, RuntimeErr> {
         if let Value::Number(num_val) = self {
             return Ok(Value::Number(NumberValue { n: -num_val.n }));
         }
@@ -540,7 +540,7 @@ impl Value {
         }
         return Err(ERR_UNDEFINED_OP);
     }
-    pub fn not(&mut self) -> Value {
+    pub fn not(&self) -> Value {
         return match self {
             Value::Bool(bool_val) => Value::Bool(BoolValue { b: !bool_val.b }),
             _ => Value::Bool(BoolValue { b: !truthy(self) }),

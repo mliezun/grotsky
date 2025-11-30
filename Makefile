@@ -14,6 +14,21 @@ benchmark_fib: grotsky grotsky-rs
 benchmark_objects: grotsky grotsky-rs
 	python3 tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs objects
 
+profile_loop: grotsky
+	@ cargo build --release --features profile
+	@ cp target/release/grotsky-rs build/grotsky-rs
+	@ GROTSKY_PROFILE=1 python3 tool/benchmark.py $(BUILD_DIR)/grotsky-rs loop
+
+profile_fib: grotsky
+	@ cargo build --release --features profile
+	@ cp target/release/grotsky-rs build/grotsky-rs
+	@ GROTSKY_PROFILE=1 python3 tool/benchmark.py $(BUILD_DIR)/grotsky-rs fib
+
+profile_objects: grotsky
+	@ cargo build --release --features profile
+	@ cp target/release/grotsky-rs build/grotsky-rs
+	@ GROTSKY_PROFILE=1 python3 tool/benchmark.py $(BUILD_DIR)/grotsky-rs objects
+
 test_grotsky: grotsky
 	@ cd archive && go test -v ./... -interpreter Go
 

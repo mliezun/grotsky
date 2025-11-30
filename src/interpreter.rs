@@ -163,10 +163,11 @@ pub fn run_interpreter_from_bytecode(bytecode: &[u8]) -> bool {
             .iter()
             .map(|c| c.into())
             .collect();
-        interpreter.vm.activation_records =
+        interpreter.vm.activation_records = Vec::with_capacity(20480);
+        interpreter.vm.activation_records.extend(
             (0..interpreter.compiler.contexts.last().unwrap().register_count)
                 .map(|_| vm::Record::Val(value::Value::Nil))
-                .collect();
+        );
 
         interpreter.vm.interpret();
         return true;
@@ -204,10 +205,11 @@ pub fn run_bytecode_interpreter(source: String) {
         .iter()
         .map(|c| c.into())
         .collect();
-    interpreter.vm.activation_records =
+    interpreter.vm.activation_records = Vec::with_capacity(20480);
+    interpreter.vm.activation_records.extend(
         (0..interpreter.compiler.contexts.last().unwrap().register_count)
             .map(|_| vm::Record::Val(value::Value::Nil))
-            .collect();
+    );
 
     interpreter.vm.interpret();
 }
@@ -257,9 +259,11 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
         .iter()
         .map(|c| c.into())
         .collect();
-    interpreter.vm.activation_records = (0..module_global_context.register_count)
-        .map(|_| vm::Record::Val(value::Value::Nil))
-        .collect();
+    interpreter.vm.activation_records = Vec::with_capacity(20480);
+    interpreter.vm.activation_records.extend(
+        (0..module_global_context.register_count)
+            .map(|_| vm::Record::Val(value::Value::Nil))
+    );
     interpreter.vm.globals = HashMap::new();
     interpreter.vm.frames.push(StackEntry {
         function: None,

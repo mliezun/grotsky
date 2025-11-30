@@ -4,6 +4,7 @@ import subprocess
 import os
 import shutil
 import tempfile
+import platform
 
 class TestEmbed(unittest.TestCase):
     def setUp(self):
@@ -40,6 +41,16 @@ class TestEmbed(unittest.TestCase):
         
         # 4. Run the embedded executable
         os.chmod(exe_path, 0o755)
+        
+        # On macOS, remove quarantine attribute to allow execution
+        # (Gatekeeper kills unsigned executables otherwise)
+        if platform.system() == "Darwin":
+            try:
+                subprocess.check_call(["xattr", "-d", "com.apple.quarantine", exe_path], 
+                                    stderr=subprocess.DEVNULL)
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                # xattr command failed or not available, continue anyway
+                pass
         
         # Run it
         output = subprocess.check_output([exe_path], text=True, env=env)

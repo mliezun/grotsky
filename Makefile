@@ -49,8 +49,15 @@ coverage: clean
 	  $(MAKE) run_coverage_tests && \
 	  $(MAKE) run_embed_test && \
 	  $(MAKE) run_net_test
-	@ grcov . --binary-path ./target/release/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
-	@ echo "Coverage report generated at lcov.info"
+	@ echo "Collecting coverage data..."
+	@ grcov . --binary-path ./target/release/ -s . -t lcov --branch --ignore-not-existing --ignore "target/*" --ignore "archive/*" --ignore "test/*" -o lcov.info
+	@ if [ -f lcov.info ]; then \
+		echo "Coverage report generated at lcov.info"; \
+		echo "Run 'python3 tool/analyze_coverage.py' to analyze it"; \
+	else \
+		echo "Error: Failed to generate lcov.info. Check that .profraw files exist."; \
+		exit 1; \
+	fi
 
 grotsky:
 	@ mkdir -p $(BUILD_DIR)

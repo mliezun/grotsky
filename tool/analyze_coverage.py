@@ -15,7 +15,7 @@ def parse_lcov(lcov_path):
             if line.startswith('SF:'):
                 current_file = line[3:]
                 # Only care about src/ files
-                if 'src/' not in current_file or 'test/' in current_file or 'target/' in current_file or '.cargo/' in current_file:
+                if 'src/' not in current_file or 'test/' in current_file or 'target/' in current_file or '.cargo/' in current_file or '.rustup/' in current_file:
                     current_file = None
                     continue
                 if current_file not in coverage:

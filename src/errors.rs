@@ -66,3 +66,23 @@ pub const ERR_EXPECTED_LIST: RuntimeErr = RuntimeErr::new("A list was expected a
 pub const ERR_MAX_RECURSION: RuntimeErr = RuntimeErr::new("Max recursion depth exceeded");
 pub const ERR_LIST_EMPTY: RuntimeErr = RuntimeErr::new("List is empty");
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::value::{Value, NumberValue};
+
+    #[test]
+    fn test_new_error() {
+        let err = RuntimeErr::new("test error");
+        assert_eq!(err.msg, "test error");
+        assert!(err.signal.is_none());
+    }
+
+    #[test]
+    fn test_new_signal() {
+        let val = Value::Number(NumberValue { n: 1.0 });
+        let err = RuntimeErr::new_signal(val);
+        assert_eq!(err.msg, "");
+        assert!(err.signal.is_some());
+    }
+}

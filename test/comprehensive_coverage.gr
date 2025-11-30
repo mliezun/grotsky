@@ -1,0 +1,619 @@
+# Comprehensive Coverage Tests
+# This file aims to achieve 100% code coverage by testing all code paths
+
+io.println("Starting comprehensive coverage tests...")
+
+# ============================================================================
+# 1. MAIN.RS - Command Line Interface Paths
+# ============================================================================
+# Note: These are tested via command-line invocation, not script execution
+# Lines 26-35: embed::is_embedded() check, args handling
+# Lines 37-45: compile/embed command parsing
+# Lines 48-56: embed command execution
+# Lines 66-79: compile and run paths
+
+# ============================================================================
+# 2. ERRORS.RS - Error Constants and Signal Creation
+# ============================================================================
+# All error constants are compile-time constants, but we need to trigger them
+# Line 21-26: RuntimeErr::new_signal() - tested via VM exception handling
+
+# ============================================================================
+# 3. STATE.RS - InterpreterState Methods
+# ============================================================================
+# Lines 21-28: InterpreterState::new() - called during parsing
+# Lines 30-32: set_error() - called on parse errors
+# Lines 34-36: fatal_error() - called on fatal parse errors
+
+# Test parse errors to trigger set_error
+# Note: Parse errors are caught during compilation, not runtime
+# These would need to be tested via invalid syntax files
+
+# ============================================================================
+# 4. TOKEN.RS - Token Display/Debug
+# ============================================================================
+# Line 20: Token enum variants - all tokens are used during parsing
+# Line 83: TokenData struct - created during lexing
+# Line 91: TokenData fields - accessed during parsing
+
+# Test all token types by using various language constructs
+let x = 123
+let y = "string"
+let z = true
+let w = false
+let n = nil
+let arr = [1, 2, 3]
+let dict = {a: 1, b: 2}
+class Test {}
+let obj = Test()
+fn test() { return 1 }
+if true { } elif false { } else { }
+for i in arr { }
+while true { }
+let a = 1 + 2 - 3 * 4 / 5 % 6 ^ 7
+let b = 1 == 2 != 3 < 4 > 5 <= 6 >= 7
+let c = true and false or not true
+let d = arr[0]
+let e = dict["key"]
+let f = obj.prop
+let g = arr[1:2:3]
+let h = "str"[0:1]
+# return/break/continue must be inside functions/loops
+# super/this must be inside class methods
+fn test_return() { return 1 }
+for i in [1] { break }
+for i in [1] { continue }
+try { } catch e { }
+class TestSuper {
+    method() { return super.toString() }
+    prop() { return this.value }
+}
+
+# ============================================================================
+# 5. EXPR.RS - Expression Methods
+# ============================================================================
+# Lines 129-134: Expr::is_empty() method
+# Test Empty expression (if parser creates it)
+
+# ============================================================================
+# 6. INSTRUCTION.RS - Instruction Helper Methods
+# ============================================================================
+# Lines 74-78: Instruction::bx() - combines B and C into u16
+# Lines 80-84: Instruction::sbx() - signed 16-bit jump offset
+# Lines 87-89: Instruction::imm() - immediate value from C
+# Lines 91-93: Instruction::is_continue() - checks for continue jump
+# Lines 95-97: Instruction::is_break() - checks for break jump
+
+# These are tested indirectly through VM execution, but we can force specific
+# instruction patterns through specific code constructs
+
+# Test continue/break jumps
+for i in [1, 2, 3] {
+    if i == 2 {
+        continue  # Tests is_continue()
+    }
+    if i == 3 {
+        break  # Tests is_break()
+    }
+}
+
+# Test large jump offsets (for bx/sbx)
+# Create a large array to force large jump offsets
+let large_array = []
+let i = 0
+while i < 300 {
+    large_array.push(i)
+    i = i + 1
+}
+let j = 0
+while j < large_array.length {
+    if large_array[j] > 200 {
+        break
+    }
+    j = j + 1
+}
+
+# ============================================================================
+# 7. INTERPRETER.RS - Interpreter Setup and Paths
+# ============================================================================
+# Lines 16-18: get_absolute_path()
+# Lines 20-24: set_absolute_path()
+# Lines 26-33: get_global_interpreter()
+# Lines 35-104: setup_global_interpreter()
+# Lines 106-127: run_bytecode_interpreter()
+# Lines 129-134: run_interpreter_from_bytecode()
+# Lines 136-175: Various interpreter methods
+# Lines 177-213: Bytecode loading
+# Lines 215-296: Module loading
+
+# Test bytecode execution path
+let test_code = "let x = 42"
+# This would need to be compiled first, but we test the path
+
+# Test module import
+io.writeFile("test_module.gr", "let exported = 100")
+let mod = import("test_module.gr")
+io.println("Imported value: " + mod.exported)
+
+# ============================================================================
+# 8. EMBED.RS - Embedding Functionality
+# ============================================================================
+# Lines 7-50: Compile-time random byte generation
+# Lines 58-64: Marker creation
+# Lines 68-76: is_embedded() check
+# Lines 78-80: magic_pattern() access
+# Lines 82-92: find_position() search
+# Lines 94-107: embed_file() - tested via command line
+# Lines 109-125: execute_embedded() - tested when running embedded exe
+
+# ============================================================================
+# 9. VALUE.RS - Value Operations and Methods
+# ============================================================================
+# This is a large file with many methods. We need to test:
+
+# Hash implementation (lines 50-59)
+let dict1 = {1: "a", 2: "b"}
+let dict2 = {1: "a", 2: "b"}
+io.println("Dicts equal: " + (dict1 == dict2))
+
+# PartialEq implementation (lines 61-66)
+let v1 = 42
+let v2 = 42
+io.println("Values equal: " + (v1 == v2))
+
+# repr() method (lines 71-76)
+io.println("String repr: " + "test".repr())
+io.println("Number repr: " + (123).repr())
+
+# string() method for all types (lines 78-148)
+io.println("String: " + "hello")
+io.println("Number: " + (42))
+io.println("Bool: " + true)
+io.println("List: " + [1, 2, 3])
+io.println("Dict: " + {a: 1, b: 2})
+io.println("Fn: " + fn() {})
+io.println("Nil: " + nil)
+
+class TestClass {}
+io.println("Class: " + TestClass)
+io.println("Object: " + TestClass())
+io.println("Native: " + io)
+
+# Bytes value
+let bytes = io.readFile("test_module.gr")
+io.println("Bytes: " + bytes)
+
+# All get() method paths (lines 150+)
+let obj = TestClass()
+try { obj.nonexistent } catch e { io.println("Caught undefined property") }
+
+# All set() method paths
+obj.newprop = 42
+io.println("Set property: " + obj.newprop)
+
+# All arithmetic operations
+io.println("Add: " + (1 + 2))
+io.println("Sub: " + (3 - 1))
+io.println("Mul: " + (2 * 3))
+io.println("Div: " + (6 / 2))
+io.println("Mod: " + (7 % 3))
+io.println("Pow: " + (2 ^ 3))
+
+# All comparison operations
+io.println("Eq: " + (1 == 1))
+io.println("Neq: " + (1 != 2))
+io.println("Lt: " + (1 < 2))
+io.println("Lte: " + (1 <= 2))
+io.println("Gt: " + (2 > 1))
+io.println("Gte: " + (2 >= 1))
+
+# All logical operations
+io.println("And: " + (true and false))
+io.println("Or: " + (true or false))
+io.println("Not: " + (not false))
+
+# Slice operations
+let list = [1, 2, 3, 4, 5]
+io.println("Slice: " + list[1:3])
+io.println("Slice step: " + list[1:4:2])
+io.println("Slice start: " + list[:3])
+io.println("Slice end: " + list[2:])
+io.println("Slice all: " + list[:])
+
+let str = "hello"
+io.println("String slice: " + str[1:3])
+
+# Index operations
+io.println("List index: " + list[0])
+io.println("Dict index: " + {a: 1}["a"])
+io.println("String index: " + str[0])
+
+# ============================================================================
+# 10. VM.RS - Virtual Machine OpCodes
+# ============================================================================
+# This is the largest file. We need to test all opcodes:
+
+# OpCode::Constant - loading constants
+let c1 = 42
+let c2 = "string"
+let c3 = true
+let c4 = [1, 2, 3]
+let c5 = {a: 1}
+
+# OpCode::Nil - nil value
+let n = nil
+
+# OpCode::True/False - boolean values
+let t = true
+let f = false
+
+# OpCode::Pop - discarding values
+1 + 2  # Result discarded
+
+# OpCode::GetLocal/SetLocal - local variables
+let local = 1
+local = 2
+
+# OpCode::GetGlobal/SetGlobal - global variables
+global_var = 1
+let g = global_var
+
+# OpCode::DefineGlobal - defining globals
+let new_global = 42
+
+# OpCode::GetUpval/SetUpval - upvalues (closures)
+fn outer() {
+    let x = 1
+    fn inner() {
+        return x  # Captures x
+    }
+    x = 2  # Modifies captured variable
+    return inner
+}
+let closure = outer()
+io.println("Closure: " + closure())
+
+# OpCode::CloseUpval - closing upvalues
+fn make_closure() {
+    let x = "closed"
+    fn inner() {
+        return x
+    }
+    return inner
+}
+let c = make_closure()
+io.println("Closed: " + c())
+
+# OpCode::GetProperty/SetProperty - object properties
+class TestObj {
+    prop = 1
+    get prop() { return this.prop }
+    set prop(v) { this.prop = v }
+}
+let obj = TestObj()
+io.println("Get prop: " + obj.prop)
+obj.prop = 2
+io.println("Set prop: " + obj.prop)
+
+# OpCode::GetSuper - superclass access
+class Parent {
+    method() { return "parent" }
+}
+class Child < Parent {
+    method() { return super.method() }
+}
+let child = Child()
+io.println("Super: " + child.method())
+
+# OpCode::Equal/NotEqual - equality
+io.println("Equal: " + (1 == 1))
+io.println("NotEqual: " + (1 != 2))
+
+# OpCode::Greater/GreaterEqual/Less/LessEqual - comparisons
+io.println("Greater: " + (2 > 1))
+io.println("GreaterEqual: " + (2 >= 2))
+io.println("Less: " + (1 < 2))
+io.println("LessEqual: " + (1 <= 1))
+
+# OpCode::Add/Subtract/Multiply/Divide/Modulo/Power - arithmetic
+io.println("Add: " + (1 + 2))
+io.println("Sub: " + (3 - 1))
+io.println("Mul: " + (2 * 3))
+io.println("Div: " + (6 / 2))
+io.println("Mod: " + (7 % 3))
+io.println("Pow: " + (2 ^ 3))
+
+# OpCode::Not - logical not
+io.println("Not: " + (not false))
+
+# OpCode::Negate - unary minus
+io.println("Negate: " + (-5))
+
+# OpCode::Print - print statement (if it exists, otherwise use io.println)
+io.println("Hello")
+
+# OpCode::Jump/JumpIfFalse/JumpIfTrue - control flow
+if true {
+    io.println("JumpIfFalse")
+}
+if false {
+} else {
+    io.println("JumpIfTrue")
+}
+
+# OpCode::Loop - loop back
+let i = 0
+while i < 3 {
+    i = i + 1
+}
+
+# OpCode::Call - function calls
+fn test_fn(a, b) {
+    return a + b
+}
+io.println("Call: " + test_fn(1, 2))
+
+# OpCode::Invoke - method calls
+class TestClass {
+    method(a, b) {
+        return a + b
+    }
+}
+let obj = TestClass()
+io.println("Invoke: " + obj.method(1, 2))
+
+# OpCode::SuperInvoke - super method calls
+class Parent {
+    method() { return "parent" }
+}
+class Child < Parent {
+    method() { return super.method() }
+}
+let child = Child()
+io.println("SuperInvoke: " + child.method())
+
+# OpCode::Closure - function creation
+let fn_val = fn() { return 1 }
+io.println("Closure: " + fn_val())
+
+# OpCode::Class - class creation
+class TestClass {}
+io.println("Class: " + TestClass)
+
+# OpCode::Inherit - class inheritance
+class Parent {}
+class Child < Parent {}
+io.println("Inherit: " + Child)
+
+# OpCode::Method - method definition
+class TestClass {
+    method() { return 1 }
+}
+let obj = TestClass()
+io.println("Method: " + obj.method())
+
+# OpCode::GetSubscript/SetSubscript - indexing
+let arr = [1, 2, 3]
+io.println("GetSubscript: " + arr[0])
+arr[0] = 42
+io.println("SetSubscript: " + arr[0])
+
+let dict = {a: 1}
+io.println("Dict subscript: " + dict["a"])
+dict["a"] = 2
+io.println("Dict set: " + dict["a"])
+
+# OpCode::Slice - slicing
+let list = [1, 2, 3, 4, 5]
+io.println("Slice: " + list[1:3])
+io.println("Slice step: " + list[1:4:2])
+
+# OpCode::GetIter/GetIterk/GetIteri - iteration
+for i in [1, 2, 3] {
+    io.println("Iter: " + i)
+}
+
+for k in {a: 1, b: 2} {
+    io.println("Iterk: " + k)
+}
+
+for k, v in {a: 1, b: 2} {
+    io.println("Iteri: " + k + "=" + v)
+}
+
+# OpCode::Return - return statement
+fn test_return() {
+    return 42
+}
+io.println("Return: " + test_return())
+
+# OpCode::ReturnNil - implicit return
+fn test_nil_return() {
+    # No return statement
+}
+io.println("NilReturn: " + test_nil_return())
+
+# ============================================================================
+# 11. COMPILER.RS - Compiler Code Generation
+# ============================================================================
+# Test all compilation paths by using various language constructs
+# This is tested indirectly through all the above code
+
+# ============================================================================
+# 12. PARSER.RS - Parser Code Paths
+# ============================================================================
+# Test all parsing paths by using various syntax constructs
+# This is tested indirectly through all the above code
+
+# ============================================================================
+# 13. LEXER.RS - Lexer Tokenization
+# ============================================================================
+# Test all tokenization paths by using various characters and constructs
+# This is tested indirectly through all the above code
+
+# ============================================================================
+# 14. NATIVE.RS - Native Function Error Paths
+# ============================================================================
+# Test all native function error handling
+
+# IO module errors
+try { io.readFile() } catch e { io.println("IO readFile arg error") }
+try { io.readFile(1) } catch e { io.println("IO readFile type error") }
+try { io.writeFile() } catch e { io.println("IO writeFile arg error") }
+try { io.writeFile(1, "test") } catch e { io.println("IO writeFile type error") }
+try { io.fileExists() } catch e { io.println("IO fileExists arg error") }
+try { io.fileExists(1) } catch e { io.println("IO fileExists type error") }
+try { io.listDir() } catch e { io.println("IO listDir arg error") }
+try { io.listDir(1) } catch e { io.println("IO listDir type error") }
+try { io.mkdirAll() } catch e { io.println("IO mkdirAll arg error") }
+try { io.mkdirAll(1, 0) } catch e { io.println("IO mkdirAll type error") }
+
+# String module errors
+try { strings.toLower() } catch e { io.println("Strings toLower arg error") }
+try { strings.toLower(1) } catch e { io.println("Strings toLower type error") }
+try { strings.toUpper() } catch e { io.println("Strings toUpper arg error") }
+try { strings.toUpper(1) } catch e { io.println("Strings toUpper type error") }
+try { strings.ord() } catch e { io.println("Strings ord arg error") }
+try { strings.ord(1) } catch e { io.println("Strings ord type error") }
+try { strings.chr() } catch e { io.println("Strings chr arg error") }
+try { strings.chr("a") } catch e { io.println("Strings chr type error") }
+try { strings.asNumber() } catch e { io.println("Strings asNumber arg error") }
+try { strings.asNumber(1) } catch e { io.println("Strings asNumber type error") }
+try { strings.split() } catch e { io.println("Strings split arg error") }
+try { strings.split(1, ",") } catch e { io.println("Strings split type error 1") }
+try { strings.split("test", 1) } catch e { io.println("Strings split type error 2") }
+try { strings.compare() } catch e { io.println("Strings compare arg error") }
+try { strings.compare(1, "b") } catch e { io.println("Strings compare type error 1") }
+try { strings.compare("a", 1) } catch e { io.println("Strings compare type error 2") }
+
+# Lists module errors
+try { lists.push() } catch e { io.println("Lists push arg error") }
+try { lists.push(1, 2) } catch e { io.println("Lists push type error") }
+try { lists.pop() } catch e { io.println("Lists pop arg error") }
+try { lists.pop(1) } catch e { io.println("Lists pop type error") }
+try { lists.pop([]) } catch e { io.println("Lists pop empty error") }
+
+# Regex module errors
+try { re.match() } catch e { io.println("Re match arg error") }
+try { re.match(1, "test") } catch e { io.println("Re match type error 1") }
+try { re.match("test", 1) } catch e { io.println("Re match type error 2") }
+try { re.find() } catch e { io.println("Re find arg error") }
+try { re.find(1, "test") } catch e { io.println("Re find type error 1") }
+try { re.find("test", 1) } catch e { io.println("Re find type error 2") }
+
+# Env module errors
+try { env.get() } catch e { io.println("Env get arg error") }
+try { env.get(1) } catch e { io.println("Env get type error") }
+try { env.set() } catch e { io.println("Env set arg error") }
+try { env.set("A") } catch e { io.println("Env set arg error 2") }
+try { env.set(1, "A") } catch e { io.println("Env set type error 1") }
+try { env.set("A", 1) } catch e { io.println("Env set type error 2") }
+
+# Import module errors
+try { import() } catch e { io.println("Import arg error") }
+try { import(1) } catch e { io.println("Import type error") }
+try { import("nonexistent.gr") } catch e { io.println("Import file error") }
+
+# Net module errors
+try { net.listenTcp() } catch e { io.println("Net listenTcp arg error") }
+try { net.listenTcp(1) } catch e { io.println("Net listenTcp type error") }
+try { net.listenTcp("invalid") } catch e { io.println("Net listenTcp invalid") }
+
+# Process module - no errors to test, just access
+io.println("Process argv: " + process.argv)
+
+# ============================================================================
+# 15. EDGE CASES AND ERROR PATHS
+# ============================================================================
+
+# Test all error types from errors.rs
+try { let x = undefined_var } catch e { io.println("Undefined var error") }
+try { 1 + "string" } catch e { io.println("Type error") }
+try { 1[0] } catch e { io.println("Invalid access error") }
+try { 1() } catch e { io.println("Not a function error") }
+try { fn(a, b, c, d, e, f, g, h, i, j) {} } catch e { io.println("Too many args") }
+try { for i in 1 {} } catch e { io.println("Not iterable error") }
+try { for a, b, c in [1] {} } catch e { io.println("Unpack error") }
+try { class A < "string" {} } catch e { io.println("Not a class error") }
+try { super.method() } catch e { io.println("Super outside class error") }
+try { let x = nil + 1 } catch e { io.println("Nil operation error") }
+
+# Test recursion limit
+fn recurse(n) {
+    if n > 0 {
+        return recurse(n - 1)
+    }
+    return 0
+}
+try {
+    recurse(2000)  # Should hit recursion limit
+} catch e {
+    io.println("Recursion limit: " + e)
+}
+
+# Test empty list operations
+try { lists.pop([]) } catch e { io.println("Empty list pop error") }
+
+# Test object property access errors
+class TestClass {}
+let obj = TestClass()
+try { obj.nonexistent } catch e { io.println("Undefined property error") }
+
+# Test method not found
+try { obj.nonexistent_method() } catch e { io.println("Method not found error") }
+
+# Test read-only properties
+try { (1).isnumber = false } catch e { io.println("Read-only property error") }
+
+# Test invalid operators
+try { 1 + "string" } catch e { io.println("Invalid operator error") }
+
+# Test type coercion errors
+try { let x = "not a number" + 1 } catch e { io.println("Type coercion error") }
+
+# Test slice errors
+try { let x = [1, 2, 3]["invalid"] } catch e { io.println("Invalid slice key error") }
+
+# Test unpacking errors
+try { for a, b, c in {a: 1} {} } catch e { io.println("Dict unpack error") }
+try { for a, b in [1] {} } catch e { io.println("List unpack error") }
+
+# Test class instantiation errors
+class TestClass {
+    init(a, b) {}
+}
+try { TestClass(1) } catch e { io.println("Wrong arg count error") }
+
+# Test inheritance errors
+try {
+    class A < "not a class" {}
+} catch e {
+    io.println("Invalid superclass error")
+}
+
+# Test closure upvalue errors
+fn outer() {
+    let x = 1
+    fn inner() {
+        return x
+    }
+    return inner
+}
+let closure = outer()
+io.println("Closure works: " + closure())
+
+# Test native function call errors
+try { io.println() } catch e { io.println("Native arg error") }
+try { io.println(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11) } catch e { io.println("Too many args") }
+
+# Test bytecode loading errors
+# This would need invalid bytecode file, tested via file I/O
+
+# Test module loading errors
+try { import("nonexistent.gr") } catch e { io.println("Module load error") }
+
+# Test embedded execution
+# This is tested via the embed command and running embedded executables
+
+io.println("Comprehensive coverage tests completed!")
+

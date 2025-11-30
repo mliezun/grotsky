@@ -123,3 +123,38 @@ pub fn execute_embedded() {
         exit(1);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_compile_time_random_bytes() {
+        let bytes = compile_time_random_bytes::<10>();
+        assert_eq!(bytes.len(), 10);
+        // Check it's deterministic for the file
+        let bytes2 = compile_time_random_bytes::<10>();
+        assert_eq!(bytes, bytes2);
+    }
+
+    #[test]
+    fn test_find_position() {
+        let mut needle = [0u8; 512];
+        needle[0] = 1;
+        needle[511] = 2;
+        
+        let mut haystack = vec![0u8; 100];
+        haystack.extend_from_slice(&needle);
+        haystack.extend_from_slice(&[0u8; 100]);
+        
+        assert_eq!(find_position(&haystack, &needle), Some(100));
+        
+        let empty = vec![];
+        assert_eq!(find_position(&empty, &needle), None);
+    }
+
+    #[test]
+    fn test_is_embedded_default() {
+        assert_eq!(is_embedded(), false);
+    }
+}

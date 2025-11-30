@@ -27,7 +27,9 @@ test_integration: grotsky-rs
 run_coverage_tests: grotsky-rs
 	@ export LLVM_PROFILE_FILE="grotsky-cov-%p-%m.profraw" && \
 	  ./build/grotsky-rs test/coverage_tests.gr && \
-	  ./build/grotsky-rs test/expanded_coverage.gr
+	  ./build/grotsky-rs test/expanded_coverage.gr && \
+	  ./build/grotsky-rs test/comprehensive_coverage.gr && \
+	  ./build/grotsky-rs test/coverage_gap_closing.gr
 
 run_embed_test: grotsky-rs
 	@ export LLVM_PROFILE_FILE="grotsky-embed-%p-%m.profraw" && \
@@ -41,16 +43,18 @@ coverage: clean
 	@ cargo clean
 	@ mkdir -p $(BUILD_DIR)
 	@ export RUSTFLAGS="-C instrument-coverage" && \
-	  cargo build --release
-	@ cp target/release/grotsky-rs build/
-	@ export LLVM_PROFILE_FILE="grotsky-%p-%m.profraw" && \
+	  export DEBUG_BUILD=1 && \
+	  $(MAKE) grotsky-rs
+	@ export RUSTFLAGS="-C instrument-coverage" && \
+	  export LLVM_PROFILE_FILE="grotsky-%p-%m.profraw" && \
+	  cargo test && \
 	  $(MAKE) test_grotsky-rs && \
 	  $(MAKE) test_integration && \
 	  $(MAKE) run_coverage_tests && \
 	  $(MAKE) run_embed_test && \
 	  $(MAKE) run_net_test
 	@ echo "Collecting coverage data..."
-	@ grcov . --binary-path ./target/release/ -s . -t lcov --branch --ignore-not-existing --ignore "target/*" --ignore "archive/*" --ignore "test/*" -o lcov.info
+	@ grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "target/*" --ignore "archive/*" --ignore "test/*" -o lcov.info
 	@ if [ -f lcov.info ]; then \
 		echo "Coverage report generated at lcov.info"; \
 		echo "Run 'python3 tool/analyze_coverage.py' to analyze it"; \
@@ -65,5 +69,8 @@ grotsky:
 
 grotsky-rs:
 	@ mkdir -p $(BUILD_DIR)
-	@ cargo build --release
-	@ cp target/release/grotsky-rs build/
+	@ if [ -z "$(DEBUG_BUILD)" ]; then \
+		cargo build --release && cp target/release/grotsky-rs build/; \
+	else \
+		cargo build && cp target/debug/grotsky-rs build/; \
+	fi

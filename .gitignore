@@ -4,3 +4,6 @@ examples/
 target/
 build/
 __pycache__
+*.profraw
+.DS_Store
+lcov.info

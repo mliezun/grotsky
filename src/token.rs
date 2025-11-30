@@ -95,3 +95,41 @@ pub struct TokenData {
     pub literal: Option<Literal>,
     pub line: i32,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_token_debug() {
+        let t = Token::EOF;
+        assert_eq!(format!("{:?}", t), "EOF");
+        let t = Token::Identifier;
+        assert_eq!(format!("{:?}", t), "Identifier");
+    }
+
+    #[test]
+    fn test_token_partial_eq() {
+        assert_eq!(Token::EOF, Token::EOF);
+        assert_ne!(Token::EOF, Token::Newline);
+    }
+
+    #[test]
+    fn test_token_data_debug() {
+        let td = TokenData {
+            token: Token::Identifier,
+            lexeme: "abc".to_string(),
+            literal: None,
+            line: 1,
+        };
+        let debug_str = format!("{:?}", td);
+        assert!(debug_str.contains("Identifier"));
+        assert!(debug_str.contains("abc"));
+    }
+
+    #[test]
+    fn test_literal_debug() {
+        let l = Literal::Number(1.0);
+        assert_eq!(format!("{:?}", l), "Number(1.0)");
+    }
+}

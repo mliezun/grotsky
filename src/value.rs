@@ -593,7 +593,7 @@ impl FnValue {
 pub struct StringValue {
     pub s: String,
     pub length: Option<usize>,
-    pub is_ascii: Option<bool>,
+    pub chars: Option<Vec<char>>,
 }
 
 impl StringValue {
@@ -601,7 +601,7 @@ impl StringValue {
         StringValue {
             s: s,
             length: None,
-            is_ascii: None,
+            chars: None,
         }
     }
 
@@ -612,22 +612,24 @@ impl StringValue {
         self.length.unwrap()
     }
 
+    fn prepare_chars(&mut self) {
+        if self.chars.is_none() {
+            self.chars = Some(self.s.chars().collect());
+        }
+        if self.length.is_none() {
+            self.length = Some(self.chars.as_ref().unwrap().len());
+        }
+    }
+
     pub fn get_char(&mut self, index: usize) -> Result<Value, RuntimeErr> {
-        if index >= self.get_length() {
+        self.prepare_chars();
+        let chars = self.chars.as_ref().unwrap();
+        if index >= chars.len() {
             return Err(ERR_EXPECTED_INDEX);
         }
-        if self.is_ascii.is_none() {
-            self.is_ascii = Some(self.s.is_ascii());
-        }
-        if self.is_ascii.unwrap() {
-            Ok(Value::String(MutValue::new(StringValue::new(
-                self.s[index..index + 1].to_string(),
-            ))))
-        } else {
-            Ok(Value::String(MutValue::new(StringValue::new(
-                self.s.chars().nth(index).unwrap().to_string(),
-            ))))
-        }
+        Ok(Value::String(MutValue::new(StringValue::new(
+            chars[index].to_string(),
+        ))))
     }
 
     pub fn access(&mut self, accesor: Value) -> Result<Value, RuntimeErr> {
@@ -639,17 +641,25 @@ impl StringValue {
                 self.get_char(val.n as usize)
             },
             Value::Slice(val) => {
-                let mut result_str = "".to_string();
+                self.prepare_chars();
+                let chars = self.chars.as_ref().unwrap();
+                let len = chars.len();
+                let mut result_str = String::new();
+                
                 match val.as_range() {
                     Ok((range, step)) => {
-                        if step > self.get_length() {
+                        if step > len {
                             return Ok(Value::String(MutValue::new(StringValue::new(result_str))));
                         }
+                        // Optimization: Pre-allocate if possible
+                        let size_hint = (range.end.min(len).saturating_sub(range.start) + step - 1) / step;
+                        result_str.reserve(size_hint);
+
                         for i in range.step_by(step) {
-                            if i >= self.get_length() {
+                            if i >= len {
                                 break;
                             }
-                            result_str.push_str(self.get_char(i)?.string().as_str());
+                            result_str.push(chars[i]);
                         }
                         Ok(Value::String(MutValue::new(StringValue::new(result_str))))
                     }

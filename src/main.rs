@@ -94,10 +94,25 @@ fn main() {
     #[cfg(feature = "profile")]
     if let Some(report) = guard {
         if let Ok(report) = report.report().build() {
-            let file = std::fs::File::create("flamegraph.svg").unwrap();
+            let output_path = env::var("GROTSKY_PROFILE_OUTPUT").unwrap_or(".".to_string());
+            let output_path = std::path::Path::new(&output_path);
+
+            let flamegraph_path = if output_path.is_dir() {
+                output_path.join("flamegraph.svg")
+            } else {
+                output_path.with_extension("svg")
+            };
+            
+            let profile_path = if output_path.is_dir() {
+                output_path.join("profile.pb")
+            } else {
+                output_path.with_extension("pb")
+            };
+
+            let file = std::fs::File::create(flamegraph_path).unwrap();
             report.flamegraph(file).unwrap();
             
-            let mut file = std::fs::File::create("profile.pb").unwrap();
+            let mut file = std::fs::File::create(profile_path).unwrap();
             let profile = report.pprof().unwrap();
             let mut content = Vec::new();
             profile.write_to_vec(&mut content).unwrap();

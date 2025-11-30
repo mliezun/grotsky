@@ -1,0 +1,135 @@
+# Coverage Gap Closing Tests
+# Targeting specific error paths in native.rs and edge cases
+
+io.println("Starting coverage gap closing tests...")
+
+# 1. IO Module Errors
+
+# io.println with no args
+try { io.println() } catch e { io.println("Caught io.println empty") }
+
+# io.readln with args
+try { io.readln(1) } catch e { io.println("Caught io.readln args") }
+
+# io.clock with args
+try { io.clock(1) } catch e { io.println("Caught io.clock args") }
+
+# io.readFile invalid UTF-8
+# We'll use a file that we know exists but treat it as invalid if possible, or just test the error path
+# io.readFile expects string arg.
+try {
+    io.readFile(123)
+} catch e {
+    io.println("Caught io.readFile type error")
+}
+
+# io.writeFile error (write to directory or invalid path)
+try {
+    io.mkdirAll("test_dir_fail", 511)
+    io.writeFile("test_dir_fail", "content") 
+} catch e {
+    io.println("Caught io.writeFile error")
+}
+
+# io.listDir error (list non-existent or file)
+io.writeFile("test_file_list", "content")
+try {
+    io.listDir("test_file_list") 
+} catch e {
+    io.println("Caught io.listDir error")
+}
+
+# io.mkdirAll error
+io.writeFile("test_file_mkdir", "content")
+try {
+    io.mkdirAll("test_file_mkdir/sub", 511) 
+} catch e {
+    io.println("Caught io.mkdirAll error")
+}
+
+# 2. Strings Module Errors
+
+# strings.toLower args
+try { strings.toLower() } catch e { io.println("Caught strings.toLower empty") }
+try { strings.toLower(1) } catch e { io.println("Caught strings.toLower type") }
+
+# strings.toUpper args
+try { strings.toUpper() } catch e { io.println("Caught strings.toUpper empty") }
+try { strings.toUpper(1) } catch e { io.println("Caught strings.toUpper type") }
+
+# strings.ord args
+try { strings.ord() } catch e { io.println("Caught strings.ord empty") }
+try { strings.ord(1) } catch e { io.println("Caught strings.ord type") }
+
+# strings.chr args
+try { strings.chr() } catch e { io.println("Caught strings.chr empty") }
+try { strings.chr("a") } catch e { io.println("Caught strings.chr type") }
+
+# strings.asNumber args
+try { strings.asNumber() } catch e { io.println("Caught strings.asNumber empty") }
+try { strings.asNumber(1) } catch e { io.println("Caught strings.asNumber type") }
+
+# strings.split args
+try { strings.split() } catch e { io.println("Caught strings.split empty") }
+try { strings.split(1, "a") } catch e { io.println("Caught strings.split type 1") }
+try { strings.split("a", 1) } catch e { io.println("Caught strings.split type 2") }
+
+# strings.compare args
+try { strings.compare() } catch e { io.println("Caught strings.compare empty") }
+try { strings.compare(1, "a") } catch e { io.println("Caught strings.compare type 1") }
+try { strings.compare("a", 1) } catch e { io.println("Caught strings.compare type 2") }
+
+# 3. Lists Module Errors
+
+# lists.push args
+try { lists.push() } catch e { io.println("Caught lists.push empty") }
+try { lists.push(1, 2) } catch e { io.println("Caught lists.push type") }
+
+# lists.pop args
+try { lists.pop() } catch e { io.println("Caught lists.pop empty") }
+try { lists.pop(1) } catch e { io.println("Caught lists.pop type") }
+try { lists.pop([]) } catch e { io.println("Caught lists.pop empty list") }
+
+# 4. Re Module Errors
+
+# re.match args
+try { re.match() } catch e { io.println("Caught re.match empty") }
+try { re.match(1, "a") } catch e { io.println("Caught re.match type 1") }
+try { re.match("a", 1) } catch e { io.println("Caught re.match type 2") }
+
+# re.find args
+try { re.find() } catch e { io.println("Caught re.find empty") }
+try { re.find(1, "a") } catch e { io.println("Caught re.find type 1") }
+try { re.find("a", 1) } catch e { io.println("Caught re.find type 2") }
+
+# 5. Env Module Errors
+
+# env.get args
+try { env.get() } catch e { io.println("Caught env.get empty") }
+try { env.get(1) } catch e { io.println("Caught env.get type") }
+
+# env.set args
+try { env.set() } catch e { io.println("Caught env.set empty") }
+try { env.set("a") } catch e { io.println("Caught env.set missing val") }
+try { env.set(1, "a") } catch e { io.println("Caught env.set type 1") }
+try { env.set("a", 1) } catch e { io.println("Caught env.set type 2") }
+
+# 6. Import Module Errors
+
+# import args
+try { import() } catch e { io.println("Caught import empty") }
+try { import(1) } catch e { io.println("Caught import type") }
+try { import("non_existent_file_xyz.gr") } catch e { io.println("Caught import file not found") }
+
+# 7. Net Module Errors
+
+# net.listenTcp args
+try { net.listenTcp() } catch e { io.println("Caught net.listenTcp empty") }
+try { net.listenTcp(1) } catch e { io.println("Caught net.listenTcp type") }
+try { net.listenTcp("invalid_addr") } catch e { io.println("Caught net.listenTcp invalid addr") }
+
+# 8. Value method errors
+try { nil.method() } catch e { io.println("Caught nil method call") }
+
+io.println("Coverage gap closing tests completed.")
+

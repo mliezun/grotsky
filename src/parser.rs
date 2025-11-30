@@ -88,11 +88,6 @@ impl Parser<'_> {
     }
 
     fn parse_stmt(&mut self) -> Option<Stmt> {
-        /* defer func(&mut self) -> {
-            if r = recover(); r != nil {
-                self.synchronize()
-            }
-        }() */
         return self.declaration(true);
     }
 
@@ -1006,22 +1001,5 @@ impl Parser<'_> {
             method: method,
         };
         return Expr::Super(super_expr);
-    }
-
-    fn synchronize(&mut self) {
-        self.advance();
-        while !self.is_at_end() {
-            match self.peek().token {
-                Token::Class => return,
-                Token::Fn => return,
-                Token::Let => return,
-                Token::For => return,
-                Token::If => return,
-                Token::While => return,
-                Token::Return => return,
-                _ => (),
-            }
-            self.advance();
-        }
     }
 }

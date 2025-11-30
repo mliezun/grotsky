@@ -60,15 +60,29 @@ pub const ERR_EXPECTED_FUNCTION: RuntimeErr =
     RuntimeErr::new("A function was expected at this position");
 pub const ERR_EXPECTED_SUPERCLASS: RuntimeErr =
     RuntimeErr::new("Keyword 'super' is only valid inside an object");
-pub const ERR_EXPECTED_DOT: RuntimeErr =
-    RuntimeErr::new("Keyword 'super' is only valid for property accessing");
 pub const ERR_EXPECTED_DICT: RuntimeErr =
     RuntimeErr::new("A dictionary was expected at this position");
 pub const ERR_EXPECTED_LIST: RuntimeErr = RuntimeErr::new("A list was expected at this position");
-pub const ERR_EXPECTED_INIT: RuntimeErr =
-    RuntimeErr::new("Empty expression or let was expected at this position");
-pub const ERR_EXPECTED_CATCH: RuntimeErr =
-    RuntimeErr::new("A catch block was expected at this position");
-pub const ERR_UNDEFINED_TYPE: RuntimeErr = RuntimeErr::new("Undefined type");
 pub const ERR_MAX_RECURSION: RuntimeErr = RuntimeErr::new("Max recursion depth exceeded");
 pub const ERR_LIST_EMPTY: RuntimeErr = RuntimeErr::new("List is empty");
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::value::{Value, NumberValue};
+
+    #[test]
+    fn test_new_error() {
+        let err = RuntimeErr::new("test error");
+        assert_eq!(err.msg, "test error");
+        assert!(err.signal.is_none());
+    }
+
+    #[test]
+    fn test_new_signal() {
+        let val = Value::Number(NumberValue { n: 1.0 });
+        let err = RuntimeErr::new_signal(val);
+        assert_eq!(err.msg, "");
+        assert!(err.signal.is_some());
+    }
+}

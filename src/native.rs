@@ -649,7 +649,6 @@ impl Net {
             NativeBaggage::TcpSocket(socket) => {
                 socket.peer_addr().unwrap().as_socket().unwrap().to_string()
             }
-            _ => return Err(ERR_EXPECTED_OBJECT),
         };
         return Ok(Value::String(StringValue::new(address_str)));
     }
@@ -671,7 +670,6 @@ impl Net {
             NativeBaggage::TcpSocket(socket) => {
                 size = socket.read(&mut buf).expect("Read from connection");
             }
-            _ => return Err(ERR_EXPECTED_OBJECT),
         };
         let read_from_connection = &buf[0..size];
         return Ok(Value::String(StringValue::new(
@@ -701,7 +699,6 @@ impl Net {
             NativeBaggage::TcpSocket(socket) => {
                 socket.write_all(content).expect("Write to conn");
             }
-            _ => return Err(ERR_EXPECTED_OBJECT),
         };
         return Ok(Value::Number(NumberValue {
             n: content.len() as f64,
@@ -726,7 +723,6 @@ impl Net {
                 .as_socket()
                 .unwrap()
                 .to_string(),
-            _ => return Err(ERR_EXPECTED_OBJECT),
         };
         return Ok(Value::String(StringValue::new(address_str)));
     }
@@ -746,7 +742,6 @@ impl Net {
             NativeBaggage::TcpSocket(socket) => {
                 socket.shutdown(Shutdown::Both).unwrap_or(());
             }
-            _ => return Err(ERR_EXPECTED_OBJECT),
         }
         return Ok(Value::Nil);
     }
@@ -817,7 +812,6 @@ impl Net {
                 );
                 conn_obj
             }
-            _ => return Err(ERR_EXPECTED_OBJECT),
         };
         return Ok(Value::Native(conn));
     }

@@ -5,6 +5,7 @@ use crate::token::*;
 pub struct InterpreterError {
     pub message: String,
     pub line: i32,
+    #[allow(dead_code)]
     pub pos: usize,
 }
 

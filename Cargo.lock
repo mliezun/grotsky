@@ -187,7 +187,7 @@ checksum = "e629b9b98ef3dd8afe6ca2bd0f89306cec16d43d907889945bc5d6687f2f13c7"
 
 [[package]]
 name = "grotsky-rs"
-version = "0.0.18"
+version = "0.0.19"
 dependencies = [
  "bincode",
  "pprof",

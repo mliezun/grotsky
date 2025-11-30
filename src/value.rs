@@ -27,10 +27,10 @@ pub enum Value {
     Dict(MutValue<DictValue>),
     List(MutValue<ListValue>),
     Fn(MutValue<FnValue>),
-    Native(NativeValue),
+    Native(Rc<NativeValue>),
     Number(NumberValue),
-    String(StringValue),
-    Bytes(BytesValue),
+    String(MutValue<StringValue>),
+    Bytes(Rc<BytesValue>),
     Bool(BoolValue),
     Slice(SliceValue),
     Nil,
@@ -39,7 +39,7 @@ pub enum Value {
 impl From<&Literal> for Value {
     fn from(value: &Literal) -> Self {
         match value {
-            Literal::String(s) => Value::String(StringValue::new(s.clone())),
+            Literal::String(s) => Value::String(MutValue::new(StringValue::new(s.clone()))),
             Literal::Number(n) => Value::Number(NumberValue { n: *n }),
             Literal::Boolean(b) => Value::Bool(BoolValue { b: *b }),
             Literal::Nil => Value::Nil,
@@ -51,7 +51,7 @@ impl Hash for Value {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             Value::Number(val) => state.write_u64(val.n as u64),
-            Value::String(val) => val.s.hash(state),
+            Value::String(val) => val.0.borrow().s.hash(state),
             Value::Bool(val) => state.write_u8(val.b as u8),
             _ => unimplemented!(),
         };
@@ -70,14 +70,14 @@ impl Eq for Value {}
 impl Value {
     pub fn repr(&self) -> String {
         match self {
-            Value::String(s) => format!("{:?}", s.s),
+            Value::String(s) => format!("{:?}", s.0.borrow().s),
             _ => self.string(),
         }
     }
 
     pub fn string(&self) -> String {
         match self {
-            Value::String(s) => s.s.clone(),
+            Value::String(s) => s.0.borrow().s.clone(),
             Value::Bytes(s) => format!("{:#?}", s.s),
             Value::Number(n) => n.n.to_string(),
             Value::Bool(b) => b.b.to_string(),
@@ -163,7 +163,7 @@ impl Value {
             Value::String(s) => {
                 if prop == "length" {
                     Ok(Value::Number(NumberValue {
-                        n: s.get_length() as f64,
+                        n: s.0.borrow_mut().get_length() as f64,
                     }))
                 } else {
                     Err(ERR_UNDEFINED_PROP)
@@ -220,14 +220,14 @@ impl Value {
         }
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
-                return Ok(Value::String(StringValue::new(
-                    str_val.s.clone() + &other_val.s,
-                )));
+                return Ok(Value::String(MutValue::new(StringValue::new(
+                    str_val.0.borrow().s.clone() + &other_val.0.borrow().s,
+                ))));
             } else if let Value::Bytes(other_val) = other {
-                let mut left_bytes = str_val.s.clone().into_bytes();
+                let mut left_bytes = str_val.0.borrow().s.clone().into_bytes();
                 let mut right_bytes = other_val.s.clone();
                 left_bytes.append(&mut right_bytes);
-                return Ok(Value::Bytes(BytesValue { s: left_bytes }));
+                return Ok(Value::Bytes(Rc::new(BytesValue { s: left_bytes })));
             } else {
                 return Err(ERR_EXPECTED_STRING);
             }
@@ -235,14 +235,14 @@ impl Value {
         if let Value::Bytes(bytes_val) = self {
             if let Value::String(other_val) = other {
                 let mut left_bytes = bytes_val.s.clone();
-                let mut right_bytes = other_val.s.clone().into_bytes();
+                let mut right_bytes = other_val.0.borrow().s.clone().into_bytes();
                 left_bytes.append(&mut right_bytes);
-                return Ok(Value::Bytes(BytesValue { s: left_bytes }));
+                return Ok(Value::Bytes(Rc::new(BytesValue { s: left_bytes })));
             } else if let Value::Bytes(other_val) = other {
                 let mut left_bytes = bytes_val.s.clone();
                 let mut right_bytes = other_val.s.clone();
                 left_bytes.append(&mut right_bytes);
-                return Ok(Value::Bytes(BytesValue { s: left_bytes }));
+                return Ok(Value::Bytes(Rc::new(BytesValue { s: left_bytes })));
             } else {
                 return Err(ERR_EXPECTED_STRING);
             }
@@ -370,7 +370,7 @@ impl Value {
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
                 return Value::Bool(BoolValue {
-                    b: str_val.s < other_val.s,
+                    b: str_val.0.borrow().s < other_val.0.borrow().s,
                 });
             }
         }
@@ -387,7 +387,7 @@ impl Value {
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
                 return Ok(Value::Bool(BoolValue {
-                    b: str_val.s <= other_val.s,
+                    b: str_val.0.borrow().s <= other_val.0.borrow().s,
                 }));
             }
         }
@@ -404,7 +404,7 @@ impl Value {
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
                 return Value::Bool(BoolValue {
-                    b: str_val.s > other_val.s,
+                    b: str_val.0.borrow().s > other_val.0.borrow().s,
                 });
             }
         }
@@ -421,7 +421,7 @@ impl Value {
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
                 return Value::Bool(BoolValue {
-                    b: str_val.s >= other_val.s,
+                    b: str_val.0.borrow().s >= other_val.0.borrow().s,
                 });
             }
         }
@@ -438,7 +438,7 @@ impl Value {
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
                 return Value::Bool(BoolValue {
-                    b: str_val.s == other_val.s,
+                    b: str_val.0.borrow().s == other_val.0.borrow().s,
                 });
             }
         }
@@ -487,7 +487,7 @@ impl Value {
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
                 return Value::Bool(BoolValue {
-                    b: str_val.s != other_val.s,
+                    b: str_val.0.borrow().s != other_val.0.borrow().s,
                 });
             }
         }
@@ -552,7 +552,7 @@ pub fn truthy(val: &Value) -> bool {
     match val {
         Value::Number(val) => val.n != 0.0,
         Value::Bool(val) => val.b,
-        Value::String(val) => !val.s.is_empty(),
+        Value::String(val) => !val.0.borrow().s.is_empty(),
         Value::Nil => false,
         _ => true,
     }
@@ -620,13 +620,13 @@ impl StringValue {
             self.is_ascii = Some(self.s.is_ascii());
         }
         if self.is_ascii.unwrap() {
-            Ok(Value::String(StringValue::new(
+            Ok(Value::String(MutValue::new(StringValue::new(
                 self.s[index..index + 1].to_string(),
-            )))
+            ))))
         } else {
-            Ok(Value::String(StringValue::new(
+            Ok(Value::String(MutValue::new(StringValue::new(
                 self.s.chars().nth(index).unwrap().to_string(),
-            )))
+            ))))
         }
     }
 
@@ -643,7 +643,7 @@ impl StringValue {
                 match val.as_range() {
                     Ok((range, step)) => {
                         if step > self.get_length() {
-                            return Ok(Value::String(StringValue::new(result_str)));
+                            return Ok(Value::String(MutValue::new(StringValue::new(result_str))));
                         }
                         for i in range.step_by(step) {
                             if i >= self.get_length() {
@@ -651,7 +651,7 @@ impl StringValue {
                             }
                             result_str.push_str(self.get_char(i)?.string().as_str());
                         }
-                        Ok(Value::String(StringValue::new(result_str)))
+                        Ok(Value::String(MutValue::new(StringValue::new(result_str))))
                     }
                     Err(e) => Err(e),
                 }
@@ -830,15 +830,15 @@ pub struct BytesValue {
 impl BytesValue {
     pub fn access(&self, accesor: Value) -> Result<Value, RuntimeErr> {
         match accesor {
-            Value::Number(val) => Ok(Value::Bytes(BytesValue {
+            Value::Number(val) => Ok(Value::Bytes(Rc::new(BytesValue {
                 s: vec![self.s[val.n as usize]],
-            })),
+            }))),
             Value::Slice(val) => {
                 let mut result_bytes: Vec<u8> = vec![];
                 match val.as_range() {
                     Ok((range, step)) => {
                         if step > self.s.len() {
-                            return Ok(Value::Bytes(BytesValue { s: result_bytes }));
+                            return Ok(Value::Bytes(Rc::new(BytesValue { s: result_bytes })));
                         }
                         for i in range.step_by(step) {
                             if i >= self.s.len() {
@@ -846,7 +846,7 @@ impl BytesValue {
                             }
                             result_bytes.push(self.s[i]);
                         }
-                        Ok(Value::Bytes(BytesValue { s: result_bytes }))
+                        Ok(Value::Bytes(Rc::new(BytesValue { s: result_bytes })))
                     }
                     Err(e) => Err(e),
                 }

@@ -61,38 +61,38 @@ fn setup_global_interpreter() {
         };
         my_vm
             .builtins
-            .insert("io".to_string(), value::Value::Native(native::IO::build()));
+            .insert("io".to_string(), value::Value::Native(native::IO::build().into()));
         my_vm.builtins.insert(
             "strings".to_string(),
-            value::Value::Native(native::Strings::build()),
+            value::Value::Native(native::Strings::build().into()),
         );
         my_vm.builtins.insert(
             "type".to_string(),
-            value::Value::Native(native::Type::build()),
+            value::Value::Native(native::Type::build().into()),
         );
         my_vm.builtins.insert(
             "env".to_string(),
-            value::Value::Native(native::Env::build()),
+            value::Value::Native(native::Env::build().into()),
         );
         my_vm.builtins.insert(
             "import".to_string(),
-            value::Value::Native(native::Import::build()),
+            value::Value::Native(native::Import::build().into()),
         );
         my_vm.builtins.insert(
             "net".to_string(),
-            value::Value::Native(native::Net::build()),
+            value::Value::Native(native::Net::build().into()),
         );
         my_vm.builtins.insert(
             "re".to_string(),
-            value::Value::Native(native::Re::build()),
+            value::Value::Native(native::Re::build().into()),
         );
         my_vm.builtins.insert(
             "process".to_string(),
-            value::Value::Native(native::Process::build(embed::is_embedded())),
+            value::Value::Native(native::Process::build(embed::is_embedded()).into()),
         );
         my_vm.builtins.insert(
             "lists".to_string(),
-            value::Value::Native(native::Lists::build()),
+            value::Value::Native(native::Lists::build().into()),
         );
         unsafe {
             GLOBAL_INTERPRETER = Some(Interpreter {

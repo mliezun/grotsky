@@ -139,7 +139,7 @@ impl Record {
     pub fn as_val(&self) -> Value {
         match self {
             Record::Val(v) => v.clone(),
-            Record::Ref(v) => v.0.deref().borrow_mut().clone(),
+            Record::Ref(v) => v.0.deref().borrow().clone(),
         }
     }
 }
@@ -710,7 +710,7 @@ impl VM {
                             pc += 1;
                         }
                         Value::String(str) => {
-                            match str.access(accessor) {
+                            match str.0.borrow_mut().access(accessor) {
                                 Ok(v) => {
                                     self.activation_records[sp + inst.a as usize] = Record::Val(v);
                                 }
@@ -825,7 +825,7 @@ impl VM {
                         classmethods: HashMap::new(),
                     };
                     if let Value::String(name) = class_name {
-                        class.name = name.s;
+                        class.name = name.0.borrow().s.clone();
                     } else {
                         panic!("Class name should be string");
                     }
@@ -864,7 +864,7 @@ impl VM {
                         Record::Val(v) => v.clone(),
                     };
                     let meth_name = if let Value::String(s) = prop {
-                        s.s
+                        s.0.borrow().s.clone()
                     } else {
                         panic!("Cannot assign to non-string prop")
                     };
@@ -898,7 +898,7 @@ impl VM {
                         Record::Val(v) => v.clone(),
                     };
                     let meth_name = if let Value::String(s) = prop {
-                        s.s
+                        s.0.borrow().s.clone()
                     } else {
                         panic!("Cannot assign to non-string prop")
                     };
@@ -928,7 +928,7 @@ impl VM {
                         Record::Val(v) => v.clone(),
                     };
                     let prop = if let Value::String(s) = val_c {
-                        s.s
+                        s.0.borrow().s.clone()
                     } else {
                         throw_exception!(
                             self,
@@ -1051,7 +1051,7 @@ impl VM {
                         }
                         Value::Object(o) => {
                             if let Value::String(s) = val_b {
-                                o.0.borrow_mut().fields.insert(s.s.clone(), val_c);
+                                o.0.borrow_mut().fields.insert(s.0.borrow().s.clone(), val_c);
                             } else {
                                 throw_exception!(
                                     self,
@@ -1167,11 +1167,11 @@ impl VM {
                                 elements: HashMap::new(),
                             };
                             dict_value.elements.insert(
-                                Value::String(StringValue::new("key".to_string())),
+                                Value::String(MutValue::new(StringValue::new("key".to_string()))),
                                 elms.0.clone(),
                             );
                             dict_value.elements.insert(
-                                Value::String(StringValue::new("value".to_string())),
+                                Value::String(MutValue::new(StringValue::new("value".to_string()))),
                                 elms.1.clone(),
                             );
                             self.activation_records[sp + inst.a as usize] =
@@ -1254,8 +1254,8 @@ impl VM {
                     let n = inst.c as usize;
                     match val_b.as_val() {
                         Value::Dict(d) => {
-                            let k = Value::String(StringValue::new("key".to_string()));
-                            let v = Value::String(StringValue::new("value".to_string()));
+                            let k = Value::String(MutValue::new(StringValue::new("key".to_string())));
+                            let v = Value::String(MutValue::new(StringValue::new("value".to_string())));
                             if n == 0 {
                                 self.activation_records[sp + inst.a as usize] =
                                     Record::Val(d.0.borrow().elements.get(&k).unwrap().clone());
@@ -1344,7 +1344,7 @@ impl VM {
                         .unwrap()
                         .clone();
                     let prop = if let Value::String(s) = val_b.as_val() {
-                        s.s
+                        s.0.borrow().s.clone()
                     } else {
                         throw_exception!(
                             self,
@@ -1395,7 +1395,7 @@ impl VM {
                 }
                 OpCode::GetGlobal => {
                     if let Value::String(s) = &self.constants[inst.bx() as usize] {
-                        if let Some(g) = self.globals.get(&s.s) {
+                        if let Some(g) = self.globals.get(&s.0.borrow().s) {
                             self.activation_records[sp + inst.a as usize] = Record::Val(g.clone());
                         } else {
                             throw_exception!(
@@ -1424,7 +1424,7 @@ impl VM {
                 OpCode::SetGlobal => {
                     if let Value::String(s) = &self.constants[inst.bx() as usize] {
                         self.globals.insert(
-                            s.s.clone(),
+                            s.0.borrow().s.clone(),
                             self.activation_records[sp + inst.a as usize].as_val(),
                         );
                     } else {
@@ -1449,7 +1449,7 @@ impl VM {
                 OpCode::GetBuiltin => {
                     if let Value::String(s) = &self.constants[inst.bx() as usize] {
                         self.activation_records[sp + inst.a as usize] =
-                            Record::Val(self.builtins.get(&s.s).unwrap().clone());
+                            Record::Val(self.builtins.get(&s.0.borrow().s).unwrap().clone());
                     } else {
                         throw_exception!(
                             self,
@@ -1482,7 +1482,7 @@ impl VM {
                     self.activation_records[sp + inst.a as usize] =
                         if let Some(catched_exception) = self.catch_exceptions.last() {
                             if let Some(exc) = &catched_exception.exception {
-                                Record::Val(Value::String(StringValue::new(exc.msg.to_string())))
+                                Record::Val(Value::String(MutValue::new(StringValue::new(exc.msg.to_string()))))
                             } else {
                                 Record::Val(Value::Nil)
                             }

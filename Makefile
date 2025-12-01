@@ -75,7 +75,9 @@ coverage: clean
 	  $(MAKE) run_embed_test && \
 	  $(MAKE) run_net_test
 	@ echo "Collecting coverage data..."
-	@ grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "target/*" --ignore "archive/*" --ignore "test/*" -o lcov.info
+	@ find . -name "*.profraw"
+	@ ls -l build/grotsky-rs target/debug/grotsky-rs || true
+	@ grcov . --binary-path ./build/ --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "target/*" --ignore "archive/*" --ignore "test/*" -o lcov.info
 	@ if [ -f lcov.info ]; then \
 		echo "Coverage report generated at lcov.info"; \
 		echo "Run 'python3 tool/analyze_coverage.py' to analyze it"; \

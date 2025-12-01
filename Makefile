@@ -60,26 +60,28 @@ run_net_test: grotsky-rs
 	  python3 test/integration/net_test.py
 
 coverage: clean
-	@ rm -f *.profraw archive/*.profraw
 	@ cargo clean
 	@ mkdir -p $(BUILD_DIR)
-	# Build instrumented binary for integration tests
+	@ export RUSTFLAGS="-C instrument-coverage" && \
+	  export DEBUG_BUILD=1 && \
+	  $(MAKE) grotsky-rs
 	@ export RUSTFLAGS="-C instrument-coverage" && \
 	  export LLVM_PROFILE_FILE="grotsky-%p-%m.profraw" && \
-	  export DEBUG_BUILD=1 && \
-	  cargo build && cp target/debug/grotsky-rs build/
-	# Run all tests
-	@ export RUSTFLAGS="-C instrument-coverage" && \
-	  export LLVM_PROFILE_FILE="grotsky-%p-%m.profraw" && \
-	  export DEBUG_BUILD=1 && \
+	  cargo test && \
 	  $(MAKE) test_grotsky-rs && \
 	  $(MAKE) test_integration && \
 	  $(MAKE) run_coverage_tests && \
 	  $(MAKE) run_embed_test && \
 	  $(MAKE) run_net_test
-	# Generate report using grcov
 	@ echo "Collecting coverage data..."
-	@ grcov . --binary-path target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" --ignore "test/**" --ignore "archive/**" --ignore "tool/**" --ignore "examples/**" -o lcov.info
+	@ grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "target/*" --ignore "archive/*" --ignore "test/*" -o lcov.info
+	@ if [ -f lcov.info ]; then \
+		echo "Coverage report generated at lcov.info"; \
+		echo "Run 'python3 tool/analyze_coverage.py' to analyze it"; \
+	else \
+		echo "Error: Failed to generate lcov.info. Check that .profraw files exist."; \
+		exit 1; \
+	fi
 
 grotsky:
 	@ mkdir -p $(BUILD_DIR)

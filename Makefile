@@ -66,10 +66,12 @@ coverage: clean
 	# Build instrumented binary for integration tests
 	@ export RUSTFLAGS="-C instrument-coverage" && \
 	  export LLVM_PROFILE_FILE="grotsky-%p-%m.profraw" && \
+	  export DEBUG_BUILD=1 && \
 	  cargo build && cp target/debug/grotsky-rs build/
 	# Run all tests
 	@ export RUSTFLAGS="-C instrument-coverage" && \
 	  export LLVM_PROFILE_FILE="grotsky-%p-%m.profraw" && \
+	  export DEBUG_BUILD=1 && \
 	  $(MAKE) test_grotsky-rs && \
 	  $(MAKE) test_integration && \
 	  $(MAKE) run_coverage_tests && \

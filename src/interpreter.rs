@@ -61,38 +61,38 @@ fn setup_global_interpreter() {
         };
         my_vm
             .builtins
-            .insert("io".to_string(), value::Value::Native(native::IO::build()));
+            .insert("io".to_string(), value::Value::Native(native::IO::build().into()));
         my_vm.builtins.insert(
             "strings".to_string(),
-            value::Value::Native(native::Strings::build()),
+            value::Value::Native(native::Strings::build().into()),
         );
         my_vm.builtins.insert(
             "type".to_string(),
-            value::Value::Native(native::Type::build()),
+            value::Value::Native(native::Type::build().into()),
         );
         my_vm.builtins.insert(
             "env".to_string(),
-            value::Value::Native(native::Env::build()),
+            value::Value::Native(native::Env::build().into()),
         );
         my_vm.builtins.insert(
             "import".to_string(),
-            value::Value::Native(native::Import::build()),
+            value::Value::Native(native::Import::build().into()),
         );
         my_vm.builtins.insert(
             "net".to_string(),
-            value::Value::Native(native::Net::build()),
+            value::Value::Native(native::Net::build().into()),
         );
         my_vm.builtins.insert(
             "re".to_string(),
-            value::Value::Native(native::Re::build()),
+            value::Value::Native(native::Re::build().into()),
         );
         my_vm.builtins.insert(
             "process".to_string(),
-            value::Value::Native(native::Process::build(embed::is_embedded())),
+            value::Value::Native(native::Process::build(embed::is_embedded()).into()),
         );
         my_vm.builtins.insert(
             "lists".to_string(),
-            value::Value::Native(native::Lists::build()),
+            value::Value::Native(native::Lists::build().into()),
         );
         unsafe {
             GLOBAL_INTERPRETER = Some(Interpreter {
@@ -163,10 +163,11 @@ pub fn run_interpreter_from_bytecode(bytecode: &[u8]) -> bool {
             .iter()
             .map(|c| c.into())
             .collect();
-        interpreter.vm.activation_records =
+        interpreter.vm.activation_records = Vec::with_capacity(20480);
+        interpreter.vm.activation_records.extend(
             (0..interpreter.compiler.contexts.last().unwrap().register_count)
                 .map(|_| vm::Record::Val(value::Value::Nil))
-                .collect();
+        );
 
         interpreter.vm.interpret();
         return true;
@@ -204,10 +205,11 @@ pub fn run_bytecode_interpreter(source: String) {
         .iter()
         .map(|c| c.into())
         .collect();
-    interpreter.vm.activation_records =
+    interpreter.vm.activation_records = Vec::with_capacity(20480);
+    interpreter.vm.activation_records.extend(
         (0..interpreter.compiler.contexts.last().unwrap().register_count)
             .map(|_| vm::Record::Val(value::Value::Nil))
-            .collect();
+    );
 
     interpreter.vm.interpret();
 }
@@ -257,9 +259,11 @@ pub fn import_module(source: String) -> HashMap<String, value::Value> {
         .iter()
         .map(|c| c.into())
         .collect();
-    interpreter.vm.activation_records = (0..module_global_context.register_count)
-        .map(|_| vm::Record::Val(value::Value::Nil))
-        .collect();
+    interpreter.vm.activation_records = Vec::with_capacity(20480);
+    interpreter.vm.activation_records.extend(
+        (0..module_global_context.register_count)
+            .map(|_| vm::Record::Val(value::Value::Nil))
+    );
     interpreter.vm.globals = HashMap::new();
     interpreter.vm.frames.push(StackEntry {
         function: None,

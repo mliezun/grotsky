@@ -50,11 +50,10 @@ macro_rules! make_call {
         $self.frames.push(stack);
 
         // Expand activation records
-        $self.activation_records.append(
-            &mut (0..prototype.register_count)
-                .map(|_| Record::Val(Value::Nil))
-                .collect(),
-        );
+        $self.activation_records.reserve(prototype.register_count as usize);
+        for _ in 0..prototype.register_count {
+            $self.activation_records.push(Record::Val(Value::Nil));
+        }
 
         // Copy input arguments
         for (i, reg) in $input_range.enumerate() {
@@ -140,7 +139,20 @@ impl Record {
     pub fn as_val(&self) -> Value {
         match self {
             Record::Val(v) => v.clone(),
-            Record::Ref(v) => v.0.deref().borrow_mut().clone(),
+            Record::Ref(v) => v.0.deref().borrow().clone(),
+        }
+    }
+
+    pub fn with_val<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&Value) -> R,
+    {
+        match self {
+            Record::Val(v) => f(v),
+            Record::Ref(v) => {
+                let guard = v.0.borrow();
+                f(&*guard)
+            }
         }
     }
 }
@@ -366,8 +378,7 @@ impl VM {
                     }
 
                     // Drop current stack frame
-                    self.activation_records
-                        .drain(sp..self.activation_records.len());
+                    self.activation_records.truncate(sp);
 
                     // Restore previous object
                     this = stack.caller_this;
@@ -388,12 +399,10 @@ impl VM {
                     pc = pc.wrapping_add(inst.sbx() as usize);
                 }
                 OpCode::Test => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap();
+                    let val_b = &self.activation_records[sp + inst.b as usize];
                     let bool_c = inst.c != 0;
-                    if truthy(&val_b.as_val()) == bool_c {
+                    let is_truthy = val_b.with_val(|v| truthy(v));
+                    if is_truthy == bool_c {
                         self.activation_records[sp + inst.a as usize] = val_b.clone();
                     } else {
                         pc += 1;
@@ -401,16 +410,9 @@ impl VM {
                     pc += 1;
                 }
                 OpCode::Add => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    let val_c = self
-                        .activation_records
-                        .get_mut(sp + inst.c as usize)
-                        .unwrap();
-                    match val_b.as_val().add(&mut val_c.as_val()) {
+                    let rec_b = &self.activation_records[sp + inst.b as usize];
+                    let rec_c = &self.activation_records[sp + inst.c as usize];
+                    match rec_b.with_val(|b| rec_c.with_val(|c| b.add(c))) {
                         Ok(v) => {
                             self.activation_records[sp + inst.a as usize] = Record::Val(v);
                             pc += 1;
@@ -457,16 +459,9 @@ impl VM {
                     }
                 }
                 OpCode::Sub => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    let val_c = self
-                        .activation_records
-                        .get_mut(sp + inst.c as usize)
-                        .unwrap();
-                    match val_b.as_val().sub(&mut val_c.as_val()) {
+                    let rec_b = &self.activation_records[sp + inst.b as usize];
+                    let rec_c = &self.activation_records[sp + inst.c as usize];
+                    match rec_b.with_val(|b| rec_c.with_val(|c| b.sub(c))) {
                         Ok(v) => {
                             self.activation_records[sp + inst.a as usize] = Record::Val(v);
                         }
@@ -486,16 +481,9 @@ impl VM {
                     pc += 1;
                 }
                 OpCode::Mul => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    let val_c = self
-                        .activation_records
-                        .get_mut(sp + inst.c as usize)
-                        .unwrap();
-                    match val_b.as_val().mul(&mut val_c.as_val()) {
+                    let rec_b = &self.activation_records[sp + inst.b as usize];
+                    let rec_c = &self.activation_records[sp + inst.c as usize];
+                    match rec_b.with_val(|b| rec_c.with_val(|c| b.mul(c))) {
                         Ok(v) => {
                             self.activation_records[sp + inst.a as usize] = Record::Val(v);
                         }
@@ -514,72 +502,37 @@ impl VM {
                     pc += 1;
                 }
                 OpCode::Pow => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    let val_c = self
-                        .activation_records
-                        .get_mut(sp + inst.c as usize)
-                        .unwrap();
+                    let rec_b = &self.activation_records[sp + inst.b as usize];
+                    let rec_c = &self.activation_records[sp + inst.c as usize];
                     self.activation_records[sp + inst.a as usize] =
-                        Record::Val(val_b.as_val().pow(&mut val_c.as_val()));
+                        Record::Val(rec_b.with_val(|b| rec_c.with_val(|c| b.pow(c))));
                     pc += 1;
                 }
                 OpCode::Div => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    let val_c = self
-                        .activation_records
-                        .get_mut(sp + inst.c as usize)
-                        .unwrap();
+                    let rec_b = &self.activation_records[sp + inst.b as usize];
+                    let rec_c = &self.activation_records[sp + inst.c as usize];
                     self.activation_records[sp + inst.a as usize] =
-                        Record::Val(val_b.as_val().div(&mut val_c.as_val()));
+                        Record::Val(rec_b.with_val(|b| rec_c.with_val(|c| b.div(c))));
                     pc += 1;
                 }
                 OpCode::Mod => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    let val_c = self
-                        .activation_records
-                        .get_mut(sp + inst.c as usize)
-                        .unwrap();
+                    let rec_b = &self.activation_records[sp + inst.b as usize];
+                    let rec_c = &self.activation_records[sp + inst.c as usize];
                     self.activation_records[sp + inst.a as usize] =
-                        Record::Val(val_b.as_val().modulo(&mut val_c.as_val()));
+                        Record::Val(rec_b.with_val(|b| rec_c.with_val(|c| b.modulo(c))));
                     pc += 1;
                 }
                 OpCode::Lt => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    let val_c = self
-                        .activation_records
-                        .get_mut(sp + inst.c as usize)
-                        .unwrap();
+                    let rec_b = &self.activation_records[sp + inst.b as usize];
+                    let rec_c = &self.activation_records[sp + inst.c as usize];
                     self.activation_records[sp + inst.a as usize] =
-                        Record::Val(val_b.as_val().lt(&mut val_c.as_val()));
+                        Record::Val(rec_b.with_val(|b| rec_c.with_val(|c| b.lt(c))));
                     pc += 1;
                 }
                 OpCode::Lte => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    let val_c = self
-                        .activation_records
-                        .get_mut(sp + inst.c as usize)
-                        .unwrap();
-                    match val_b.as_val().lte(&mut val_c.as_val()) {
+                    let rec_b = &self.activation_records[sp + inst.b as usize];
+                    let rec_c = &self.activation_records[sp + inst.c as usize];
+                    match rec_b.with_val(|b| rec_c.with_val(|c| b.lte(c))) {
                         Ok(v) => {
                             self.activation_records[sp + inst.a as usize] = Record::Val(v);
                         }
@@ -598,68 +551,36 @@ impl VM {
                     pc += 1;
                 }
                 OpCode::Gt => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    let val_c = self
-                        .activation_records
-                        .get_mut(sp + inst.c as usize)
-                        .unwrap();
+                    let rec_b = &self.activation_records[sp + inst.b as usize];
+                    let rec_c = &self.activation_records[sp + inst.c as usize];
                     self.activation_records[sp + inst.a as usize] =
-                        Record::Val(val_b.as_val().gt(&mut val_c.as_val()));
+                        Record::Val(rec_b.with_val(|b| rec_c.with_val(|c| b.gt(c))));
                     pc += 1;
                 }
                 OpCode::Gte => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    let val_c = self
-                        .activation_records
-                        .get_mut(sp + inst.c as usize)
-                        .unwrap();
+                    let rec_b = &self.activation_records[sp + inst.b as usize];
+                    let rec_c = &self.activation_records[sp + inst.c as usize];
                     self.activation_records[sp + inst.a as usize] =
-                        Record::Val(val_b.as_val().gte(&mut val_c.as_val()));
+                        Record::Val(rec_b.with_val(|b| rec_c.with_val(|c| b.gte(c))));
                     pc += 1;
                 }
                 OpCode::Eq => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    let val_c = self
-                        .activation_records
-                        .get_mut(sp + inst.c as usize)
-                        .unwrap();
+                    let rec_b = &self.activation_records[sp + inst.b as usize];
+                    let rec_c = &self.activation_records[sp + inst.c as usize];
                     self.activation_records[sp + inst.a as usize] =
-                        Record::Val(val_b.as_val().equal(&mut val_c.as_val()));
+                        Record::Val(rec_b.with_val(|b| rec_c.with_val(|c| b.equal(c))));
                     pc += 1;
                 }
                 OpCode::Neq => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    let val_c = self
-                        .activation_records
-                        .get_mut(sp + inst.c as usize)
-                        .unwrap();
+                    let rec_b = &self.activation_records[sp + inst.b as usize];
+                    let rec_c = &self.activation_records[sp + inst.c as usize];
                     self.activation_records[sp + inst.a as usize] =
-                        Record::Val(val_b.as_val().nequal(&mut val_c.as_val()));
+                        Record::Val(rec_b.with_val(|b| rec_c.with_val(|c| b.nequal(c))));
                     pc += 1;
                 }
                 OpCode::Neg => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    match val_b.as_val().neg() {
+                    let rec_b = &self.activation_records[sp + inst.b as usize];
+                    match rec_b.with_val(|b| b.neg()) {
                         Ok(v) => {
                             self.activation_records[sp + inst.a as usize] = Record::Val(v);
                         }
@@ -678,13 +599,9 @@ impl VM {
                     pc += 1;
                 }
                 OpCode::Not => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
+                    let rec_b = &self.activation_records[sp + inst.b as usize];
                     self.activation_records[sp + inst.a as usize] =
-                        Record::Val(val_b.as_val().not());
+                        Record::Val(rec_b.with_val(|b| b.not()));
                     pc += 1;
                 }
                 OpCode::GetUpval => {
@@ -735,7 +652,7 @@ impl VM {
                 OpCode::Dict => {
                     self.activation_records[sp + inst.a as usize] =
                         Record::Val(Value::Dict(MutValue::new(DictValue {
-                            elements: HashMap::new(),
+                            elements: HashMap::with_capacity(8),
                         })));
                     pc += 1;
                 }
@@ -807,7 +724,7 @@ impl VM {
                             pc += 1;
                         }
                         Value::String(str) => {
-                            match str.access(accessor) {
+                            match str.0.borrow_mut().access(accessor) {
                                 Ok(v) => {
                                     self.activation_records[sp + inst.a as usize] = Record::Val(v);
                                 }
@@ -918,11 +835,11 @@ impl VM {
                     let mut class = ClassValue {
                         name: "".to_string(),
                         superclass: None,
-                        methods: HashMap::new(),
-                        classmethods: HashMap::new(),
+                        methods: HashMap::with_capacity(8),
+                        classmethods: HashMap::with_capacity(8),
                     };
                     if let Value::String(name) = class_name {
-                        class.name = name.s;
+                        class.name = name.0.borrow().s.clone();
                     } else {
                         panic!("Class name should be string");
                     }
@@ -961,7 +878,7 @@ impl VM {
                         Record::Val(v) => v.clone(),
                     };
                     let meth_name = if let Value::String(s) = prop {
-                        s.s
+                        s.0.borrow().s.clone()
                     } else {
                         panic!("Cannot assign to non-string prop")
                     };
@@ -995,7 +912,7 @@ impl VM {
                         Record::Val(v) => v.clone(),
                     };
                     let meth_name = if let Value::String(s) = prop {
-                        s.s
+                        s.0.borrow().s.clone()
                     } else {
                         panic!("Cannot assign to non-string prop")
                     };
@@ -1025,7 +942,7 @@ impl VM {
                         Record::Val(v) => v.clone(),
                     };
                     let prop = if let Value::String(s) = val_c {
-                        s.s
+                        s.0.borrow().s.clone()
                     } else {
                         throw_exception!(
                             self,
@@ -1148,7 +1065,7 @@ impl VM {
                         }
                         Value::Object(o) => {
                             if let Value::String(s) = val_b {
-                                o.0.borrow_mut().fields.insert(s.s.clone(), val_c);
+                                o.0.borrow_mut().fields.insert(s.0.borrow().s.clone(), val_c);
                             } else {
                                 throw_exception!(
                                     self,
@@ -1176,67 +1093,57 @@ impl VM {
                     pc += 1;
                 }
                 OpCode::Addi => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    if let Record::Val(Value::Number(n)) = val_b {
-                        self.activation_records[sp + inst.a as usize] = Record::Val(Value::Number(NumberValue {
-                            n: n.n + inst.imm()
-                        }));
-                    } else {
-                        match val_b
-                            .as_val()
-                            .add(&mut Value::Number(NumberValue { n: inst.c as f64 }))
-                        {
-                            Ok(v) => {
-                                self.activation_records[sp + inst.a as usize] = Record::Val(v);
-                            }
-                            Err(e) => {
-                                throw_exception!(
-                                    self,
-                                    this,
-                                    original_instructions,
-                                    original_instructions_data,
-                                    pc,
-                                    sp,
-                                    e
-                                );
-                            }
+                    let rec_b = &self.activation_records[sp + inst.b as usize];
+                    match rec_b.with_val(|b| {
+                        if let Value::Number(n) = b {
+                            Ok(Value::Number(NumberValue {
+                                n: n.n + inst.imm()
+                            }))
+                        } else {
+                            b.add(&Value::Number(NumberValue { n: inst.c as f64 }))
+                        }
+                    }) {
+                        Ok(v) => {
+                            self.activation_records[sp + inst.a as usize] = Record::Val(v);
+                        }
+                        Err(e) => {
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                e
+                            );
                         }
                     }
                     pc += 1;
                 }
                 OpCode::Subi => {
-                    let val_b = self
-                        .activation_records
-                        .get_mut(sp + inst.b as usize)
-                        .unwrap()
-                        .clone();
-                    if let Record::Val(Value::Number(n)) = val_b {
-                        self.activation_records[sp + inst.a as usize] = Record::Val(Value::Number(NumberValue {
-                            n: n.n - inst.imm()
-                        }));
-                    } else {
-                        match val_b
-                            .as_val()
-                            .sub(&mut Value::Number(NumberValue { n: inst.c as f64 }))
-                        {
-                            Ok(v) => {
-                                self.activation_records[sp + inst.a as usize] = Record::Val(v);
-                            }
-                            Err(e) => {
-                                throw_exception!(
-                                    self,
-                                    this,
-                                    original_instructions,
-                                    original_instructions_data,
-                                    pc,
-                                    sp,
-                                    e
-                                );
-                            }
+                    let rec_b = &self.activation_records[sp + inst.b as usize];
+                    match rec_b.with_val(|b| {
+                        if let Value::Number(n) = b {
+                            Ok(Value::Number(NumberValue {
+                                n: n.n - inst.imm()
+                            }))
+                        } else {
+                            b.sub(&Value::Number(NumberValue { n: inst.c as f64 }))
+                        }
+                    }) {
+                        Ok(v) => {
+                            self.activation_records[sp + inst.a as usize] = Record::Val(v);
+                        }
+                        Err(e) => {
+                            throw_exception!(
+                                self,
+                                this,
+                                original_instructions,
+                                original_instructions_data,
+                                pc,
+                                sp,
+                                e
+                            );
                         }
                     }
                     pc += 1;
@@ -1274,11 +1181,11 @@ impl VM {
                                 elements: HashMap::new(),
                             };
                             dict_value.elements.insert(
-                                Value::String(StringValue::new("key".to_string())),
+                                Value::String(MutValue::new(StringValue::new("key".to_string()))),
                                 elms.0.clone(),
                             );
                             dict_value.elements.insert(
-                                Value::String(StringValue::new("value".to_string())),
+                                Value::String(MutValue::new(StringValue::new("value".to_string()))),
                                 elms.1.clone(),
                             );
                             self.activation_records[sp + inst.a as usize] =
@@ -1361,8 +1268,8 @@ impl VM {
                     let n = inst.c as usize;
                     match val_b.as_val() {
                         Value::Dict(d) => {
-                            let k = Value::String(StringValue::new("key".to_string()));
-                            let v = Value::String(StringValue::new("value".to_string()));
+                            let k = Value::String(MutValue::new(StringValue::new("key".to_string())));
+                            let v = Value::String(MutValue::new(StringValue::new("value".to_string())));
                             if n == 0 {
                                 self.activation_records[sp + inst.a as usize] =
                                     Record::Val(d.0.borrow().elements.get(&k).unwrap().clone());
@@ -1451,7 +1358,7 @@ impl VM {
                         .unwrap()
                         .clone();
                     let prop = if let Value::String(s) = val_b.as_val() {
-                        s.s
+                        s.0.borrow().s.clone()
                     } else {
                         throw_exception!(
                             self,
@@ -1502,7 +1409,7 @@ impl VM {
                 }
                 OpCode::GetGlobal => {
                     if let Value::String(s) = &self.constants[inst.bx() as usize] {
-                        if let Some(g) = self.globals.get(&s.s) {
+                        if let Some(g) = self.globals.get(&s.0.borrow().s) {
                             self.activation_records[sp + inst.a as usize] = Record::Val(g.clone());
                         } else {
                             throw_exception!(
@@ -1531,7 +1438,7 @@ impl VM {
                 OpCode::SetGlobal => {
                     if let Value::String(s) = &self.constants[inst.bx() as usize] {
                         self.globals.insert(
-                            s.s.clone(),
+                            s.0.borrow().s.clone(),
                             self.activation_records[sp + inst.a as usize].as_val(),
                         );
                     } else {
@@ -1556,7 +1463,7 @@ impl VM {
                 OpCode::GetBuiltin => {
                     if let Value::String(s) = &self.constants[inst.bx() as usize] {
                         self.activation_records[sp + inst.a as usize] =
-                            Record::Val(self.builtins.get(&s.s).unwrap().clone());
+                            Record::Val(self.builtins.get(&s.0.borrow().s).unwrap().clone());
                     } else {
                         throw_exception!(
                             self,
@@ -1589,7 +1496,7 @@ impl VM {
                     self.activation_records[sp + inst.a as usize] =
                         if let Some(catched_exception) = self.catch_exceptions.last() {
                             if let Some(exc) = &catched_exception.exception {
-                                Record::Val(Value::String(StringValue::new(exc.msg.to_string())))
+                                Record::Val(Value::String(MutValue::new(StringValue::new(exc.msg.to_string()))))
                             } else {
                                 Record::Val(Value::Nil)
                             }

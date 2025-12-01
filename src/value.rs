@@ -27,10 +27,10 @@ pub enum Value {
     Dict(MutValue<DictValue>),
     List(MutValue<ListValue>),
     Fn(MutValue<FnValue>),
-    Native(NativeValue),
+    Native(Rc<NativeValue>),
     Number(NumberValue),
-    String(StringValue),
-    Bytes(BytesValue),
+    String(MutValue<StringValue>),
+    Bytes(Rc<BytesValue>),
     Bool(BoolValue),
     Slice(SliceValue),
     Nil,
@@ -39,7 +39,7 @@ pub enum Value {
 impl From<&Literal> for Value {
     fn from(value: &Literal) -> Self {
         match value {
-            Literal::String(s) => Value::String(StringValue::new(s.clone())),
+            Literal::String(s) => Value::String(MutValue::new(StringValue::new(s.clone()))),
             Literal::Number(n) => Value::Number(NumberValue { n: *n }),
             Literal::Boolean(b) => Value::Bool(BoolValue { b: *b }),
             Literal::Nil => Value::Nil,
@@ -51,7 +51,7 @@ impl Hash for Value {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             Value::Number(val) => state.write_u64(val.n as u64),
-            Value::String(val) => val.s.hash(state),
+            Value::String(val) => val.0.borrow().s.hash(state),
             Value::Bool(val) => state.write_u8(val.b as u8),
             _ => unimplemented!(),
         };
@@ -70,14 +70,14 @@ impl Eq for Value {}
 impl Value {
     pub fn repr(&self) -> String {
         match self {
-            Value::String(s) => format!("{:?}", s.s),
+            Value::String(s) => format!("{:?}", s.0.borrow().s),
             _ => self.string(),
         }
     }
 
     pub fn string(&self) -> String {
         match self {
-            Value::String(s) => s.s.clone(),
+            Value::String(s) => s.0.borrow().s.clone(),
             Value::Bytes(s) => format!("{:#?}", s.s),
             Value::Number(n) => n.n.to_string(),
             Value::Bool(b) => b.b.to_string(),
@@ -163,7 +163,7 @@ impl Value {
             Value::String(s) => {
                 if prop == "length" {
                     Ok(Value::Number(NumberValue {
-                        n: s.get_length() as f64,
+                        n: s.0.borrow_mut().get_length() as f64,
                     }))
                 } else {
                     Err(ERR_UNDEFINED_PROP)
@@ -208,7 +208,7 @@ impl Value {
         }
     }
 
-    pub fn add(&mut self, other: &mut Value) -> Result<Value, RuntimeErr> {
+    pub fn add(&self, other: &Value) -> Result<Value, RuntimeErr> {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Ok(Value::Number(NumberValue {
@@ -220,14 +220,14 @@ impl Value {
         }
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
-                return Ok(Value::String(StringValue::new(
-                    str_val.s.clone() + &other_val.s,
-                )));
+                return Ok(Value::String(MutValue::new(StringValue::new(
+                    str_val.0.borrow().s.clone() + &other_val.0.borrow().s,
+                ))));
             } else if let Value::Bytes(other_val) = other {
-                let mut left_bytes = str_val.s.clone().into_bytes();
+                let mut left_bytes = str_val.0.borrow().s.clone().into_bytes();
                 let mut right_bytes = other_val.s.clone();
                 left_bytes.append(&mut right_bytes);
-                return Ok(Value::Bytes(BytesValue { s: left_bytes }));
+                return Ok(Value::Bytes(Rc::new(BytesValue { s: left_bytes })));
             } else {
                 return Err(ERR_EXPECTED_STRING);
             }
@@ -235,14 +235,14 @@ impl Value {
         if let Value::Bytes(bytes_val) = self {
             if let Value::String(other_val) = other {
                 let mut left_bytes = bytes_val.s.clone();
-                let mut right_bytes = other_val.s.clone().into_bytes();
+                let mut right_bytes = other_val.0.borrow().s.clone().into_bytes();
                 left_bytes.append(&mut right_bytes);
-                return Ok(Value::Bytes(BytesValue { s: left_bytes }));
+                return Ok(Value::Bytes(Rc::new(BytesValue { s: left_bytes })));
             } else if let Value::Bytes(other_val) = other {
                 let mut left_bytes = bytes_val.s.clone();
                 let mut right_bytes = other_val.s.clone();
                 left_bytes.append(&mut right_bytes);
-                return Ok(Value::Bytes(BytesValue { s: left_bytes }));
+                return Ok(Value::Bytes(Rc::new(BytesValue { s: left_bytes })));
             } else {
                 return Err(ERR_EXPECTED_STRING);
             }
@@ -293,7 +293,7 @@ impl Value {
         }
         return Err(ERR_UNDEFINED_OP);
     }
-    pub fn sub(&mut self, other: &mut Value) -> Result<Value, RuntimeErr> {
+    pub fn sub(&self, other: &Value) -> Result<Value, RuntimeErr> {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Ok(Value::Number(NumberValue {
@@ -319,7 +319,7 @@ impl Value {
         }
         return Err(ERR_UNDEFINED_OP);
     }
-    pub fn mul(&mut self, other: &mut Value) -> Result<Value, RuntimeErr> {
+    pub fn mul(&self, other: &Value) -> Result<Value, RuntimeErr> {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Ok(Value::Number(NumberValue {
@@ -329,7 +329,7 @@ impl Value {
         }
         return Err(ERR_UNDEFINED_OP);
     }
-    pub fn div(&mut self, other: &mut Value) -> Value {
+    pub fn div(&self, other: &Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Number(NumberValue {
@@ -339,7 +339,7 @@ impl Value {
         }
         panic!("Not implemented");
     }
-    pub fn pow(&mut self, other: &mut Value) -> Value {
+    pub fn pow(&self, other: &Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Number(NumberValue {
@@ -349,7 +349,7 @@ impl Value {
         }
         panic!("Not implemented");
     }
-    pub fn modulo(&mut self, other: &mut Value) -> Value {
+    pub fn modulo(&self, other: &Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Number(NumberValue {
@@ -359,7 +359,7 @@ impl Value {
         }
         panic!("Not implemented");
     }
-    pub fn lt(&mut self, other: &mut Value) -> Value {
+    pub fn lt(&self, other: &Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Bool(BoolValue {
@@ -370,13 +370,13 @@ impl Value {
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
                 return Value::Bool(BoolValue {
-                    b: str_val.s < other_val.s,
+                    b: str_val.0.borrow().s < other_val.0.borrow().s,
                 });
             }
         }
         panic!("Not implemented");
     }
-    pub fn lte(&mut self, other: &mut Value) -> Result<Value, RuntimeErr> {
+    pub fn lte(&self, other: &Value) -> Result<Value, RuntimeErr> {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Ok(Value::Bool(BoolValue {
@@ -387,13 +387,13 @@ impl Value {
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
                 return Ok(Value::Bool(BoolValue {
-                    b: str_val.s <= other_val.s,
+                    b: str_val.0.borrow().s <= other_val.0.borrow().s,
                 }));
             }
         }
         return Err(ERR_UNDEFINED_OP);
     }
-    pub fn gt(&mut self, other: &mut Value) -> Value {
+    pub fn gt(&self, other: &Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Bool(BoolValue {
@@ -404,13 +404,13 @@ impl Value {
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
                 return Value::Bool(BoolValue {
-                    b: str_val.s > other_val.s,
+                    b: str_val.0.borrow().s > other_val.0.borrow().s,
                 });
             }
         }
         panic!("Not implemented");
     }
-    pub fn gte(&mut self, other: &mut Value) -> Value {
+    pub fn gte(&self, other: &Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Bool(BoolValue {
@@ -421,13 +421,13 @@ impl Value {
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
                 return Value::Bool(BoolValue {
-                    b: str_val.s >= other_val.s,
+                    b: str_val.0.borrow().s >= other_val.0.borrow().s,
                 });
             }
         }
         panic!("Not implemented");
     }
-    pub fn equal(&mut self, other: &mut Value) -> Value {
+    pub fn equal(&self, other: &Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Bool(BoolValue {
@@ -438,7 +438,7 @@ impl Value {
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
                 return Value::Bool(BoolValue {
-                    b: str_val.s == other_val.s,
+                    b: str_val.0.borrow().s == other_val.0.borrow().s,
                 });
             }
         }
@@ -476,7 +476,7 @@ impl Value {
             _ => Value::Bool(BoolValue { b: false }),
         };
     }
-    pub fn nequal(&mut self, other: &mut Value) -> Value {
+    pub fn nequal(&self, other: &Value) -> Value {
         if let Value::Number(num_val) = self {
             if let Value::Number(other_val) = other {
                 return Value::Bool(BoolValue {
@@ -487,7 +487,7 @@ impl Value {
         if let Value::String(str_val) = self {
             if let Value::String(other_val) = other {
                 return Value::Bool(BoolValue {
-                    b: str_val.s != other_val.s,
+                    b: str_val.0.borrow().s != other_val.0.borrow().s,
                 });
             }
         }
@@ -525,7 +525,7 @@ impl Value {
             _ => Value::Bool(BoolValue { b: true }),
         };
     }
-    pub fn neg(&mut self) -> Result<Value, RuntimeErr> {
+    pub fn neg(&self) -> Result<Value, RuntimeErr> {
         if let Value::Number(num_val) = self {
             return Ok(Value::Number(NumberValue { n: -num_val.n }));
         }
@@ -540,7 +540,7 @@ impl Value {
         }
         return Err(ERR_UNDEFINED_OP);
     }
-    pub fn not(&mut self) -> Value {
+    pub fn not(&self) -> Value {
         return match self {
             Value::Bool(bool_val) => Value::Bool(BoolValue { b: !bool_val.b }),
             _ => Value::Bool(BoolValue { b: !truthy(self) }),
@@ -552,7 +552,7 @@ pub fn truthy(val: &Value) -> bool {
     match val {
         Value::Number(val) => val.n != 0.0,
         Value::Bool(val) => val.b,
-        Value::String(val) => !val.s.is_empty(),
+        Value::String(val) => !val.0.borrow().s.is_empty(),
         Value::Nil => false,
         _ => true,
     }
@@ -593,7 +593,7 @@ impl FnValue {
 pub struct StringValue {
     pub s: String,
     pub length: Option<usize>,
-    pub is_ascii: Option<bool>,
+    pub chars: Option<Vec<char>>,
 }
 
 impl StringValue {
@@ -601,7 +601,7 @@ impl StringValue {
         StringValue {
             s: s,
             length: None,
-            is_ascii: None,
+            chars: None,
         }
     }
 
@@ -612,22 +612,24 @@ impl StringValue {
         self.length.unwrap()
     }
 
+    fn prepare_chars(&mut self) {
+        if self.chars.is_none() {
+            self.chars = Some(self.s.chars().collect());
+        }
+        if self.length.is_none() {
+            self.length = Some(self.chars.as_ref().unwrap().len());
+        }
+    }
+
     pub fn get_char(&mut self, index: usize) -> Result<Value, RuntimeErr> {
-        if index >= self.get_length() {
+        self.prepare_chars();
+        let chars = self.chars.as_ref().unwrap();
+        if index >= chars.len() {
             return Err(ERR_EXPECTED_INDEX);
         }
-        if self.is_ascii.is_none() {
-            self.is_ascii = Some(self.s.is_ascii());
-        }
-        if self.is_ascii.unwrap() {
-            Ok(Value::String(StringValue::new(
-                self.s[index..index + 1].to_string(),
-            )))
-        } else {
-            Ok(Value::String(StringValue::new(
-                self.s.chars().nth(index).unwrap().to_string(),
-            )))
-        }
+        Ok(Value::String(MutValue::new(StringValue::new(
+            chars[index].to_string(),
+        ))))
     }
 
     pub fn access(&mut self, accesor: Value) -> Result<Value, RuntimeErr> {
@@ -639,19 +641,27 @@ impl StringValue {
                 self.get_char(val.n as usize)
             },
             Value::Slice(val) => {
-                let mut result_str = "".to_string();
+                self.prepare_chars();
+                let chars = self.chars.as_ref().unwrap();
+                let len = chars.len();
+                let mut result_str = String::new();
+                
                 match val.as_range() {
                     Ok((range, step)) => {
-                        if step > self.get_length() {
-                            return Ok(Value::String(StringValue::new(result_str)));
+                        if step > len {
+                            return Ok(Value::String(MutValue::new(StringValue::new(result_str))));
                         }
+                        // Optimization: Pre-allocate if possible
+                        let size_hint = (range.end.min(len).saturating_sub(range.start) + step - 1) / step;
+                        result_str.reserve(size_hint);
+
                         for i in range.step_by(step) {
-                            if i >= self.get_length() {
+                            if i >= len {
                                 break;
                             }
-                            result_str.push_str(self.get_char(i)?.string().as_str());
+                            result_str.push(chars[i]);
                         }
-                        Ok(Value::String(StringValue::new(result_str)))
+                        Ok(Value::String(MutValue::new(StringValue::new(result_str))))
                     }
                     Err(e) => Err(e),
                 }
@@ -830,15 +840,15 @@ pub struct BytesValue {
 impl BytesValue {
     pub fn access(&self, accesor: Value) -> Result<Value, RuntimeErr> {
         match accesor {
-            Value::Number(val) => Ok(Value::Bytes(BytesValue {
+            Value::Number(val) => Ok(Value::Bytes(Rc::new(BytesValue {
                 s: vec![self.s[val.n as usize]],
-            })),
+            }))),
             Value::Slice(val) => {
                 let mut result_bytes: Vec<u8> = vec![];
                 match val.as_range() {
                     Ok((range, step)) => {
                         if step > self.s.len() {
-                            return Ok(Value::Bytes(BytesValue { s: result_bytes }));
+                            return Ok(Value::Bytes(Rc::new(BytesValue { s: result_bytes })));
                         }
                         for i in range.step_by(step) {
                             if i >= self.s.len() {
@@ -846,7 +856,7 @@ impl BytesValue {
                             }
                             result_bytes.push(self.s[i]);
                         }
-                        Ok(Value::Bytes(BytesValue { s: result_bytes }))
+                        Ok(Value::Bytes(Rc::new(BytesValue { s: result_bytes })))
                     }
                     Err(e) => Err(e),
                 }

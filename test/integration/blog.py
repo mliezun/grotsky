@@ -29,10 +29,24 @@ class TestBlogIntegration(unittest.TestCase):
         logger.info(f"Created temporary directory: {self.temp_dir}")
         
         self.blog_repo_path = os.path.join(self.temp_dir, "mliezun.github.io")
-        self.grotsky_binary = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "target", "release", "grotsky-rs"
-        )
+        
+        # Check environment variable first
+        if "GROTSKY_BINARY" in os.environ:
+            self.grotsky_binary = os.environ["GROTSKY_BINARY"]
+        else:
+            # Fallback to build directory (where Makefile copies it)
+            build_path = os.path.abspath(os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                "build", "grotsky-rs"
+            ))
+            if os.path.exists(build_path):
+                self.grotsky_binary = build_path
+            else:
+                # Fallback to target/release
+                self.grotsky_binary = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                    "target", "release", "grotsky-rs"
+                )
         
         logger.info(f"Blog repo will be cloned to: {self.blog_repo_path}")
         logger.info(f"Grotsky binary path: {self.grotsky_binary}")
@@ -107,7 +121,9 @@ class TestBlogIntegration(unittest.TestCase):
         env = os.environ.copy()
         env["RUST_BACKTRACE"] = "full"
         env["GROTKSY_DEBUG"] = "1"
-        env["LLVM_PROFILE_FILE"] = "grotsky-%p-%m.profraw"
+        # Use absolute path for profile file to ensure it's written to project root
+        # instead of the temporary directory which gets deleted
+        env["LLVM_PROFILE_FILE"] = os.path.abspath("grotsky-%p-%m.profraw")
         
         try:
             result = subprocess.run(

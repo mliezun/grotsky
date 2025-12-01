@@ -13,6 +13,11 @@ mod token;
 mod value;
 mod vm;
 
+#[cfg(feature = "profile")]
+use pprof::protos::Message;
+#[cfg(feature = "profile")]
+use std::io::Write;
+
 use std::{fs::{canonicalize, read, write}, process::exit};
 
 use std::{env, panic};
@@ -28,6 +33,14 @@ fn main() {
         embed::execute_embedded();
         return;
     }
+
+    #[cfg(feature = "profile")]
+    let guard = if env::var("GROTSKY_PROFILE").unwrap_or("0".to_string()) == "1" {
+        Some(pprof::ProfilerGuard::new(100).unwrap())
+    } else {
+        None
+    };
+
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         println!("{}", GENERAL_USAGE);
@@ -76,5 +89,34 @@ fn main() {
         interpreter::run_bytecode_interpreter(
             String::from_utf8(content).expect("Invalid input file"),
         );
+    }
+
+    #[cfg(feature = "profile")]
+    if let Some(report) = guard {
+        if let Ok(report) = report.report().build() {
+            let output_path = env::var("GROTSKY_PROFILE_OUTPUT").unwrap_or(".".to_string());
+            let output_path = std::path::Path::new(&output_path);
+
+            let flamegraph_path = if output_path.is_dir() {
+                output_path.join("flamegraph.svg")
+            } else {
+                output_path.with_extension("svg")
+            };
+            
+            let profile_path = if output_path.is_dir() {
+                output_path.join("profile.pb")
+            } else {
+                output_path.with_extension("pb")
+            };
+
+            let file = std::fs::File::create(flamegraph_path).unwrap();
+            report.flamegraph(file).unwrap();
+            
+            let mut file = std::fs::File::create(profile_path).unwrap();
+            let profile = report.pprof().unwrap();
+            let mut content = Vec::new();
+            profile.write_to_vec(&mut content).unwrap();
+            file.write_all(&content).unwrap();
+        }
     }
 }

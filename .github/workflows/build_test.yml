@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
   test_integration:
@@ -26,8 +29,8 @@ jobs:
       - name: Test
         run: make test_integration
 
-  test_rust:
-    name: Test Rust version
+  test_grotsky:
+    name: Test Grotsky
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -41,5 +44,11 @@ jobs:
       - name: Install deps
         run: sudo apt-get install make
 
-      - name: Test
+      - name: Test basic functionality
         run: make test_grotsky-rs
+      - name: Test coverage
+        run: make run_coverage_tests
+      - name: Test embed
+        run: make run_embed_test
+      - name: Test network
+        run: make run_net_test

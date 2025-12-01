@@ -6,13 +6,33 @@ clean:
 
 
 benchmark_loop: grotsky grotsky-rs
-	python3 tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs loop 
+	python3 tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs loop 100
 
 benchmark_fib: grotsky grotsky-rs
-	python3 tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs fib
+	python3 tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs fib 100
 
 benchmark_objects: grotsky grotsky-rs
-	python3 tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs objects
+	python3 tool/benchmark.py $(BUILD_DIR)/grotsky $(BUILD_DIR)/grotsky-rs objects 100
+
+profile_loop: grotsky
+	@ cargo build --release --features profile
+	@ cp target/release/grotsky-rs build/grotsky-rs
+	@ GROTSKY_PROFILE=1 python3 tool/benchmark.py $(BUILD_DIR)/grotsky-rs loop
+
+profile_fib: grotsky
+	@ cargo build --release --features profile
+	@ cp target/release/grotsky-rs build/grotsky-rs
+	@ GROTSKY_PROFILE=1 python3 tool/benchmark.py $(BUILD_DIR)/grotsky-rs fib
+
+profile_objects: grotsky
+	@ cargo build --release --features profile
+	@ cp target/release/grotsky-rs build/grotsky-rs
+	@ GROTSKY_PROFILE=1 python3 tool/benchmark.py $(BUILD_DIR)/grotsky-rs objects
+
+profile_integration:
+	@ cargo build --release --features profile
+	@ cp target/release/grotsky-rs build/grotsky-rs
+	@ GROTSKY_PROFILE=1 GROTSKY_PROFILE_OUTPUT=$(shell pwd) python3 test/integration/blog.py
 
 test_grotsky: grotsky
 	@ cd archive && go test -v ./... -interpreter Go

@@ -54,7 +54,7 @@ impl IO {
                 signal: None,
             });
         }
-        return Ok(Value::String(StringValue::new(line_unwrapped.unwrap())));
+        return Ok(Value::String(MutValue::new(StringValue::new(line_unwrapped.unwrap()))));
     }
 
     fn clock(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -79,12 +79,12 @@ impl IO {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        match fs::read_to_string(string_value.s.as_str()) {
-            Ok(content) => Ok(Value::String(StringValue::new(content))),
+        match fs::read_to_string(string_value.0.borrow().s.as_str()) {
+            Ok(content) => Ok(Value::String(MutValue::new(StringValue::new(content)))),
             Err(e) => {
                 if let std::io::ErrorKind::InvalidData = e.kind() {
-                    match fs::read(string_value.s.as_str()) {
-                        Ok(c) => Ok(Value::Bytes(BytesValue { s: c })),
+                    match fs::read(string_value.0.borrow().s.as_str()) {
+                        Ok(c) => Ok(Value::Bytes(Rc::new(BytesValue { s: c }))),
                         Err(_) => Err(RuntimeErr {
                             msg: "Cannot read file",
                             signal: None,
@@ -111,13 +111,13 @@ impl IO {
             }
         };
         let content = match &values[1] {
-            Value::String(s) => s.s.as_bytes(),
-            Value::Bytes(s) => &s.s,
+            Value::String(s) => s.0.borrow().s.as_bytes().to_vec(),
+            Value::Bytes(s) => s.s.clone(),
             _ => {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        match fs::write(path.s.as_str(), content) {
+        match fs::write(path.0.borrow().s.as_str(), &content) {
             Ok(_) => Ok(Value::Nil),
             Err(_) => Err(RuntimeErr {
                 msg: "Cannot write file",
@@ -136,7 +136,7 @@ impl IO {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        match fs::read_dir(path.s.as_str()) {
+        match fs::read_dir(path.0.borrow().s.as_str()) {
             Ok(content) => {
                 let mut list = ListValue { elements: vec![] };
                 for d in content {
@@ -145,17 +145,17 @@ impl IO {
                     let file_metadata = file.metadata().unwrap();
                     let file_name = file.file_name().into_string().unwrap();
                     dict.insert(
-                        Value::String(StringValue::new("name".to_string())),
-                        Value::String(StringValue::new(file_name)),
+                        Value::String(MutValue::new(StringValue::new("name".to_string()))),
+                        Value::String(MutValue::new(StringValue::new(file_name))),
                     );
                     dict.insert(
-                        Value::String(StringValue::new("size".to_string())),
+                        Value::String(MutValue::new(StringValue::new("size".to_string()))),
                         Value::Number(NumberValue {
                             n: file_metadata.len() as f64,
                         }),
                     );
                     dict.insert(
-                        Value::String(StringValue::new("is_dir".to_string())),
+                        Value::String(MutValue::new(StringValue::new("is_dir".to_string()))),
                         Value::Bool(BoolValue {
                             b: file_metadata.is_dir(),
                         }),
@@ -182,7 +182,7 @@ impl IO {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        match fs::metadata(&path.s) {
+        match fs::metadata(&path.0.borrow().s) {
             Ok(_) => Ok(Value::Bool(BoolValue { b: true })),
             Err(_) => Ok(Value::Bool(BoolValue { b: false })),
         }
@@ -204,7 +204,7 @@ impl IO {
                 return Err(ERR_EXPECTED_NUMBER);
             }
         };
-        match fs::create_dir_all(&path.s) {
+        match fs::create_dir_all(&path.0.borrow().s) {
             Ok(_) => Ok(Value::Nil),
             Err(_) => Err(RuntimeErr {
                 msg: "Cannot create file",
@@ -220,54 +220,54 @@ impl IO {
             bind: false,
             baggage: None,
         };
-        let println = NativeValue {
+        let println = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&IO::println),
             bind: false,
             baggage: None,
-        };
-        let readln = NativeValue {
+        });
+        let readln = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&IO::readln),
             bind: false,
             baggage: None,
-        };
-        let clock = NativeValue {
+        });
+        let clock = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&IO::clock),
             bind: false,
             baggage: None,
-        };
-        let read_file = NativeValue {
+        });
+        let read_file = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&IO::read_file),
             bind: false,
             baggage: None,
-        };
-        let write_file = NativeValue {
+        });
+        let write_file = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&IO::write_file),
             bind: false,
             baggage: None,
-        };
-        let list_dir = NativeValue {
+        });
+        let list_dir = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&IO::list_dir),
             bind: false,
             baggage: None,
-        };
-        let file_exists = NativeValue {
+        });
+        let file_exists = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&IO::file_exists),
             bind: false,
             baggage: None,
-        };
-        let mkdir_all = NativeValue {
+        });
+        let mkdir_all = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&IO::mkdir_all),
             bind: false,
             baggage: None,
-        };
+        });
         io.props
             .insert("println".to_string(), Value::Native(println));
         io.props
@@ -300,8 +300,8 @@ impl Strings {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        let result = string_value.s.to_lowercase();
-        return Ok(Value::String(StringValue::new(result)));
+        let result = string_value.0.borrow().s.to_lowercase();
+        return Ok(Value::String(MutValue::new(StringValue::new(result))));
     }
 
     pub fn to_upper(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -314,8 +314,8 @@ impl Strings {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        let result = string_value.s.to_uppercase();
-        return Ok(Value::String(StringValue::new(result)));
+        let result = string_value.0.borrow().s.to_uppercase();
+        return Ok(Value::String(MutValue::new(StringValue::new(result))));
     }
 
     pub fn ord(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -328,7 +328,7 @@ impl Strings {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        let result = string_value.s.as_bytes()[0];
+        let result = string_value.0.borrow().s.as_bytes()[0];
         return Ok(Value::Number(NumberValue { n: result as f64 }));
     }
 
@@ -342,9 +342,9 @@ impl Strings {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        return Ok(Value::String(StringValue::new(
+        return Ok(Value::String(MutValue::new(StringValue::new(
             unsafe { String::from_utf8_unchecked(vec![number_value.n as u8]) },
-        )));
+        ))));
     }
 
     pub fn as_number(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -357,7 +357,7 @@ impl Strings {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        match string_value.s.parse::<f64>() {
+        match string_value.0.borrow().s.parse::<f64>() {
             Ok(n) => Ok(Value::Number(NumberValue { n })),
             Err(_) => Ok(Value::Nil),
         }
@@ -380,9 +380,9 @@ impl Strings {
             }
         };
         let result = str
-            .s
-            .split(sep.s.as_str())
-            .map(|s| Value::String(StringValue::new(s.to_string())))
+            .0.borrow().s
+            .split(sep.0.borrow().s.as_str())
+            .map(|s| Value::String(MutValue::new(StringValue::new(s.to_string()))))
             .collect::<Vec<Value>>();
         return Ok(Value::List(MutValue::new(ListValue { elements: result })));
     }
@@ -403,7 +403,7 @@ impl Strings {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        let result = match str1.s.cmp(&str2.s) {
+        let result = match str1.0.borrow().s.cmp(&str2.0.borrow().s) {
             Ordering::Less => Ok(Value::Number(NumberValue { n: -1.0 })),
             Ordering::Equal => Ok(Value::Number(NumberValue { n: 0.0 })),
             Ordering::Greater => Ok(Value::Number(NumberValue { n: 1.0 })),
@@ -418,48 +418,48 @@ impl Strings {
             bind: false,
             baggage: None,
         };
-        let to_lower = NativeValue {
+        let to_lower = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::to_lower),
             bind: false,
             baggage: None,
-        };
-        let to_upper = NativeValue {
+        });
+        let to_upper = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::to_upper),
             bind: false,
             baggage: None,
-        };
-        let ord = NativeValue {
+        });
+        let ord = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::ord),
             bind: false,
             baggage: None,
-        };
-        let chr = NativeValue {
+        });
+        let chr = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::chr),
             bind: false,
             baggage: None,
-        };
-        let as_number = NativeValue {
+        });
+        let as_number = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::as_number),
             bind: false,
             baggage: None,
-        };
-        let split = NativeValue {
+        });
+        let split = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::split),
             bind: false,
             baggage: None,
-        };
-        let compare = NativeValue {
+        });
+        let compare = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&Strings::compare),
             bind: false,
             baggage: None,
-        };
+        });
         strings
             .props
             .insert("toLower".to_string(), Value::Native(to_lower));
@@ -489,18 +489,18 @@ impl Type {
             return Err(ERR_INVALID_NUMBER_ARGUMENTS);
         }
         match values[0] {
-            Value::Class(_) => Ok(Value::String(StringValue::new("class".to_string()))),
-            Value::Object(_) => Ok(Value::String(StringValue::new("object".to_string()))),
-            Value::Dict(_) => Ok(Value::String(StringValue::new("dict".to_string()))),
-            Value::List(_) => Ok(Value::String(StringValue::new("list".to_string()))),
-            Value::Fn(_) => Ok(Value::String(StringValue::new("function".to_string()))),
-            Value::Native(_) => Ok(Value::String(StringValue::new("native".to_string()))),
-            Value::Number(_) => Ok(Value::String(StringValue::new("number".to_string()))),
-            Value::String(_) => Ok(Value::String(StringValue::new("string".to_string()))),
-            Value::Bytes(_) => Ok(Value::String(StringValue::new("bytes".to_string()))),
-            Value::Bool(_) => Ok(Value::String(StringValue::new("bool".to_string()))),
-            Value::Slice(_) => Ok(Value::String(StringValue::new("slice".to_string()))),
-            Value::Nil => Ok(Value::String(StringValue::new("nil".to_string()))),
+            Value::Class(_) => Ok(Value::String(MutValue::new(StringValue::new("class".to_string())))),
+            Value::Object(_) => Ok(Value::String(MutValue::new(StringValue::new("object".to_string())))),
+            Value::Dict(_) => Ok(Value::String(MutValue::new(StringValue::new("dict".to_string())))),
+            Value::List(_) => Ok(Value::String(MutValue::new(StringValue::new("list".to_string())))),
+            Value::Fn(_) => Ok(Value::String(MutValue::new(StringValue::new("function".to_string())))),
+            Value::Native(_) => Ok(Value::String(MutValue::new(StringValue::new("native".to_string())))),
+            Value::Number(_) => Ok(Value::String(MutValue::new(StringValue::new("number".to_string())))),
+            Value::String(_) => Ok(Value::String(MutValue::new(StringValue::new("string".to_string())))),
+            Value::Bytes(_) => Ok(Value::String(MutValue::new(StringValue::new("bytes".to_string())))),
+            Value::Bool(_) => Ok(Value::String(MutValue::new(StringValue::new("bool".to_string())))),
+            Value::Slice(_) => Ok(Value::String(MutValue::new(StringValue::new("slice".to_string())))),
+            Value::Nil => Ok(Value::String(MutValue::new(StringValue::new("nil".to_string())))),
         }
     }
 
@@ -528,8 +528,8 @@ impl Env {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        let result = env::var(string_value.s.as_str()).unwrap_or("".to_string());
-        return Ok(Value::String(StringValue::new(result)));
+        let result = env::var(string_value.0.borrow().s.as_str()).unwrap_or("".to_string());
+        return Ok(Value::String(MutValue::new(StringValue::new(result))));
     }
 
     pub fn set(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -548,7 +548,7 @@ impl Env {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        env::set_var(env_var.s.as_str(), val.s.as_str());
+        env::set_var(env_var.0.borrow().s.as_str(), val.0.borrow().s.as_str());
         return Ok(Value::Nil);
     }
 
@@ -559,18 +559,18 @@ impl Env {
             bind: false,
             baggage: None,
         };
-        let get = NativeValue {
+        let get = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&Env::get),
             bind: false,
             baggage: None,
-        };
-        let set = NativeValue {
+        });
+        let set = Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&Env::set),
             bind: false,
             baggage: None,
-        };
+        });
         env_mod.props.insert("get".to_string(), Value::Native(get));
         env_mod.props.insert("set".to_string(), Value::Native(set));
         return env_mod;
@@ -591,15 +591,17 @@ impl Import {
             }
         };
         let current_abs_path = interpreter::get_absolute_path();
-        let path = Path::new(&string_value.s);
+        let s_ref = string_value.0.borrow();
+        let path = Path::new(&s_ref.s);
         let full_path = if path.is_absolute() {
-            string_value.s.clone()
+            s_ref.s.clone()
         } else {
             let mut path_buf_abs = canonicalize(&current_abs_path).unwrap();
             path_buf_abs.pop();
-            path_buf_abs.push(string_value.s.as_str());
+            path_buf_abs.push(s_ref.s.as_str());
             String::from(path_buf_abs.canonicalize().unwrap().to_string_lossy())
         };
+        drop(s_ref);
         let source = match fs::read_to_string(&full_path) {
             Ok(s) => s,
             Err(_) => {
@@ -610,12 +612,12 @@ impl Import {
             }
         };
         interpreter::set_absolute_path(full_path);
-        let result = Ok(Value::Native(NativeValue {
+        let result = Ok(Value::Native(Rc::new(NativeValue {
             props: interpreter::import_module(source),
             callable: None,
             bind: false,
             baggage: None,
-        }));
+        })));
         interpreter::set_absolute_path(current_abs_path);
         return result;
     }
@@ -650,7 +652,7 @@ impl Net {
                 socket.peer_addr().unwrap().as_socket().unwrap().to_string()
             }
         };
-        return Ok(Value::String(StringValue::new(address_str)));
+        return Ok(Value::String(MutValue::new(StringValue::new(address_str))));
     }
 
     fn conn_read(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -672,9 +674,9 @@ impl Net {
             }
         };
         let read_from_connection = &buf[0..size];
-        return Ok(Value::String(StringValue::new(
+        return Ok(Value::String(MutValue::new(StringValue::new(
             String::from_utf8(read_from_connection.to_vec()).expect("Read as string"),
-        )));
+        ))));
     }
 
     fn conn_write(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -688,8 +690,8 @@ impl Net {
             }
         };
         let content = match &values[1] {
-            Value::String(s) => s.s.as_bytes(),
-            Value::Bytes(s) => s.s.as_slice(),
+            Value::String(s) => s.0.borrow().s.as_bytes().to_vec(),
+            Value::Bytes(s) => s.s.clone(),
             _ => {
                 return Err(ERR_EXPECTED_STRING);
             }
@@ -697,7 +699,7 @@ impl Net {
         let baggage = native_value.baggage.as_ref().unwrap();
         match baggage.borrow_mut().deref_mut() {
             NativeBaggage::TcpSocket(socket) => {
-                socket.write_all(content).expect("Write to conn");
+                socket.write_all(&content).expect("Write to conn");
             }
         };
         return Ok(Value::Number(NumberValue {
@@ -724,7 +726,7 @@ impl Net {
                 .unwrap()
                 .to_string(),
         };
-        return Ok(Value::String(StringValue::new(address_str)));
+        return Ok(Value::String(MutValue::new(StringValue::new(address_str))));
     }
 
     fn close(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -776,44 +778,44 @@ impl Net {
                 };
                 conn_obj.props.insert(
                     "address".to_string(),
-                    Value::Native(NativeValue {
+                    Value::Native(Rc::new(NativeValue {
                         props: HashMap::new(),
                         callable: Some(&Self::conn_address),
                         bind: true,
                         baggage: baggage.clone(),
-                    }),
+                    })),
                 );
                 conn_obj.props.insert(
                     "close".to_string(),
-                    Value::Native(NativeValue {
+                    Value::Native(Rc::new(NativeValue {
                         props: HashMap::new(),
                         callable: Some(&Self::close),
                         bind: true,
                         baggage: baggage.clone(),
-                    }),
+                    })),
                 );
                 conn_obj.props.insert(
                     "read".to_string(),
-                    Value::Native(NativeValue {
+                    Value::Native(Rc::new(NativeValue {
                         props: HashMap::new(),
                         callable: Some(&Self::conn_read),
                         bind: true,
                         baggage: baggage.clone(),
-                    }),
+                    })),
                 );
                 conn_obj.props.insert(
                     "write".to_string(),
-                    Value::Native(NativeValue {
+                    Value::Native(Rc::new(NativeValue {
                         props: HashMap::new(),
                         callable: Some(&Self::conn_write),
                         bind: true,
                         baggage: baggage.clone(),
-                    }),
+                    })),
                 );
                 conn_obj
             }
         };
-        return Ok(Value::Native(conn));
+        return Ok(Value::Native(Rc::new(conn)));
     }
 
     fn listen_tcp(values: Vec<Value>) -> Result<Value, RuntimeErr> {
@@ -842,12 +844,12 @@ impl Net {
                 });
             }
         };
-        let bind_to_address = if string_value.s.starts_with(":") {
+        let bind_to_address = if string_value.0.borrow().s.starts_with(":") {
             let mut ip = "0.0.0.0".to_string();
-            ip.push_str(string_value.s.as_str());
+            ip.push_str(string_value.0.borrow().s.as_str());
             ip
         } else {
-            string_value.s.clone()
+            string_value.0.borrow().s.clone()
         };
         let mut address = bind_to_address.to_socket_addrs();
         let address = match &mut address {
@@ -880,32 +882,32 @@ impl Net {
         let baggage = Some(Rc::new(RefCell::new(NativeBaggage::TcpSocket(socket))));
         listen_tcp_module.props.insert(
             "address".to_string(),
-            Value::Native(NativeValue {
+            Value::Native(Rc::new(NativeValue {
                 props: HashMap::new(),
                 callable: Some(&Self::address),
                 bind: true,
                 baggage: baggage.clone(),
-            }),
+            })),
         );
         listen_tcp_module.props.insert(
             "close".to_string(),
-            Value::Native(NativeValue {
+            Value::Native(Rc::new(NativeValue {
                 props: HashMap::new(),
                 callable: Some(&Self::close),
                 bind: true,
                 baggage: baggage.clone(),
-            }),
+            })),
         );
         listen_tcp_module.props.insert(
             "accept".to_string(),
-            Value::Native(NativeValue {
+            Value::Native(Rc::new(NativeValue {
                 props: HashMap::new(),
                 callable: Some(&Self::accept),
                 bind: true,
                 baggage: baggage.clone(),
-            }),
+            })),
         );
-        return Ok(Value::Native(listen_tcp_module));
+        return Ok(Value::Native(Rc::new(listen_tcp_module)));
     }
 
     pub fn build() -> NativeValue {
@@ -917,12 +919,12 @@ impl Net {
         };
         net.props.insert(
             "listenTcp".to_string(),
-            Value::Native(NativeValue {
+            Value::Native(Rc::new(NativeValue {
                 props: HashMap::new(),
                 callable: Some(&Self::listen_tcp),
                 bind: false,
                 baggage: None,
-            }),
+            })),
         );
         return net;
     }
@@ -947,8 +949,8 @@ impl Re {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        let re = Regex::new(regex_value.s.as_str()).unwrap();
-        let result: Vec<Value> = re.find_iter(string_value.s.as_str()).map(|e| Value::String(StringValue::new(String::from(e.as_str())))).collect();
+        let re = Regex::new(regex_value.0.borrow().s.as_str()).unwrap();
+        let result: Vec<Value> = re.find_iter(string_value.0.borrow().s.as_str()).map(|e| Value::String(MutValue::new(StringValue::new(String::from(e.as_str()))))).collect();
         return Ok(Value::List(MutValue::new(ListValue{elements: result})));
     }
 
@@ -968,8 +970,8 @@ impl Re {
                 return Err(ERR_EXPECTED_STRING);
             }
         };
-        let re = Regex::new(regex_value.s.as_str()).unwrap();
-        Ok(Value::Bool(BoolValue { b: re.is_match(string_value.s.as_str()) }))
+        let re = Regex::new(regex_value.0.borrow().s.as_str()).unwrap();
+        Ok(Value::Bool(BoolValue { b: re.is_match(string_value.0.borrow().s.as_str()) }))
     }
 
     pub fn build() -> NativeValue {
@@ -979,18 +981,18 @@ impl Re {
             bind: false,
             baggage: None,
         };
-        re.props.insert("find".to_string(), Value::Native(NativeValue{
+        re.props.insert("find".to_string(), Value::Native(Rc::new(NativeValue{
             props: HashMap::new(),
             callable: Some(&Self::regex_find),
             bind: false,
             baggage: None,
-        }));
-        re.props.insert("match".to_string(), Value::Native(NativeValue{
+        })));
+        re.props.insert("match".to_string(), Value::Native(Rc::new(NativeValue{
             props: HashMap::new(),
             callable: Some(&Self::regex_match),
             bind: false,
             baggage: None,
-        }));
+        })));
         return re;
     }
 }
@@ -1010,7 +1012,7 @@ impl Process {
             argv.drain(0..1);
         }
         let argv_values = Value::List(MutValue::new(ListValue{
-            elements: argv.iter().map(|a| Value::String(StringValue::new(a.clone()))).collect(),
+            elements: argv.iter().map(|a| Value::String(MutValue::new(StringValue::new(a.clone())))).collect(),
         }));
         process.props.insert("argv".to_string(), argv_values);
         return process;
@@ -1058,18 +1060,18 @@ impl Lists {
             bind: false,
             baggage: None,
         };
-        list.props.insert("push".to_string(), Value::Native(NativeValue {
+        list.props.insert("push".to_string(), Value::Native(Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&Self::push),
             bind: false,
             baggage: None,
-        }));
-        list.props.insert("pop".to_string(), Value::Native(NativeValue {
+        })));
+        list.props.insert("pop".to_string(), Value::Native(Rc::new(NativeValue {
             props: HashMap::new(),
             callable: Some(&Self::pop),
             bind: false,
             baggage: None,
-        }));
+        })));
         return list;
     }
 }

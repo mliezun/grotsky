@@ -60,6 +60,7 @@ run_net_test: grotsky-rs
 	  python3 test/integration/net_test.py
 
 coverage: clean
+	@ rm -f *.profraw archive/*.profraw
 	@ cargo clean
 	@ mkdir -p $(BUILD_DIR)
 	@ export RUSTFLAGS="-C instrument-coverage" && \

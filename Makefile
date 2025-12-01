@@ -63,28 +63,21 @@ coverage: clean
 	@ rm -f *.profraw archive/*.profraw
 	@ cargo clean
 	@ mkdir -p $(BUILD_DIR)
-	@ export RUSTFLAGS="-C instrument-coverage" && \
-	  export DEBUG_BUILD=1 && \
-	  $(MAKE) grotsky-rs
+	# Build instrumented binary for integration tests
 	@ export RUSTFLAGS="-C instrument-coverage" && \
 	  export LLVM_PROFILE_FILE="grotsky-%p-%m.profraw" && \
-	  cargo test && \
+	  cargo build && cp target/debug/grotsky-rs build/
+	# Run all tests
+	@ export RUSTFLAGS="-C instrument-coverage" && \
+	  export LLVM_PROFILE_FILE="grotsky-%p-%m.profraw" && \
 	  $(MAKE) test_grotsky-rs && \
 	  $(MAKE) test_integration && \
 	  $(MAKE) run_coverage_tests && \
 	  $(MAKE) run_embed_test && \
 	  $(MAKE) run_net_test
+	# Generate report using cargo-llvm-cov
 	@ echo "Collecting coverage data..."
-	@ find . -name "*.profraw"
-	@ ls -l build/grotsky-rs target/debug/grotsky-rs || true
-	@ grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "target/*" --ignore "archive/*" --ignore "test/*" --keep-only "src/*" -o lcov.info
-	@ if [ -f lcov.info ]; then \
-		echo "Coverage report generated at lcov.info"; \
-		echo "Run 'python3 tool/analyze_coverage.py' to analyze it"; \
-	else \
-		echo "Error: Failed to generate lcov.info. Check that .profraw files exist."; \
-		exit 1; \
-	fi
+	@ cargo llvm-cov --no-clean --lcov --output-path lcov.info
 
 grotsky:
 	@ mkdir -p $(BUILD_DIR)

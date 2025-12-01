@@ -75,9 +75,9 @@ coverage: clean
 	  $(MAKE) run_coverage_tests && \
 	  $(MAKE) run_embed_test && \
 	  $(MAKE) run_net_test
-	# Generate report using cargo-llvm-cov
+	# Generate report using grcov
 	@ echo "Collecting coverage data..."
-	@ cargo llvm-cov --no-clean --lcov --output-path lcov.info
+	@ grcov . --binary-path target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" --ignore "test/**" --ignore "archive/**" --ignore "tool/**" --ignore "examples/**" -o lcov.info
 
 grotsky:
 	@ mkdir -p $(BUILD_DIR)

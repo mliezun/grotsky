@@ -18,8 +18,8 @@ jobs:
         with:
           components: llvm-tools-preview
 
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Install grcov
+        uses: taiki-e/install-action@grcov
 
       - name: Set up Go
         uses: actions/setup-go@v4

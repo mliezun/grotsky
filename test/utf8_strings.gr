@@ -1,0 +1,4 @@
+let middle_dot = "·"
+let em_dash = "—"
+io.println(middle_dot)
+io.println(em_dash)

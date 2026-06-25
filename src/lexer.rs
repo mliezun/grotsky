@@ -211,7 +211,7 @@ impl Lexer<'_> {
     }
 
     fn string(&mut self) {
-        let mut lit = "".to_string();
+        let mut lit = String::new();
         while !self.is_at_end() && !self.matches('"') {
             if self.matches('\n') {
                 self.line += 1;
@@ -219,7 +219,7 @@ impl Lexer<'_> {
             if self.matches('\\') {
                 self.advance();
                 let unescaped = self.unescape_sequence();
-                if unescaped == "".to_string() {
+                if unescaped.is_empty() {
                     self.state.set_error(InterpreterError {
                         message: "Closing \" was expected".to_string(),
                         line: self.line,
@@ -230,8 +230,13 @@ impl Lexer<'_> {
                 lit.push_str(&unescaped);
                 continue;
             }
-            lit.push(self.state.source.as_bytes()[self.current].into());
-            self.advance();
+            let ch = self.state.source[self.current..].chars().next();
+            if ch.is_none() {
+                break;
+            }
+            let ch = ch.unwrap();
+            lit.push(ch);
+            self.current += ch.len_utf8();
         }
 
         if self.is_at_end() {
